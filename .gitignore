@@ -1,0 +1,19 @@
+# Claude Code internal files (local settings, launch configs)
+.claude/
+
+# macOS / Windows system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Node (if added later)
+node_modules/
+
+# Vercel cache
+.vercel
