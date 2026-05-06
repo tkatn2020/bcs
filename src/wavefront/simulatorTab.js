@@ -70,11 +70,23 @@ export function mountSimulatorTab(root) {
 
   // ── Lens viewer (mount inside sim-lens-wrap, sized by container) ──
   const lensWrap = root.querySelector('#sim-lens-wrap');
-  // We sense the available width on first paint after the panel becomes visible
+  // We sense the available width AND height on first paint after the panel
+  // becomes visible — fitting both dimensions prevents the lens from being
+  // taller than its wrap (which on shorter viewports like iPad Pro 11"
+  // landscape would otherwise overflow upward and hide the Rx HUD).
   let dual = null;
   function buildLens() {
-    const w = Math.min(960, lensWrap.clientWidth - 8);
-    const h = Math.round(w * 0.56);  // 16:9-ish
+    const ASPECT = 0.56;  // h/w of the binocular lens viewer (~16:9)
+    const availW = lensWrap.clientWidth  - 8;
+    const availH = lensWrap.clientHeight - 8;
+    let w = Math.min(960, availW);
+    let h = w * ASPECT;
+    if (h > availH) {           // height-bound → scale down so it fits
+      h = availH;
+      w = h / ASPECT;
+    }
+    w = Math.max(200, Math.round(w));
+    h = Math.max(120, Math.round(h));
     if (lensWrap.firstChild) lensWrap.removeChild(lensWrap.firstChild);
     dual = createBinocularLenses(
       w, h,

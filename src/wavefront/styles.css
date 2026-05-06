@@ -397,12 +397,14 @@ input[type="range"]:focus { outline: none; }
    ============================================================ */
 .input-rx-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.7fr;
+  grid-template-columns: 1fr 1fr;
   gap: var(--gap);
   margin-bottom: var(--gap);
 }
 .input-rx-grid .rx-card-lg.add-card {
-  /* ADD card sits next to OS in the third column */
+  /* ADD card spans full width below OD/OS so its single input row has
+     plenty of horizontal space (avoids cramped layout on iPad Pro 11"). */
+  grid-column: 1 / -1;
 }
 
 .section-h-lg {
@@ -612,14 +614,16 @@ input[type="range"]:focus { outline: none; }
 .sim-stage {
   display: flex; flex-direction: column;
   background: #0b1220;
-  padding: 16px 20px;
-  gap: 12px;
+  padding: 10px 16px 12px;
+  gap: 8px;
   overflow: hidden;
+  min-height: 0;
 }
 .sim-hud {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 .hud-rx-row {
   display: flex;
@@ -628,7 +632,7 @@ input[type="range"]:focus { outline: none; }
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 4px 8px;
 }
 .hud-rx-tag {
   display: inline-flex;
