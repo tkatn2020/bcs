@@ -13,11 +13,12 @@ export function createRatioPanel(initialGeom, opts = {}) {
 
   const el = document.createElement('div');
   Object.assign(el.style, {
-    background: '#0f172a', borderRadius: '10px',
-    padding: compact ? '12px' : '16px',
+    background: 'linear-gradient(135deg, #0f172a 0%, #111d3a 100%)',
+    borderRadius: '12px',
+    padding: compact ? '12px' : '20px',
     fontFamily: 'ui-sans-serif, system-ui', color: '#fff',
-    boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
-    minHeight: compact ? '130px' : '170px',
+    boxShadow: '0 8px 28px rgba(0,0,0,0.32)',
+    minHeight: compact ? '130px' : '210px',
   });
 
   function render() {
@@ -43,46 +44,46 @@ export function createRatioPanel(initialGeom, opts = {}) {
       if (delta == null) return '';
       const cls = Math.abs(delta) < 0.5 ? '#94a3b8' : delta > 0 ? '#4ade80' : '#f87171';
       const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '';
-      return `<div style="font-size:9px;font-family:ui-monospace,monospace;color:${cls};min-width:30px;text-align:right">${arrow}${Math.abs(delta).toFixed(0)}</div>`;
+      return `<div style="font-size:11px;font-family:ui-monospace,monospace;color:${cls};min-width:34px;text-align:right;font-weight:700">${arrow}${Math.abs(delta).toFixed(0)}</div>`;
     };
 
     const rowsHtml = rows.map(r => {
       const delta = r.base != null ? r.pct - r.base : null;
       return `
         <div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-            <div style="width:7px;height:7px;border-radius:1px;background:${r.color}"></div>
-            <div style="font-size:11px;font-weight:600">${r.label}</div>
-            <div style="font-size:9px;color:#64748b;font-family:ui-monospace,monospace">${r.mm.toFixed(0)}mm</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:9px;height:9px;border-radius:2px;background:${r.color}"></div>
+            <div style="font-size:15px;font-weight:700;color:#e2e8f0">${r.label}</div>
+            <div style="font-size:11px;color:#64748b;font-family:ui-monospace,monospace">${r.mm.toFixed(0)}mm</div>
             <div style="flex:1"></div>
-            <div style="font-size:14px;font-weight:700;font-family:ui-monospace,monospace">
-              ${r.pct.toFixed(0)}<span style="font-size:9px;opacity:0.6">점</span>
+            <div style="font-size:24px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-0.02em">
+              ${r.pct.toFixed(0)}<span style="font-size:12px;opacity:0.55;font-weight:600;margin-left:1px">점</span>
             </div>
             ${deltaTag(delta)}
           </div>
-          <div style="height:6px;background:#1e293b;border-radius:3px;overflow:hidden">
-            <div style="width:${r.pct}%;height:100%;background:${r.color};transition:width 250ms"></div>
+          <div style="height:10px;background:#1e293b;border-radius:5px;overflow:hidden">
+            <div style="width:${r.pct}%;height:100%;background:${r.color};transition:width 250ms;box-shadow:0 0 8px ${r.color}80"></div>
           </div>
         </div>
       `;
     }).join('');
 
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08)">
         <div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:0.08em;color:#94a3b8;text-transform:uppercase">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#94a3b8;text-transform:uppercase">
             ${currentEyeLabel}
           </div>
-          <div style="font-size:11px;font-weight:600;margin-top:2px">Clear Vision Field</div>
+          <div style="font-size:14px;font-weight:700;margin-top:3px;color:#f1f5f9">Clear Vision Field</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:20px;font-weight:700;font-family:ui-monospace,monospace">
-            ${ratios.totalScore.toFixed(0)}<span style="font-size:11px;opacity:0.6"> / 100</span>
+          <div style="font-size:38px;font-weight:800;font-family:ui-monospace,monospace;line-height:1;letter-spacing:-0.03em;color:#fff">
+            ${ratios.totalScore.toFixed(0)}<span style="font-size:16px;opacity:0.55;font-weight:600;margin-left:2px"> / 100</span>
           </div>
-          <div style="font-size:8px;color:#94a3b8">선명도 지수</div>
+          <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:4px;letter-spacing:0.04em">선명도 지수</div>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px">${rowsHtml}</div>
+      <div style="display:flex;flex-direction:column;gap:14px">${rowsHtml}</div>
     `;
   }
 
@@ -105,8 +106,12 @@ export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
 
   const el = document.createElement('div');
   Object.assign(el.style, {
-    background: '#1e293b', borderRadius: '8px', padding: '10px 12px',
-    color: '#fff', fontFamily: 'ui-sans-serif, system-ui',
+    background: 'linear-gradient(135deg, #1e293b 0%, #243046 100%)',
+    borderRadius: '12px',
+    padding: '14px 16px',
+    color: '#fff',
+    fontFamily: 'ui-sans-serif, system-ui',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.20)',
   });
 
   function avg(a, b) { return (a + b) / 2; }
@@ -126,26 +131,26 @@ export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
     // of that third — so the eye reads "how much clarity in each zone".
     const seg = (score, color) => `
       <div style="flex:1;background:#0f172a;display:flex;align-items:stretch">
-        <div style="width:${score}%;background:${color};transition:width 250ms"></div>
+        <div style="width:${score}%;background:${color};transition:width 250ms;box-shadow:0 0 6px ${color}80"></div>
       </div>
     `;
 
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:0.08em;color:#94a3b8;text-transform:uppercase">OU 양안 평균</div>
-        <div style="font-family:ui-monospace,monospace;font-size:14px;font-weight:700">
-          ${ouScore.toFixed(0)}<span style="font-size:9px;opacity:0.6"> / 100</span>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;color:#cbd5e1;text-transform:uppercase">OU 양안 평균</div>
+        <div style="font-family:ui-monospace,monospace;font-size:26px;font-weight:800;letter-spacing:-0.02em">
+          ${ouScore.toFixed(0)}<span style="font-size:13px;opacity:0.55;font-weight:600;margin-left:2px"> / 100</span>
         </div>
       </div>
-      <div style="display:flex;height:10px;border-radius:3px;overflow:hidden;margin-bottom:6px;gap:2px">
+      <div style="display:flex;height:14px;border-radius:5px;overflow:hidden;margin-bottom:8px;gap:2px">
         ${seg(ouD, ZONE_COLORS.distance)}
         ${seg(ouI, ZONE_COLORS.intermediate)}
         ${seg(ouN, ZONE_COLORS.near)}
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;font-family:ui-monospace,monospace">
-        <span>원 ${ouD.toFixed(0)}</span>
-        <span>중 ${ouI.toFixed(0)}</span>
-        <span>근 ${ouN.toFixed(0)}</span>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;font-family:ui-monospace,monospace;font-weight:600">
+        <span>원 <strong style="color:#fff">${ouD.toFixed(0)}</strong></span>
+        <span>중 <strong style="color:#fff">${ouI.toFixed(0)}</strong></span>
+        <span>근 <strong style="color:#fff">${ouN.toFixed(0)}</strong></span>
         <span style="color:${gap > 5 ? '#fbbf24' : '#94a3b8'}">좌우격차 ${gap.toFixed(1)}점</span>
       </div>
     `;
