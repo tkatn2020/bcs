@@ -133,7 +133,12 @@ export function sampleUnwantedCyl(xMm, yMm, geom) {
   const ax = Math.abs(xLocal);
   const t = (ax - halfW) / geom.falloffMm;
   const ramp = clamp(t, 0, 1);
-  const vScale = clamp(0.05 + (yNorm + 0.3) * 0.85, 0.05, 1.0);
+  // Vertical scaling of progressive peripheral cyl. Floor raised from 0.05
+  // → 0.10 so the distance zone shows realistic Minkwitz residual for
+  // strong-Rx (esp. high-plus / high-cyl) wearers — without this, etched
+  // grade differences at distance were imperceptible because peripheral
+  // cyl never crossed the 0.40 D plateau-width threshold.
+  const vScale = clamp(0.05 + (yNorm + 0.3) * 0.85, 0.10, 1.0);
   const r = Math.hypot(xMm, yMm) / 22;
 
   // ── (a) Progressive peripheral cyl ──
@@ -188,11 +193,12 @@ const _ratiosCache = new Map();
 // high Rx. (See `clearPlateauWidth` below.)
 export const COMFORT_THRESHOLD_D = 0.40;
 
-// Reference plateau width (mm) — used to normalize the per-zone plateau
-// widths to a 0–100 sales score. ~26mm corresponds to a wide-design distance
-// zone at mild Rx; corridor plateaus typically fall to 30–60% of this, near
-// zone to 50–90%, matching real wearer experience.
-export const PLATEAU_REF_MM = 26;
+// Reference plateau widths (mm) — per-zone normalization to 0–100 score.
+// Distance uses the full lens width (~44mm) so high-Rx wearers see meaningful
+// grade differentiation at distance gaze (BP10 might be 36/44=82 while BP50
+// extends edge-to-edge at 100). Corridor/near use 26mm because their
+// plateaus rarely exceed it and 26 captures their typical 30–95% spread.
+export const PLATEAU_REF_MM = { distance: 44, intermediate: 26, near: 26 };
 
 // Canonical gaze heights (yMm in lens coords) used to sample the clear
 // plateau for each zone. Negative y = above optical center.
@@ -285,7 +291,7 @@ export function computeClearRatios(geom, threshold = CYL_CLEAR_THRESHOLD) {
   const distWidthMm = clearPlateauWidth(ZONE_GAZE_Y_MM.distance,     geom);
   const midWidthMm  = clearPlateauWidth(ZONE_GAZE_Y_MM.intermediate, geom);
   const nearWidthMm = clearPlateauWidth(ZONE_GAZE_Y_MM.near,         geom);
-  const widthToPct  = mm => Math.min(100, Math.round(mm / PLATEAU_REF_MM * 100));
+  const widthToPct  = (mm, zone) => Math.min(100, Math.round(mm / PLATEAU_REF_MM[zone] * 100));
 
   const result = {
     threshold,
@@ -309,9 +315,9 @@ export function computeClearRatios(geom, threshold = CYL_CLEAR_THRESHOLD) {
     distanceWidth:     distWidthMm,
     intermediateWidth: midWidthMm,
     nearWidth:         nearWidthMm,
-    distanceWidthPct:     widthToPct(distWidthMm),
-    intermediateWidthPct: widthToPct(midWidthMm),
-    nearWidthPct:         widthToPct(nearWidthMm),
+    distanceWidthPct:     widthToPct(distWidthMm, 'distance'),
+    intermediateWidthPct: widthToPct(midWidthMm,  'intermediate'),
+    nearWidthPct:         widthToPct(nearWidthMm, 'near'),
   };
   if (_ratiosCache.size > 500) _ratiosCache.clear();
   _ratiosCache.set(key, result);
