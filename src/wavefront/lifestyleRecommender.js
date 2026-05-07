@@ -107,7 +107,16 @@ export function computeRecommendation(s) {
   // center never lands on the entry tier (BP10 → too cheap to recommend)
   // or the top tier (BP50 → upgrade option, not default). The clamped id
   // determines which 3 consecutive grades are displayed.
-  const sufficientId = Math.max(SUFFICIENT_MIN_ID, Math.min(SUFFICIENT_MAX_ID, rawSufficient.gradeId));
+  const baseSufficientId = Math.max(SUFFICIENT_MIN_ID, Math.min(SUFFICIENT_MAX_ID, rawSufficient.gradeId));
+  // Asymmetric Rx (좌우격차 > 5점) → adaptation is harder, so promote the
+  // displayed 충분 by one tier. The OLD 최상 effectively takes the new 충분
+  // slot, the OLD 충분 becomes the new 최소, and 최상 shifts to a higher
+  // grade. Encourages a smoother (premium) lens design that better
+  // tolerates the OD/OS difference.
+  const isAsymmetric = best.gap > 5;
+  const sufficientId = isAsymmetric
+    ? Math.min(SUFFICIENT_MAX_ID, baseSufficientId + 1)
+    : baseSufficientId;
   // "Re-check Rx" warning only fires when even the BEST grade falls below
   // the lower threshold — true clinical concern, not just I-heavy profile.
   const needsRxRecheck = best.fit < FIT_RETHINK_RX;
@@ -132,30 +141,32 @@ export function computeRecommendation(s) {
     sufficient,        // kept for rationale + recommended highlight
     best,
     needsRxRecheck,
+    isAsymmetric,
     weights: W,
     auxRecommended,
     auxNote: auxRecommended ? {
       headline: `BP50으로도 중간거리 폭이 ${Math.round(best.breakdown.I)}점 수준입니다`,
       detail: '사무실 전용 오피스 렌즈 또는 중간거리 단초점 병용 검토 권장.',
     } : null,
-    rationale: rationaleText(W, tiers, sufficient, s, needsRxRecheck),
+    rationale: rationaleText(W, sufficient, s, needsRxRecheck, isAsymmetric, best.gap),
     gap: best.gap,
   };
 }
 
-// One-line sales headline + clinical breakdown.
+// One-line headline + clinical breakdown.
 //
-// The headline pitch grade for "premium / corridor-emphasized" cases
-// (multi-monitor, near-dominant, intermediate-dominant, balanced) is
-// **one tier above the displayed 최상 card** rather than the raw `best`
-// (which is always BP50 because BP50 has the highest fit). Reasoning:
-//   • 최상 in the cards is the highest grade the customer is currently
-//     looking at (e.g. BP30 when window is BP10/BP20/BP30).
-//   • Saying "BP50이 적합" when BP50 isn't even on screen feels like a
-//     hidden upsell. Saying "BP40 검토 권장" (one above what they see)
-//     reads as a transparent next-step suggestion.
-//   • If 최상 is already BP50, the headline naturally points to BP50.
-function rationaleText(W, tiers, sufficient, s, needsRxRecheck) {
+// The headline now describes the USE PROFILE (no specific grade pitch),
+// because the 3-tier cards already do the recommending. Mentioning a grade
+// HIGHER than the displayed 최상 in the headline created a contradiction
+// ("you're shown BP10/BP20/BP30 but BP40 is suggested?") and felt like a
+// hidden upsell. Cards = grade selection. Headline = environment context.
+//
+// Exception: the driving-centric headline still references the displayed
+// 충분 since it ALIGNS with what's highlighted (no contradiction).
+//
+// Asymmetric note: when 좌우격차 > 5점 the recommended tier was already
+// promoted by 1 step in the main computation; clinical line explains why.
+function rationaleText(W, sufficient, s, needsRxRecheck, isAsymmetric, gap) {
   const pct = (v) => Math.round(v * 100);
   const max = Math.max(W.d, W.i, W.n);
   let dominant;
@@ -163,29 +174,28 @@ function rationaleText(W, tiers, sufficient, s, needsRxRecheck) {
   else if (W.i === max) dominant = 'intermediate';
   else dominant = 'near';
 
-  // One tier above the displayed 최상 (clamped to BP50). When 최상 is
-  // already BP50, headlineBp == 최상Bp == BP50.
-  const topTierId = tiers[tiers.length - 1].gradeId;
-  const headlineBp = getGrade(Math.min(5, topTierId + 1)).bpCode;
-
   let headline;
   if (needsRxRecheck) {
     headline = '도수가 강해 모든 등급에서 만족도가 낮을 수 있습니다 — 처방 또는 누진대 길이 재검토 권장';
   } else if (s.lifestyle.monitor >= 2) {
-    headline = `다중 모니터 환경 — corridor가 넓은 ${headlineBp} 권장`;
+    headline = '다중 모니터 환경 — 넓은 corridor 폭이 핵심';
   } else if (dominant === 'distance' && W.d > 0.7) {
-    // Driving-centric profile keeps the 충분 grade since it's already in-view.
+    // Driving-centric profile aligns with the displayed 충분 — no conflict.
     headline = `주로 운전·원거리 — ${getGrade(sufficient.gradeId).bpCode}으로 충분`;
   } else if (dominant === 'near' && W.n > 0.7) {
-    headline = `근거리 작업 위주 — 넓은 근용 시야의 ${headlineBp} 권장`;
+    headline = '근거리 작업이 많은 환경 — 넓은 근용 시야가 중요';
   } else if (dominant === 'intermediate') {
-    headline = `중간거리 사용이 많아 ${headlineBp}이 적합`;
+    headline = '중간거리 사용이 많은 환경 — corridor 폭이 중요';
   } else {
-    headline = `다양한 거리 사용 — 균형잡힌 ${headlineBp} 권장`;
+    headline = '다양한 거리를 고루 사용하는 환경';
   }
 
-  // Clinical breakdown
-  const clinical = `중간 ${pct(W.i)}% · 근거리 ${pct(W.n)}% · 원거리 ${pct(W.d)}% 가중`;
+  // Clinical breakdown + asymmetric note
+  const weightsText = `중간 ${pct(W.i)}% · 근거리 ${pct(W.n)}% · 원거리 ${pct(W.d)}% 가중`;
+  const gapNote = isAsymmetric
+    ? ` · 좌우격차 ${gap.toFixed(1)}점 — 안정 적응을 위해 한 단계 위 등급 추천`
+    : '';
+  const clinical = weightsText + gapNote;
 
   return { headline, clinical };
 }
@@ -330,7 +340,9 @@ function renderResult(root, rec, currentGradeId) {
     </div>
   ` : '';
 
-  const gapWarn = rec.gap > 5 ? ` · 좌우격차 ${rec.gap.toFixed(1)}점` : '';
+  // Asymmetric note now lives inside rec.rationale.clinical (rendered with
+  // a softer color via .rationale-clinical). The card window itself is
+  // already shifted up by 1 tier when isAsymmetric is true.
 
   root.innerHTML = `
     <div class="lifestyle-result-h">▼ 추천 결과</div>
@@ -338,7 +350,7 @@ function renderResult(root, rec, currentGradeId) {
     ${auxHtml}
     <div class="lifestyle-rationale">
       <div class="rationale-headline">${rec.rationale.headline}</div>
-      <div class="rationale-clinical">${rec.rationale.clinical}${gapWarn}</div>
+      <div class="rationale-clinical">${rec.rationale.clinical}</div>
     </div>
   `;
 }
