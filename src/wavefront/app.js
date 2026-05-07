@@ -5,6 +5,7 @@ import { mountHeader } from './header.js';
 import { mountSimulatorTab } from './simulatorTab.js';
 import { mountCompareSection } from './compareSection.js';
 import { mountSettingsModal } from './settingsModal.js';
+import { mountDetailModal } from './detailModal.js';
 
 mountHeader(document.getElementById('topbar'));
 mountTabbar(document.getElementById('tabbar'));
@@ -13,6 +14,7 @@ mountSimulatorTab(document.getElementById('tab-simulator'));
 mountCompareSection(document.getElementById('tab-compare'));
 
 mountSettingsModal(document.getElementById('settings-modal'));
+mountDetailModal(document.getElementById('detail-modal'));
 
 // Block double-tap zoom on iPad
 let lastTouch = 0;

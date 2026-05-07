@@ -138,35 +138,50 @@ export function computeRecommendation(s) {
       headline: `BP50으로도 중간거리 폭이 ${Math.round(best.breakdown.I)}점 수준입니다`,
       detail: '사무실 전용 오피스 렌즈 또는 중간거리 단초점 병용 검토 권장.',
     } : null,
-    rationale: rationaleText(W, best, sufficient, s, needsRxRecheck),
+    rationale: rationaleText(W, tiers, sufficient, s, needsRxRecheck),
     gap: best.gap,
   };
 }
 
-// One-line sales headline + clinical breakdown
-function rationaleText(W, best, sufficient, s, needsRxRecheck) {
+// One-line sales headline + clinical breakdown.
+//
+// The headline pitch grade for "premium / corridor-emphasized" cases
+// (multi-monitor, near-dominant, intermediate-dominant, balanced) is
+// **one tier above the displayed 최상 card** rather than the raw `best`
+// (which is always BP50 because BP50 has the highest fit). Reasoning:
+//   • 최상 in the cards is the highest grade the customer is currently
+//     looking at (e.g. BP30 when window is BP10/BP20/BP30).
+//   • Saying "BP50이 적합" when BP50 isn't even on screen feels like a
+//     hidden upsell. Saying "BP40 검토 권장" (one above what they see)
+//     reads as a transparent next-step suggestion.
+//   • If 최상 is already BP50, the headline naturally points to BP50.
+function rationaleText(W, tiers, sufficient, s, needsRxRecheck) {
   const pct = (v) => Math.round(v * 100);
-  // Identify dominant zone (highest weight)
   const max = Math.max(W.d, W.i, W.n);
   let dominant;
   if (W.d === max) dominant = 'distance';
   else if (W.i === max) dominant = 'intermediate';
   else dominant = 'near';
 
-  // Sales headline based on profile
+  // One tier above the displayed 최상 (clamped to BP50). When 최상 is
+  // already BP50, headlineBp == 최상Bp == BP50.
+  const topTierId = tiers[tiers.length - 1].gradeId;
+  const headlineBp = getGrade(Math.min(5, topTierId + 1)).bpCode;
+
   let headline;
   if (needsRxRecheck) {
     headline = '도수가 강해 모든 등급에서 만족도가 낮을 수 있습니다 — 처방 또는 누진대 길이 재검토 권장';
   } else if (s.lifestyle.monitor >= 2) {
-    headline = `다중 모니터 환경 — corridor가 넓은 ${getGrade(best.gradeId).bpCode} 권장`;
+    headline = `다중 모니터 환경 — corridor가 넓은 ${headlineBp} 권장`;
   } else if (dominant === 'distance' && W.d > 0.7) {
+    // Driving-centric profile keeps the 충분 grade since it's already in-view.
     headline = `주로 운전·원거리 — ${getGrade(sufficient.gradeId).bpCode}으로 충분`;
   } else if (dominant === 'near' && W.n > 0.7) {
-    headline = `근거리 작업 위주 — 넓은 근용 시야의 ${getGrade(best.gradeId).bpCode} 권장`;
+    headline = `근거리 작업 위주 — 넓은 근용 시야의 ${headlineBp} 권장`;
   } else if (dominant === 'intermediate') {
-    headline = `중간거리 사용이 많아 ${getGrade(best.gradeId).bpCode}이 적합`;
+    headline = `중간거리 사용이 많아 ${headlineBp}이 적합`;
   } else {
-    headline = `다양한 거리 사용 — 균형잡힌 ${getGrade(best.gradeId).bpCode} 권장`;
+    headline = `다양한 거리 사용 — 균형잡힌 ${headlineBp} 권장`;
   }
 
   // Clinical breakdown

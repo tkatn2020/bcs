@@ -182,6 +182,12 @@ export function createRatioPanel(initialGeom, opts = {}) {
 }
 
 // Combined OU bar — premium dark style.
+//
+// Importing `update` here (not at the top of file) to avoid a circular import
+// hazard — ratioPanel was originally pure-render. Lazy import is safe since
+// the button click path runs only after user interaction.
+import { update as updateState } from './state.js';
+
 export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
   let currentOd = odGeom, currentOs = osGeom, currentThreshold = threshold;
 
@@ -203,9 +209,17 @@ export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
       <span>근 <strong data-role="ou-nn">0</strong></span>
       <span class="ou-aniso" data-role="ou-gap">좌우격차 0.0</span>
     </div>
+    <button class="ou-detail-btn" id="ou-detail-btn" type="button" aria-label="OD/OS 개별 점수 보기">
+      <span class="ou-detail-btn-icon">👁</span>
+      <span>OD/OS 자세히</span>
+    </button>
   `;
   const refs = {};
   el.querySelectorAll('[data-role]').forEach(n => { refs[n.dataset.role] = n; });
+
+  el.querySelector('#ou-detail-btn').addEventListener('click', () => {
+    updateState({ detailModalOpen: true });
+  });
 
   function avg(a, b) { return (a + b) / 2; }
 

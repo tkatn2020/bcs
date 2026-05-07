@@ -28,6 +28,7 @@ const initial = {
   // iPad tab navigation
   activeTab: 'simulator', // 'simulator' | 'compare'
   settingsOpen: false,
+  detailModalOpen: false,   // OD/OS individual breakdown popup
 
   // Prescription — shared across all sections (same patient)
   od: { sphere: -2.00, cylinder: 0, axis: 0 },
