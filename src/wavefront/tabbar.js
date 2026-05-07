@@ -3,9 +3,8 @@
 import { state, update, subscribe } from './state.js';
 
 const TABS = [
-  { id: 'input',     num: '01', label: '도수 입력' },
-  { id: 'simulator', num: '02', label: '시뮬레이션' },
-  { id: 'compare',   num: '03', label: 'A↔B 비교' },
+  { id: 'simulator', num: '01', label: '시뮬레이션' },
+  { id: 'compare',   num: '02', label: 'A↔B 비교' },
 ];
 
 export function mountTabbar(root) {

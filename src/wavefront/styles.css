@@ -722,9 +722,11 @@ input { font-family: inherit; }
   letter-spacing: 0.04em;
   margin-right: 2px;
 }
-.hud-rx-val {
+.hud-rx-val,
+.hud-rx-input {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 56px;
+  width: 56px;
   height: 26px;
   padding: 0 8px;
   font-family: var(--font-num);
@@ -733,8 +735,18 @@ input { font-family: inherit; }
   font-variant-numeric: tabular-nums;
   color: var(--stage-ink);
   background: rgba(244,241,234,0.06);
+  border: 1px solid transparent;
   border-radius: 5px;
   letter-spacing: -0.01em;
+  text-align: center;
+  outline: none;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.hud-rx-input { caret-color: var(--gold); cursor: text; }
+.hud-rx-input:hover { background: rgba(244,241,234,0.10); }
+.hud-rx-input:focus {
+  background: rgba(244,241,234,0.14);
+  border-color: var(--gold);
 }
 .hud-step {
   width: 24px; height: 24px;
@@ -751,6 +763,53 @@ input { font-family: inherit; }
 }
 .hud-step:hover { background: rgba(244,241,234,0.10); }
 .hud-step:active { background: rgba(244,241,234,0.16); }
+
+/* Sync-eyes pill toggle in HUD */
+.hud-sync {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 12px 4px 6px;
+  background: rgba(244,241,234,0.04);
+  border: 1px solid rgba(244,241,234,0.08);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.hud-sync:hover { background: rgba(244,241,234,0.08); }
+.hud-sync input { display: none; }
+.hud-sync-track {
+  position: relative;
+  width: 28px; height: 16px;
+  border-radius: 999px;
+  background: rgba(244,241,234,0.16);
+  transition: background var(--t-fast) var(--ease);
+  flex-shrink: 0;
+}
+.hud-sync-track::after {
+  content: ''; position: absolute;
+  left: 2px; top: 2px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--stage-ink);
+  transition: left var(--t-fast) var(--ease);
+}
+.hud-sync input:checked + .hud-sync-track {
+  background: var(--gold);
+}
+.hud-sync input:checked + .hud-sync-track::after {
+  left: 14px;
+  background: var(--stage);
+}
+.hud-sync-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--stage-ink-2);
+  letter-spacing: 0.02em;
+}
+.hud-sync input:checked ~ .hud-sync-label {
+  color: var(--stage-ink);
+}
 
 .sim-lens-wrap {
   flex: 1;

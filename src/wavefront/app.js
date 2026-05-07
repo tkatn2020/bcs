@@ -1,8 +1,7 @@
-// Bootstrap — wires up the iPad layout: top bar, tab bar, and 4 tab panels.
+// Bootstrap — wires up the iPad layout: top bar, tab bar, simulator + compare.
 
 import { mountTabbar } from './tabbar.js';
 import { mountHeader } from './header.js';
-import { mountInputTab } from './inputTab.js';
 import { mountSimulatorTab } from './simulatorTab.js';
 import { mountCompareSection } from './compareSection.js';
 import { mountSettingsModal } from './settingsModal.js';
@@ -10,7 +9,6 @@ import { mountSettingsModal } from './settingsModal.js';
 mountHeader(document.getElementById('topbar'));
 mountTabbar(document.getElementById('tabbar'));
 
-mountInputTab(document.getElementById('tab-input'));
 mountSimulatorTab(document.getElementById('tab-simulator'));
 mountCompareSection(document.getElementById('tab-compare'));
 

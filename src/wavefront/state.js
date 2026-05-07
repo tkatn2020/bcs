@@ -22,7 +22,7 @@ const initial = {
   environment: 'driving',  // 'driving' | 'outdoor' | 'indoor'
 
   // iPad tab navigation
-  activeTab: 'input', // 'input' | 'simulator' | 'compare'
+  activeTab: 'simulator', // 'simulator' | 'compare'
   settingsOpen: false,
 
   // Prescription — shared across all sections (same patient)

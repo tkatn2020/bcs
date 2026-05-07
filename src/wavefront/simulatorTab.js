@@ -103,7 +103,17 @@ export function mountSimulatorTab(root) {
 
   // HUD
   const hud = root.querySelector('#sim-hud');
-  hud.innerHTML = `${rxRowHud('os', 'OS', state.os)}${rxRowHud('od', 'OD', state.od)}`;
+  hud.innerHTML = `
+    ${rxRowHud('os', 'OS', state.os)}
+    <label class="hud-sync" title="양안 동기화: 한쪽을 바꾸면 반대쪽도 같이 변경됩니다">
+      <input type="checkbox" id="hud-sync" ${state.syncEyes ? 'checked' : ''}>
+      <span class="hud-sync-track"></span>
+      <span class="hud-sync-label">양안 동기화</span>
+    </label>
+    ${rxRowHud('od', 'OD', state.od)}
+  `;
+
+  // ± steppers
   hud.querySelectorAll('.hud-step').forEach(btn => {
     const eye = btn.dataset.eye, field = btn.dataset.field, dir = Number(btn.dataset.dir);
     const lim = RX_LIMITS[field];
@@ -114,13 +124,49 @@ export function mountSimulatorTab(root) {
       update(patch);
     });
   });
+
+  // Direct-edit Rx inputs — fast jumping for high prescriptions.
+  // User can tap the value to edit; Enter or blur commits the clamped value,
+  // Escape cancels.
+  hud.querySelectorAll('input.hud-rx-input').forEach(inp => {
+    const eye = inp.dataset.eye, field = inp.dataset.field;
+    const lim = RX_LIMITS[field];
+    inp.addEventListener('focus', () => inp.select());
+    const commit = () => {
+      const v = clampStep(parseRxText(inp.value), lim);
+      inp.value = formatRx(v, field);
+      const patch = { [eye]: { [field]: v } };
+      if (state.syncEyes) patch[eye === 'od' ? 'os' : 'od'] = { [field]: v };
+      update(patch);
+    };
+    inp.addEventListener('change', commit);
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+      if (e.key === 'Escape') { inp.value = formatRx(state[eye][field], field); inp.blur(); }
+    });
+  });
+
+  // Sync-eyes toggle
+  hud.querySelector('#hud-sync').addEventListener('change', (e) => {
+    const on = e.target.checked;
+    const patch = { syncEyes: on };
+    // When turning ON, immediately mirror OD → OS so the two eyes match
+    if (on) patch.os = { ...state.od };
+    update(patch);
+  });
+
   function refreshHud(s) {
     ['od', 'os'].forEach(eye => {
       ['sphere', 'cylinder', 'axis'].forEach(field => {
-        const span = hud.querySelector(`[data-eye="${eye}"][data-field="${field}"][data-role="val"]`);
-        if (span) span.textContent = formatRx(s[eye][field], field);
+        const inp = hud.querySelector(`input.hud-rx-input[data-eye="${eye}"][data-field="${field}"]`);
+        if (inp && document.activeElement !== inp) {
+          inp.value = formatRx(s[eye][field], field);
+        }
       });
     });
+    const sync = hud.querySelector('#hud-sync');
+    if (sync) sync.checked = s.syncEyes;
   }
   refreshHud(state);
 
@@ -169,7 +215,9 @@ function rxRowHud(eye, label, val) {
 function hudField(eye, field, label, value) {
   return `<span class="hud-rx-field"><span class="hud-rx-label">${label}</span>
     <button class="hud-step" data-eye="${eye}" data-field="${field}" data-dir="-1">−</button>
-    <span class="hud-rx-val" data-eye="${eye}" data-field="${field}" data-role="val">${formatRx(value, field)}</span>
+    <input class="hud-rx-input" type="text" inputmode="decimal" autocomplete="off"
+           data-eye="${eye}" data-field="${field}"
+           value="${formatRx(value, field)}">
     <button class="hud-step" data-eye="${eye}" data-field="${field}" data-dir="1">+</button>
   </span>`;
 }
@@ -178,6 +226,16 @@ function formatRx(v, field) {
   const n = Number(v);
   if (n === 0 || Number.isNaN(n)) return '0.00';
   return (n > 0 ? '+' : '−') + Math.abs(n).toFixed(2);
+}
+// Parse user-typed value: tolerant of "+2.00", "-2.00", "−2.00" (typographic
+// minus), bare "2", trailing "°" or "D" units, whitespace.
+function parseRxText(text) {
+  if (typeof text !== 'string') return parseFloat(text);
+  const cleaned = text
+    .replace(/−/g, '-')
+    .replace(/[+\s°dD]/g, '')
+    .trim();
+  return parseFloat(cleaned);
 }
 function clampStep(v, lim) {
   if (Number.isNaN(v)) return lim.min;
