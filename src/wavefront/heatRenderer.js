@@ -114,7 +114,7 @@ export function paintHeatField(canvas, field, opts = {}) {
   // Heat color edges and blur mask edges share the SAME effective blur,
   // so the visible color gradient and the visible blur gradient line up
   // pixel-for-pixel — no more "color says here but blur says there".
-  const blurPx = Math.max(20, Math.round(W / cols * 6.0));
+  const blurPx = Math.max(12, Math.round(W / cols * 4.0));
   ctx.filter = `blur(${blurPx}px)`;
   ctx.drawImage(tmp, 0, 0, W, H);
   ctx.filter = 'none';
@@ -426,14 +426,11 @@ export function buildBlurMaskDataURL(field, W, H, lo, hi) {
   }
   tctx.putImageData(img, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  // Soften the mask: large Gaussian blur (≈ 3× cell size) so the upscaled
-  // mask edges blend continuously across many cells. Combined with overlapping
-  // BLUR_STOPS in lensBox, this eliminates the visible tile artifacts at
-  // high-cyl periphery — the mask alpha gradient now smears across a region
-  // far wider than any individual cell.
-  // Aggressive: blur the mask across many cells so layer transitions
-  // span a region many times the cell size — kills any perceptible edge.
-  const blurPx = Math.max(20, Math.round(W / field.cols * 6.0));
+  // Soften the mask: Gaussian blur sized to the cell so the upscaled mask
+  // edges blend continuously across cells but stay tight enough to preserve
+  // the cyl pattern's shape. MUST match the heat upscale blur in
+  // paintHeatField — otherwise color and blur edges drift apart.
+  const blurPx = Math.max(12, Math.round(W / field.cols * 4.0));
   ctx.filter = `blur(${blurPx}px)`;
   ctx.drawImage(tmp, 0, 0, W, H);
   ctx.filter = 'none';
