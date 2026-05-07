@@ -68,11 +68,11 @@ const MORPH_MS = 450;
 
 export function createLensBox(width, height, initialGeom, opts = {}) {
   const {
-    showIso = true, showBands = true, lensStroke = true,
+    showIso = true, showBands = true, showMarkings = false, lensStroke = true,
     environment = 'driving', mirror = false,
   } = opts;
   let currentGeom = initialGeom;
-  let currentOpts = { showIso, showBands, environment, mirror };
+  let currentOpts = { showIso, showBands, showMarkings, environment, mirror };
 
   const el = document.createElement('div');
   Object.assign(el.style, {
@@ -174,6 +174,8 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
     paintHeatField(tmp, field, {
       drawIso: currentOpts.showIso,
       drawBands: currentOpts.showBands,
+      drawMarkings: currentOpts.showMarkings,
+      geom: currentGeom,
       eye: currentOpts.mirror ? 'OS' : 'OD',
     });
     ctx.save();

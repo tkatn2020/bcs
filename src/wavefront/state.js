@@ -18,6 +18,10 @@ const initial = {
   // being an opticians-only analytical layer.
   showIso: true,
   showBands: true,
+  // Progressive lens manufacturing markings (DRP / FC / PRP / corridor dots /
+  // NRP / side alignment marks / ADD label). OFF by default — used as an
+  // in-house training overlay so staff learn what each engraving means.
+  showMarkings: false,
   syncEyes: true,
   environment: 'driving',  // 'driving' | 'outdoor' | 'indoor'
 

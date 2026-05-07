@@ -121,6 +121,152 @@ export function paintHeatField(canvas, field, opts = {}) {
 
   if (drawIso) drawIsoLinesFromField(canvas, field, ISO_LEVELS_D);
   if (drawBands) drawZoneArrowsFromField(canvas, field, { eye: opts.eye || 'OD' });
+  if (opts.drawMarkings) drawProgressiveMarkings(canvas, opts.geom, { eye: opts.eye || 'OD' });
+}
+
+// Progressive lens manufacturing markings — the ink/engraving pattern any
+// optician sees when checking a real progressive lens. Drawn as a training
+// overlay so staff learn the standard reference points + how they relate
+// to the optical model.
+//
+// Layout — calibrated to the in-house BP brand (자사 PB 누진다초점):
+//   BP design spec: DRP (원용 아이포인트) ↔ PRP (프리즘 측정점) = 3 mm
+//   This is a "compressed" layout — shorter than the typical 4–8 mm
+//   industry default, so the wearer's distance gaze sits very close to
+//   the optical center. Because the DRP–PRP gap is so tight, the Fitting
+//   Cross is intentionally NOT drawn separately (it would visually overlap
+//   the DRP circle), matching BP's actual ink-mark pattern.
+//
+//   • DRP  (Distance Reference Point) — open ○, 3 mm above PRP (BP spec)
+//   • PRP  (Prism Reference Point)    — small open ○ at optical center
+//   • Side alignment dashes           — ±17 mm from PRP (engraved marks)
+//   • Corridor dots                   — between DRP and NRP, with nasal inset
+//   • NRP  (Near Reference Point)     — rounded rectangle, at corridor-
+//                                       length below PRP, slight nasal inset
+//   • ADD label                       — current gauging power, below NRP
+export function drawProgressiveMarkings(canvas, geom, opts = {}) {
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const { mmPerPxX, mmPerPxY, cx, cy } = lensCoordsFor(W, H);
+  const mmX = mm => mm / mmPerPxX;
+  const mmY = mm => mm / mmPerPxY;
+  const px = (xm, ym) => [cx + mmX(xm), cy + mmY(ym)];
+
+  const corridorMm = (geom && geom.corridor) ? geom.corridor : 12;
+  const DRP_OFFSET = -3;                  // BP brand spec: DRP–PRP = 3 mm
+  const NRP_OFFSET = corridorMm + 1;
+  const SIDE_MARK_X = 17;
+  // Nasal inset: positive x = toward nose for OD (right eye), negative for OS.
+  const nasalSign = opts.eye === 'OS' ? -1 : 1;
+  const NASAL_INSET = nasalSign * 0.5;
+
+  const showLabels = W >= 220;
+  const labelFont = Math.max(8, Math.min(10, W / 32));
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.62)';
+  ctx.fillStyle   = 'rgba(255,255,255,0.62)';
+  ctx.lineWidth = 1.1;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,0.65)';
+  ctx.shadowBlur = 2.5;
+
+  // 1. PRP — small open circle at optical center
+  {
+    const [x, y] = px(0, 0);
+    ctx.beginPath();
+    ctx.arc(x, y, mmX(0.6), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 2. DRP — open circle, 3 mm above PRP (BP brand spec).
+  //    Diameter ≈ 2.4 mm — sized so it doesn't overlap the PRP dot below
+  //    it, yet remains the visually dominant top marking.
+  {
+    const [x, y] = px(0, DRP_OFFSET);
+    ctx.beginPath();
+    ctx.arc(x, y, mmX(1.2), 0, Math.PI * 2);
+    ctx.stroke();
+    if (showLabels) {
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = `700 ${labelFont}px var(--font-num), ui-sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('DRP · 원용', x + mmX(1.7), y + 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    }
+  }
+
+  // 3. Corridor dots — from just below PRP down to just above NRP,
+  //    gradually inset toward the nose (BP design follows industry standard
+  //    convergence inset of ~0.5 mm at the near reading position).
+  {
+    const start = 1.5;
+    const end = NRP_OFFSET - 2.5;
+    const dotCount = 4;
+    for (let i = 0; i < dotCount; i++) {
+      const t = (i + 0.5) / dotCount;
+      const yMm = start + (end - start) * t;
+      const xMm = NASAL_INSET * t;
+      const [x, y] = px(xMm, yMm);
+      ctx.beginPath();
+      ctx.arc(x, y, 1.0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 4. NRP — rounded rectangle ~6×4mm at corridor-length below PRP
+  {
+    const [x, y] = px(NASAL_INSET, NRP_OFFSET);
+    const halfW = mmX(3.0);
+    const halfH = mmY(2.0);
+    const r = mmX(0.7);
+    ctx.beginPath();
+    roundedRect(ctx, x - halfW, y - halfH, halfW * 2, halfH * 2, r);
+    ctx.stroke();
+    if (showLabels) {
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = `700 ${labelFont}px var(--font-num), ui-sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('NRP · 근용', x + halfW + 4, y + 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    }
+  }
+
+  // 5. Side alignment dashes — ±17mm horizontal (real engravings)
+  {
+    const len = mmX(2.2);
+    ctx.lineWidth = 0.95;
+    for (const xs of [-SIDE_MARK_X, SIDE_MARK_X]) {
+      const [x, y] = px(xs, 0);
+      ctx.beginPath();
+      ctx.moveTo(x - len, y); ctx.lineTo(x + len, y);
+      ctx.stroke();
+    }
+  }
+
+  // 6. ADD label below NRP — shows current gauging power
+  if (geom && typeof geom.add === 'number') {
+    const [x, y] = px(0, NRP_OFFSET + 3.8);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `700 ${labelFont + 1}px var(--font-num), ui-sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`ADD +${geom.add.toFixed(2)}`, x, y);
+  }
+
+  ctx.restore();
+}
+
+function roundedRect(ctx, x, y, w, h, r) {
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
 }
 
 // Schematic arrows that EXACTLY trace the 0.25 D iso contour at the

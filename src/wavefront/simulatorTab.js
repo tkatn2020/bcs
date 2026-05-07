@@ -58,7 +58,7 @@ export function mountSimulatorTab(root) {
     h = Math.max(120, Math.round(h));
     if (lensWrap.firstChild) lensWrap.removeChild(lensWrap.firstChild);
     dual = createBinocularLenses(w, h, geomFor(state, 'OD'), geomFor(state, 'OS'),
-      { showIso: state.showIso, showBands: state.showBands, environment: 'driving' });
+      { showIso: state.showIso, showBands: state.showBands, showMarkings: state.showMarkings, environment: 'driving' });
     lensWrap.appendChild(dual.el);
   }
   requestAnimationFrame(() => requestAnimationFrame(buildLens));
@@ -177,7 +177,7 @@ export function mountSimulatorTab(root) {
     refreshHud(s);
     if (dual) {
       const od = geomFor(s, 'OD'), os = geomFor(s, 'OS');
-      dual.update({ od, os, opts: { showIso: s.showIso, showBands: s.showBands, environment: 'driving' } });
+      dual.update({ od, os, opts: { showIso: s.showIso, showBands: s.showBands, showMarkings: s.showMarkings, environment: 'driving' } });
       odPanel.update({ geom: od, threshold: s.threshold });
       osPanel.update({ geom: os, threshold: s.threshold });
       ouBar.update({ od, os, threshold: s.threshold });

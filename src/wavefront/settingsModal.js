@@ -41,6 +41,16 @@ export function mountSettingsModal(root) {
                 <div class="stt-sub">원/중/근거리 시야 화살표, 영역 컬러 밴드, 분할선</div>
               </div>
             </label>
+            <label class="settings-toggle-row">
+              <span class="switch">
+                <input type="checkbox" id="set-markings" ${s.showMarkings ? 'checked' : ''}>
+                <span class="switch-track"></span>
+              </span>
+              <div>
+                <div class="stt-title">누진 마킹 (사내 교육용)</div>
+                <div class="stt-sub">DRP·FC·PRP·NRP·corridor dots·정렬마크 — 실제 누진렌즈의 표준 마킹을 시뮬렌즈에 오버레이</div>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -59,6 +69,7 @@ export function mountSettingsModal(root) {
 
     root.querySelector('#set-iso').addEventListener('change', e => update({ showIso: e.target.checked }));
     root.querySelector('#set-bands').addEventListener('change', e => update({ showBands: e.target.checked }));
+    root.querySelector('#set-markings').addEventListener('change', e => update({ showMarkings: e.target.checked }));
   }
 
   subscribe(render);

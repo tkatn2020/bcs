@@ -286,12 +286,49 @@ export function computeClearRatios(geom, threshold = CYL_CLEAR_THRESHOLD) {
   const totalClear = distClear + midClear + nearClear;
   const safeDiv = (a, b) => b === 0 ? 0 : a / b;
 
-  // Plateau widths at canonical zone gaze heights — captures the lens's
-  // pinched-corridor shape directly (corridor narrowest, distance widest).
-  const distWidthMm = clearPlateauWidth(ZONE_GAZE_Y_MM.distance,     geom);
-  const midWidthMm  = clearPlateauWidth(ZONE_GAZE_Y_MM.intermediate, geom);
-  const nearWidthMm = clearPlateauWidth(ZONE_GAZE_Y_MM.near,         geom);
+  // Plateau widths — sample at 3 y-rows within each zone and take the MIN.
+  // Single-row sampling at zone center can land in a Jones-vector cancellation
+  // sweet spot where total cyl never crosses the threshold along that one
+  // line, even though the surrounding 2D area shows clear distortion in the
+  // heatmap. Multi-row min sampling captures the narrowest plateau anywhere
+  // in the zone, restoring agreement between the score and the visualization.
+  const zonePlateau = (centerYMm, halfRangeMm) => {
+    const ys = [centerYMm - halfRangeMm, centerYMm, centerYMm + halfRangeMm];
+    let minMm = clearPlateauWidth(ys[0], geom);
+    for (let i = 1; i < ys.length; i++) {
+      const w = clearPlateauWidth(ys[i], geom);
+      if (w < minMm) minMm = w;
+    }
+    return minMm;
+  };
+  const distWidthMm = zonePlateau(ZONE_GAZE_Y_MM.distance,     2.5);  // y -7.5/-10/-12.5
+  const midWidthMm  = zonePlateau(ZONE_GAZE_Y_MM.intermediate, 2.0);  // y +1/+3/+5
+  const nearWidthMm = zonePlateau(ZONE_GAZE_Y_MM.near,         2.0);  // y +10/+12/+14
   const widthToPct  = (mm, zone) => Math.min(100, Math.round(mm / PLATEAU_REF_MM[zone] * 100));
+
+  // Continuous clarity scores
+  const dScore = safeDiv(distScoreSum, distTotal) * 100;
+  const mScore = safeDiv(midScoreSum,  midTotal)  * 100;
+  const nScore = safeDiv(nearScoreSum, nearTotal) * 100;
+  const tScore = safeDiv(distScoreSum + midScoreSum + nearScoreSum, total) * 100;
+
+  // Per-zone displayed pct = 50/50 blend of plateau pct and continuous score.
+  //
+  // Plateau-only had a 100→X cliff: ADD slightly below threshold → no x-row
+  // crosses 0.40 D → plateau = lens-edge → 100% cap. Next ADD step crosses
+  // threshold somewhere → plateau drops sharply (e.g. 100→60). This shows
+  // up as a 30+ point jump for a 0.25 D ADD change, mismatching the heatmap
+  // which gradually deepens its color.
+  //
+  // Continuous score (area-weighted average clarity) is smooth but doesn't
+  // emphasize narrowness alone. Blending keeps both signals: plateau still
+  // dominates the per-zone narrowing message, while the score component
+  // prevents hard 100% saturation and absorbs the threshold-crossing cliff
+  // into a smaller drop (≈15–20 pts vs ≈30+ pts for plateau-only).
+  const blendPct = (mm, zone, score) => {
+    const platPct = Math.min(100, mm / PLATEAU_REF_MM[zone] * 100);
+    return Math.round(0.5 * platPct + 0.5 * score);
+  };
 
   const result = {
     threshold,
@@ -307,17 +344,18 @@ export function computeClearRatios(geom, threshold = CYL_CLEAR_THRESHOLD) {
     intermediateUtil: safeDiv(midClear,  midTotal)  * 100,
     nearUtil:         safeDiv(nearClear, nearTotal) * 100,
     // Continuous clarity scores (headline "선명도 지수")
-    distanceScore:     safeDiv(distScoreSum, distTotal) * 100,
-    intermediateScore: safeDiv(midScoreSum,  midTotal)  * 100,
-    nearScore:         safeDiv(nearScoreSum, nearTotal) * 100,
-    totalScore:        safeDiv(distScoreSum + midScoreSum + nearScoreSum, total) * 100,
-    // Plateau widths (per-zone clear-column width — exposes Minkwitz pinch)
+    distanceScore:     dScore,
+    intermediateScore: mScore,
+    nearScore:         nScore,
+    totalScore:        tScore,
+    // Plateau widths (raw mm, used for per-zone display — exposes Minkwitz pinch)
     distanceWidth:     distWidthMm,
     intermediateWidth: midWidthMm,
     nearWidth:         nearWidthMm,
-    distanceWidthPct:     widthToPct(distWidthMm, 'distance'),
-    intermediateWidthPct: widthToPct(midWidthMm,  'intermediate'),
-    nearWidthPct:         widthToPct(nearWidthMm, 'near'),
+    // Per-zone display pct — plateau/score blend for smooth transitions
+    distanceWidthPct:     blendPct(distWidthMm, 'distance',     dScore),
+    intermediateWidthPct: blendPct(midWidthMm,  'intermediate', mScore),
+    nearWidthPct:         blendPct(nearWidthMm, 'near',         nScore),
   };
   if (_ratiosCache.size > 500) _ratiosCache.clear();
   _ratiosCache.set(key, result);
