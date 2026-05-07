@@ -184,6 +184,51 @@ export function smoothstep(a, b, x) {
 }
 export function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
+// ── Anisometropia (좌우격차) — power-vector dioptric difference ──────
+//
+// Long's power-vector decomposition treats each Rx as a 3-component vector
+// (M, J0, J45) so sphere/cyl/axis differences combine into a single
+// comparable dioptric distance. Standard ophthalmic clinical method.
+//
+//   M    = S + C/2                      (mean spherical equivalent)
+//   J0   = -(C/2) × cos(2 × axis_rad)   (cartesian astigmatism)
+//   J45  = -(C/2) × sin(2 × axis_rad)   (oblique astigmatism)
+//
+// Returns the dioptric distance √(ΔM² + ΔJ0² + ΔJ45²) between the two Rx.
+// Clinical reference points:
+//   0.50 D — generally tolerated
+//   1.00 D — mild anisometropia (peripheral prism noticeable)
+//   1.50 D — clinically borderline-significant
+//   2.00 D — clinically significant anisometropia
+//   3.00 D — severe (often requires Rx modification: slab-off, contact lens)
+export function rxDioptricGap(odRx, osRx) {
+  const toPV = (rx) => {
+    // Convention: cyl is negative. We accept either sign (e.g. geom stores
+    // |cyl|, state stores negative) — coerce to negative.
+    const cyl = -Math.abs(rx.cylinder);
+    const axRad = ((rx.axis ?? 0) * Math.PI) / 180;
+    return {
+      M:   rx.sphere + cyl / 2,
+      J0:  -(cyl / 2) * Math.cos(2 * axRad),
+      J45: -(cyl / 2) * Math.sin(2 * axRad),
+    };
+  };
+  const a = toPV(odRx);
+  const b = toPV(osRx);
+  const dM   = a.M   - b.M;
+  const dJ0  = a.J0  - b.J0;
+  const dJ45 = a.J45 - b.J45;
+  return Math.sqrt(dM * dM + dJ0 * dJ0 + dJ45 * dJ45);
+}
+
+// Map a dioptric gap (D) to a 0–100 display score. 18 points/D scale —
+// chosen so 100 corresponds to ~5.5 D (extreme anisometropia) while the
+// clinical thresholds (1.0/1.5/2.0 D) land at meaningful intervals
+// (18/27/36점). Used purely for the displayed "(N점)" suffix.
+export function gapScoreFromDioptric(dGap) {
+  return Math.min(100, dGap * 18);
+}
+
 const _ratiosCache = new Map();
 
 // Comfortable-clarity threshold for the per-zone plateau-width metric.

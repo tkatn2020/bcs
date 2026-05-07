@@ -2,7 +2,7 @@
 // Premium dark "obsidian stage" aesthetic, with animated count-up + glow
 // pulse on improvements. All visual styling lives in styles.css.
 
-import { computeClearRatios } from './helpers.js';
+import { computeClearRatios, rxDioptricGap, gapScoreFromDioptric } from './helpers.js';
 import { countUp, pulseClass } from './animations.js';
 
 export function createRatioPanel(initialGeom, opts = {}) {
@@ -230,7 +230,11 @@ export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
     const ouD = avg(od.distanceWidthPct, os.distanceWidthPct);
     const ouI = avg(od.intermediateWidthPct, os.intermediateWidthPct);
     const ouN = avg(od.nearWidthPct, os.nearWidthPct);
-    const gap = Math.abs(od.totalScore - os.totalScore);
+    // Power-vector dioptric gap (handles sphere + cyl + axis differences
+    // uniformly per Long's decomposition). geom objects carry sphere,
+    // cylinder (abs), axis fields. See rxDioptricGap().
+    const dGap = rxDioptricGap(currentOd, currentOs);
+    const gapScore = gapScoreFromDioptric(dGap);
 
     const dur = animate ? 480 : 0;
     countUp(refs['ou-num'], ouScore, { duration: dur, decimals: 0 });
@@ -240,8 +244,9 @@ export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
     countUp(refs['ou-dn'], ouD, { duration: dur, decimals: 0 });
     countUp(refs['ou-in'], ouI, { duration: dur, decimals: 0 });
     countUp(refs['ou-nn'], ouN, { duration: dur, decimals: 0 });
-    refs['ou-gap'].textContent = `좌우격차 ${gap.toFixed(1)}점`;
-    refs['ou-gap'].classList.toggle('warn', gap > 5);
+    refs['ou-gap'].textContent = `좌우격차 ${dGap.toFixed(1)}D (${Math.round(gapScore)}점)`;
+    // Warn-color triggers at 1.5 D (clinically borderline-significant).
+    refs['ou-gap'].classList.toggle('warn', dGap > 1.5);
   }
   render(false);
 

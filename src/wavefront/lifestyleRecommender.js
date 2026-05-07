@@ -12,7 +12,7 @@
 
 import { state, update, subscribe } from './state.js';
 import { GRADES, getGrade } from '../optics/grades.js';
-import { getGeom, computeClearRatios } from './helpers.js';
+import { getGeom, computeClearRatios, rxDioptricGap, gapScoreFromDioptric } from './helpers.js';
 
 // ── Algorithm constants ──────────────────────────────────────────
 
@@ -38,6 +38,12 @@ const ACTIVITY_WEIGHTS = {
 //   • BP10 only ever appears as 최소 (when 충분 = BP20).
 //   • BP50 only ever appears as 최상 (when 충분 = BP40).
 //
+// Asymmetric Rx (anisometropia) handling:
+//   • ASYMMETRY_THRESHOLD_D = 1.5 D — clinically borderline-significant
+//     anisometropia. When power-vector dioptric gap exceeds this, the 충분
+//     tier is bumped up by 1 grade so the customer is steered to a smoother
+//     lens design that better tolerates the OD/OS difference.
+//
 // Other tunings:
 //   • FIT_RETHINK_RX = 50      — even BEST grade < this → suggest Rx re-check
 //   • AUX_LENS_I_THRESHOLD = 70 — multi-monitor + BP50 corridor < this →
@@ -47,6 +53,7 @@ const SUFFICIENT_MIN_ID  = 2;   // BP20 — lowest grade allowed as 충분
 const SUFFICIENT_MAX_ID  = 4;   // BP40 — highest grade allowed as 충분
 const FIT_RETHINK_RX     = 50;
 const AUX_LENS_I_THRESHOLD = 70;
+const ASYMMETRY_THRESHOLD_D = 1.5;
 
 const ACTIVITIES = [
   { key: 'driving', icon: '🚗', label: '운전',           sub: '원거리' },
@@ -97,8 +104,7 @@ export function computeRecommendation(s) {
     const N = (od.nearWidthPct         + os.nearWidthPct)         / 2;
     const fit = W.d * D + W.i * I + W.n * N;
     const totalScoreAvg = (od.totalScore + os.totalScore) / 2;
-    const gap = Math.abs(od.totalScore - os.totalScore);
-    return { gradeId: g.id, fit, breakdown: { D, I, N }, totalScoreAvg, gap };
+    return { gradeId: g.id, fit, breakdown: { D, I, N }, totalScoreAvg };
   });
 
   const best = fits.reduce((a, b) => b.fit > a.fit ? b : a);
@@ -108,12 +114,14 @@ export function computeRecommendation(s) {
   // or the top tier (BP50 → upgrade option, not default). The clamped id
   // determines which 3 consecutive grades are displayed.
   const baseSufficientId = Math.max(SUFFICIENT_MIN_ID, Math.min(SUFFICIENT_MAX_ID, rawSufficient.gradeId));
-  // Asymmetric Rx (좌우격차 > 5점) → adaptation is harder, so promote the
-  // displayed 충분 by one tier. The OLD 최상 effectively takes the new 충분
-  // slot, the OLD 충분 becomes the new 최소, and 최상 shifts to a higher
-  // grade. Encourages a smoother (premium) lens design that better
-  // tolerates the OD/OS difference.
-  const isAsymmetric = best.gap > 5;
+  // Anisometropia handling — power-vector dioptric gap (D). Independent of
+  // grade since it's a property of the Rx itself. When gap > 1.5 D
+  // (clinically borderline-significant), promote the displayed 충분 by
+  // one tier so the OLD 최상 effectively takes the new 충분 slot. Steers
+  // toward a smoother lens design that tolerates OD/OS difference better.
+  const dGap = rxDioptricGap(s.od, s.os);
+  const gapScore = gapScoreFromDioptric(dGap);
+  const isAsymmetric = dGap > ASYMMETRY_THRESHOLD_D;
   const sufficientId = isAsymmetric
     ? Math.min(SUFFICIENT_MAX_ID, baseSufficientId + 1)
     : baseSufficientId;
@@ -148,8 +156,9 @@ export function computeRecommendation(s) {
       headline: `BP50으로도 중간거리 폭이 ${Math.round(best.breakdown.I)}점 수준입니다`,
       detail: '사무실 전용 오피스 렌즈 또는 중간거리 단초점 병용 검토 권장.',
     } : null,
-    rationale: rationaleText(W, sufficient, s, needsRxRecheck, isAsymmetric, best.gap),
-    gap: best.gap,
+    rationale: rationaleText(W, sufficient, s, needsRxRecheck, isAsymmetric, dGap, gapScore),
+    dGap,
+    gapScore,
   };
 }
 
@@ -166,7 +175,7 @@ export function computeRecommendation(s) {
 //
 // Asymmetric note: when 좌우격차 > 5점 the recommended tier was already
 // promoted by 1 step in the main computation; clinical line explains why.
-function rationaleText(W, sufficient, s, needsRxRecheck, isAsymmetric, gap) {
+function rationaleText(W, sufficient, s, needsRxRecheck, isAsymmetric, dGap, gapScore) {
   const pct = (v) => Math.round(v * 100);
   const max = Math.max(W.d, W.i, W.n);
   let dominant;
@@ -193,7 +202,7 @@ function rationaleText(W, sufficient, s, needsRxRecheck, isAsymmetric, gap) {
   // Clinical breakdown + asymmetric note
   const weightsText = `중간 ${pct(W.i)}% · 근거리 ${pct(W.n)}% · 원거리 ${pct(W.d)}% 가중`;
   const gapNote = isAsymmetric
-    ? ` · 좌우격차 ${gap.toFixed(1)}점 — 안정 적응을 위해 한 단계 위 등급 추천`
+    ? ` · 좌우격차 ${dGap.toFixed(1)}D (${Math.round(gapScore)}점) — 안정 적응을 위해 한 단계 위 등급 추천`
     : '';
   const clinical = weightsText + gapNote;
 
