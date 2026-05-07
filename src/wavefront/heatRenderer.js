@@ -348,6 +348,20 @@ function drawSideCurves(ctx, cx, distY, corY, nearY,
   ctx.restore();
 }
 
+// Per-level iso contour style — color/width/dash communicate severity at
+// a glance. Customers can interpret without legends:
+//   cyan thin solid     → "선명 한계 (0.25 D)"
+//   emerald solid       → "편안 한계 (0.50 D)"
+//   orange dashed       → "흐림 시작 (1.0 D)"
+//   coral thick + glow  → "심각 왜곡 (2.0 D)"
+// Keyed by the exact level value (matches ISO_LEVELS_D = [0.25, 0.5, 1, 2]).
+const ISO_STYLES = {
+  0.25: { color: '#06b6d4', width: 1.2, dash: [],     glow: 0 },
+  0.5:  { color: '#10b981', width: 1.4, dash: [],     glow: 0 },
+  1:    { color: '#f97316', width: 1.6, dash: [5, 3], glow: 0 },
+  2:    { color: '#ef4444', width: 2.2, dash: [],     glow: 8 },
+};
+
 // Marching squares on an arbitrary field (for tweened iso morphing).
 export function drawIsoLinesFromField(canvas, field, levels) {
   const W = canvas.width, H = canvas.height;
@@ -358,10 +372,25 @@ export function drawIsoLinesFromField(canvas, field, levels) {
   const sx = (cols - 1) / W;
   const sy = (rows - 1) / H;
 
+  // Draw severity ascending so the more dramatic lines (coral, glow)
+  // paint LAST and sit on top of any crossing thinner lines.
+  const ordered = [...levels].sort((a, b) => a - b);
+
   ctx.save();
-  ctx.strokeStyle = 'rgba(20,19,15,0.30)';
-  ctx.lineWidth = 0.8;
-  for (const lvl of levels) {
+  for (const lvl of ordered) {
+    const style = ISO_STYLES[lvl] || { color: 'rgba(20,19,15,0.40)', width: 0.8, dash: [], glow: 0 };
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash(style.dash);
+    if (style.glow) {
+      ctx.shadowColor = style.color;
+      ctx.shadowBlur = style.glow;
+    } else {
+      ctx.shadowBlur = 0;
+    }
+
     ctx.beginPath();
     for (let py = 0; py < H - step; py += step) {
       for (let px = 0; px < W - step; px += step) {
@@ -391,6 +420,8 @@ export function drawIsoLinesFromField(canvas, field, levels) {
     }
     ctx.stroke();
   }
+  ctx.shadowBlur = 0;
+  ctx.setLineDash([]);
   ctx.restore();
 }
 
