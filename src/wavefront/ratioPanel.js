@@ -1,167 +1,241 @@
-// ClearRatioPanel — the "원/중/근 선명시역 비율" card.
-// This is the consumer-facing readout the optician shows during consultation.
+// ClearRatioPanel — the Score panel customers actually look at.
+// Premium dark "obsidian stage" aesthetic, with animated count-up + glow
+// pulse on improvements. All visual styling lives in styles.css.
 
-import { computeClearRatios, ZONE_COLORS } from './helpers.js';
+import { computeClearRatios } from './helpers.js';
+import { countUp, pulseClass } from './animations.js';
 
 export function createRatioPanel(initialGeom, opts = {}) {
-  const { compact = false, eyeLabel = '선명한 시야 분포', threshold = 0.25, baseline = null } = opts;
+  const { eyeLabel = '선명한 시야 분포', threshold = 0.25, baseline = null } = opts;
 
   let currentGeom = initialGeom;
   let currentBaseline = baseline;
   let currentThreshold = threshold;
   let currentEyeLabel = eyeLabel;
+  let lastTotal = null;
 
   const el = document.createElement('div');
-  Object.assign(el.style, {
-    background: 'linear-gradient(135deg, #0f172a 0%, #111d3a 100%)',
-    borderRadius: '12px',
-    padding: compact ? '12px' : '20px',
-    fontFamily: 'ui-sans-serif, system-ui', color: '#fff',
-    boxShadow: '0 8px 28px rgba(0,0,0,0.32)',
-    minHeight: compact ? '130px' : '210px',
-  });
+  el.className = 'score-panel';
 
-  function render() {
-    const ratios = currentGeom ? computeClearRatios(currentGeom, currentThreshold) : null;
-    const baseRatios = currentBaseline ? computeClearRatios(currentBaseline, currentThreshold) : null;
-    const useBase = !!currentBaseline;
-    if (!ratios) {
-      el.innerHTML = '<div style="color:#475569;font-size:10px;text-align:center;padding:20px">계산 중…</div>';
-      return;
-    }
-    // PLATEAU WIDTHS (mm + normalized %) — actual width of clear column at
-    // each zone-canonical gaze height. Exposes the pinched-corridor (Minkwitz)
-    // shape: distance widest, corridor narrowest, near in between. Numbers
-    // stay sales-meaningful (50–100% range for typical Rx) thanks to the
-    // 0.40 D comfort threshold instead of 0.25 D.
-    const rows = [
-      { id: 'd', label: '원거리',   pct: ratios.distanceWidthPct,     mm: ratios.distanceWidth,     base: useBase ? baseRatios.distanceWidthPct     : null, color: ZONE_COLORS.distance },
-      { id: 'i', label: '중간거리', pct: ratios.intermediateWidthPct, mm: ratios.intermediateWidth, base: useBase ? baseRatios.intermediateWidthPct : null, color: ZONE_COLORS.intermediate },
-      { id: 'n', label: '근거리',   pct: ratios.nearWidthPct,         mm: ratios.nearWidth,         base: useBase ? baseRatios.nearWidthPct         : null, color: ZONE_COLORS.near },
-    ];
+  el.innerHTML = `
+    <div class="score-eye-row">
+      <div>
+        <div class="score-eye-label" data-role="eye">${currentEyeLabel}</div>
+        <div class="score-eye-sub">Clear Vision Field</div>
+      </div>
+      <div class="score-headline">
+        <div class="score-num"><span data-role="total">0</span><span class="score-num-suffix">/ 100</span></div>
+        <div class="score-caption">선명도 지수</div>
+      </div>
+    </div>
+    <div class="score-rows">
+      ${row('d', '원거리')}
+      ${row('i', '중간거리')}
+      ${row('n', '근거리')}
+    </div>
+  `;
 
-    const deltaTag = (delta) => {
-      if (delta == null) return '';
-      const cls = Math.abs(delta) < 0.5 ? '#94a3b8' : delta > 0 ? '#4ade80' : '#f87171';
-      const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '';
-      return `<div style="font-size:11px;font-family:ui-monospace,monospace;color:${cls};min-width:34px;text-align:right;font-weight:700">${arrow}${Math.abs(delta).toFixed(0)}</div>`;
-    };
-
-    const rowsHtml = rows.map(r => {
-      const delta = r.base != null ? r.pct - r.base : null;
-      return `
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <div style="width:9px;height:9px;border-radius:2px;background:${r.color}"></div>
-            <div style="font-size:15px;font-weight:700;color:#e2e8f0">${r.label}</div>
-            <div style="font-size:11px;color:#64748b;font-family:ui-monospace,monospace">${r.mm.toFixed(0)}mm</div>
-            <div style="flex:1"></div>
-            <div style="font-size:24px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-0.02em">
-              ${r.pct.toFixed(0)}<span style="font-size:12px;opacity:0.55;font-weight:600;margin-left:1px">점</span>
-            </div>
-            ${deltaTag(delta)}
-          </div>
-          <div style="height:10px;background:#1e293b;border-radius:5px;overflow:hidden">
-            <div style="width:${r.pct}%;height:100%;background:${r.color};transition:width 250ms;box-shadow:0 0 8px ${r.color}80"></div>
-          </div>
+  function row(id, name) {
+    return `
+      <div class="score-row" data-zone="${id}">
+        <div class="score-row-h">
+          <span class="score-zone-dot ${id}"></span>
+          <span class="score-zone-name">${name}</span>
+          <span class="score-zone-mm" data-role="mm-${id}">— mm</span>
+          <span class="score-zone-spacer"></span>
+          <span class="score-zone-val" data-role="val-${id}">0<span class="score-zone-val-suffix">점</span></span>
+          <span class="score-zone-delta zero" data-role="delta-${id}"></span>
         </div>
-      `;
-    }).join('');
-
-    el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08)">
-        <div>
-          <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#94a3b8;text-transform:uppercase">
-            ${currentEyeLabel}
-          </div>
-          <div style="font-size:14px;font-weight:700;margin-top:3px;color:#f1f5f9">Clear Vision Field</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:38px;font-weight:800;font-family:ui-monospace,monospace;line-height:1;letter-spacing:-0.03em;color:#fff">
-            ${ratios.totalScore.toFixed(0)}<span style="font-size:16px;opacity:0.55;font-weight:600;margin-left:2px"> / 100</span>
-          </div>
-          <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:4px;letter-spacing:0.04em">선명도 지수</div>
+        <div class="score-bar-track">
+          <div class="score-bar-fill ${id}" data-role="bar-${id}" style="width:0%"></div>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:14px">${rowsHtml}</div>
     `;
   }
 
-  render();
+  const refs = {
+    eye:    el.querySelector('[data-role="eye"]'),
+    total:  el.querySelector('[data-role="total"]'),
+    valD:   el.querySelector('[data-role="val-d"]'),
+    valI:   el.querySelector('[data-role="val-i"]'),
+    valN:   el.querySelector('[data-role="val-n"]'),
+    mmD:    el.querySelector('[data-role="mm-d"]'),
+    mmI:    el.querySelector('[data-role="mm-i"]'),
+    mmN:    el.querySelector('[data-role="mm-n"]'),
+    barD:   el.querySelector('[data-role="bar-d"]'),
+    barI:   el.querySelector('[data-role="bar-i"]'),
+    barN:   el.querySelector('[data-role="bar-n"]'),
+    deltaD: el.querySelector('[data-role="delta-d"]'),
+    deltaI: el.querySelector('[data-role="delta-i"]'),
+    deltaN: el.querySelector('[data-role="delta-n"]'),
+  };
+
+  function setDelta(node, delta) {
+    if (delta == null) {
+      node.textContent = '';
+      return;
+    }
+    const abs = Math.abs(delta);
+    if (abs < 0.5) {
+      node.textContent = '—';
+      node.className = 'score-zone-delta zero';
+      return;
+    }
+    const arrow = delta > 0 ? '▲' : '▼';
+    node.textContent = `${arrow}${abs.toFixed(0)}`;
+    node.className = 'score-zone-delta ' + (delta > 0 ? 'pos' : 'neg');
+  }
+
+  function valFormat(v) {
+    return Math.round(v) + '<span class="score-zone-val-suffix">점</span>';
+  }
+
+  function render(animate = true) {
+    if (!currentGeom) return;
+    const r = computeClearRatios(currentGeom, currentThreshold);
+    const base = currentBaseline ? computeClearRatios(currentBaseline, currentThreshold) : null;
+    refs.eye.textContent = currentEyeLabel;
+
+    // Count-up the headline. Pulse the panel if it improved noticeably.
+    const onImprove = () => pulseClass(el, 'is-improving', 800);
+    countUp(refs.total, r.totalScore, { duration: animate ? 520 : 0, onImprove });
+    lastTotal = r.totalScore;
+
+    // Per-zone values
+    const apply = (zone, key, mmKey, base) => {
+      const v = r[key];
+      countUp(refs['val' + zone.toUpperCase()], v, {
+        duration: animate ? 480 : 0, decimals: 0,
+        formatter: (n) => Math.round(n) + '<span class="score-zone-val-suffix">점</span>',
+      });
+      // textContent doesn't accept HTML — use innerHTML via formatter trick:
+      const valEl = refs['val' + zone.toUpperCase()];
+      // The countUp animation ends by setting textContent; immediately
+      // re-write innerHTML so the suffix span renders correctly.
+      // We achieve this by overriding the formatter to use innerHTML:
+      // (countUp uses textContent, so we need a custom approach):
+      // → Done below with an effect override.
+      refs[`mm${zone.toUpperCase()}`].textContent = `${r[mmKey].toFixed(0)}mm`;
+      refs[`bar${zone.toUpperCase()}`].style.width = Math.round(v) + '%';
+      const delta = base != null ? v - base[key] : null;
+      setDelta(refs[`delta${zone.toUpperCase()}`], delta);
+    };
+    apply('d', 'distanceWidthPct',     'distanceWidth');
+    apply('i', 'intermediateWidthPct', 'intermediateWidth');
+    apply('n', 'nearWidthPct',         'nearWidth');
+  }
+
+  // Replace textContent-only count-up with an innerHTML formatter for
+  // values that need a suffix span. Override countUp behaviour with a
+  // direct render fallback on every animation frame:
+  //   (we patch by re-rendering values with innerHTML after countUp ends)
+  // Simpler: don't rely on countUp's HTML, instead wrap value spans so
+  // the number is one node and suffix is another.
+  // → Refactor: number goes to a child, suffix is sibling.
+
+  // Replace zone-val markup to separate number + suffix:
+  ['d', 'i', 'n'].forEach(z => {
+    const node = refs['val' + z.toUpperCase()];
+    node.innerHTML = '<span data-num>0</span><span class="score-zone-val-suffix">점</span>';
+    refs['valNum_' + z] = node.querySelector('[data-num]');
+  });
+  refs.totalNum = refs.total; // already a span
+
+  // Simpler rendering rewritten:
+  function renderV2(animate = true) {
+    if (!currentGeom) return;
+    const r = computeClearRatios(currentGeom, currentThreshold);
+    const base = currentBaseline ? computeClearRatios(currentBaseline, currentThreshold) : null;
+    refs.eye.textContent = currentEyeLabel;
+    const dur = animate ? 520 : 0;
+
+    const onImprove = () => pulseClass(el, 'is-improving', 800);
+    countUp(refs.totalNum, r.totalScore, { duration: dur, decimals: 0, onImprove });
+
+    const each = [
+      ['d', 'distanceWidthPct',     'distanceWidth'],
+      ['i', 'intermediateWidthPct', 'intermediateWidth'],
+      ['n', 'nearWidthPct',         'nearWidth'],
+    ];
+    each.forEach(([z, key, mmKey]) => {
+      const v = r[key];
+      countUp(refs['valNum_' + z], v, { duration: dur, decimals: 0 });
+      refs['mm' + z.toUpperCase()].textContent = `${r[mmKey].toFixed(0)}mm`;
+      refs['bar' + z.toUpperCase()].style.width = Math.round(v) + '%';
+      const delta = base != null ? v - base[key] : null;
+      setDelta(refs['delta' + z.toUpperCase()], delta);
+    });
+  }
+
+  // Initial paint, no animation
+  renderV2(false);
 
   function update({ geom, baseline, threshold, eyeLabel } = {}) {
     if (geom !== undefined) currentGeom = geom;
     if (baseline !== undefined) currentBaseline = baseline;
     if (threshold !== undefined) currentThreshold = threshold;
     if (eyeLabel !== undefined) currentEyeLabel = eyeLabel;
-    render();
+    renderV2(true);
   }
 
   return { el, update };
 }
 
-// Combined OU bar — average of OD and OS, summarizing binocular outcome.
+// Combined OU bar — premium dark style.
 export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
   let currentOd = odGeom, currentOs = osGeom, currentThreshold = threshold;
 
   const el = document.createElement('div');
-  Object.assign(el.style, {
-    background: 'linear-gradient(135deg, #1e293b 0%, #243046 100%)',
-    borderRadius: '12px',
-    padding: '14px 16px',
-    color: '#fff',
-    fontFamily: 'ui-sans-serif, system-ui',
-    boxShadow: '0 4px 14px rgba(0,0,0,0.20)',
-  });
+  el.className = 'ou-panel';
+  el.innerHTML = `
+    <div class="ou-h">
+      <span class="ou-h-label">OU 양안 평균</span>
+      <span class="ou-h-num"><span data-role="ou-num">0</span><span class="ou-h-num-suffix">/ 100</span></span>
+    </div>
+    <div class="ou-bar">
+      <div class="ou-bar-seg"><div class="ou-bar-fill d" data-role="ou-d" style="width:0%"></div></div>
+      <div class="ou-bar-seg"><div class="ou-bar-fill i" data-role="ou-i" style="width:0%"></div></div>
+      <div class="ou-bar-seg"><div class="ou-bar-fill n" data-role="ou-n" style="width:0%"></div></div>
+    </div>
+    <div class="ou-zones">
+      <span>원 <strong data-role="ou-dn">0</strong></span>
+      <span>중 <strong data-role="ou-in">0</strong></span>
+      <span>근 <strong data-role="ou-nn">0</strong></span>
+      <span class="ou-aniso" data-role="ou-gap">좌우격차 0.0</span>
+    </div>
+  `;
+  const refs = {};
+  el.querySelectorAll('[data-role]').forEach(n => { refs[n.dataset.role] = n; });
 
   function avg(a, b) { return (a + b) / 2; }
 
-  function render() {
+  function render(animate = true) {
     const od = computeClearRatios(currentOd, currentThreshold);
     const os = computeClearRatios(currentOs, currentThreshold);
-    // Headline averaged across both eyes; per-zone uses plateau widths so
-    // the OU bar matches the per-eye panels' Minkwitz-pinch shape.
     const ouScore = avg(od.totalScore, os.totalScore);
-    const ouD = avg(od.distanceWidthPct,     os.distanceWidthPct);
+    const ouD = avg(od.distanceWidthPct, os.distanceWidthPct);
     const ouI = avg(od.intermediateWidthPct, os.intermediateWidthPct);
-    const ouN = avg(od.nearWidthPct,         os.nearWidthPct);
+    const ouN = avg(od.nearWidthPct, os.nearWidthPct);
     const gap = Math.abs(od.totalScore - os.totalScore);
 
-    // Each zone gets equal width in the bar; its inner color fills `score%`
-    // of that third — so the eye reads "how much clarity in each zone".
-    const seg = (score, color) => `
-      <div style="flex:1;background:#0f172a;display:flex;align-items:stretch">
-        <div style="width:${score}%;background:${color};transition:width 250ms;box-shadow:0 0 6px ${color}80"></div>
-      </div>
-    `;
-
-    el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;color:#cbd5e1;text-transform:uppercase">OU 양안 평균</div>
-        <div style="font-family:ui-monospace,monospace;font-size:26px;font-weight:800;letter-spacing:-0.02em">
-          ${ouScore.toFixed(0)}<span style="font-size:13px;opacity:0.55;font-weight:600;margin-left:2px"> / 100</span>
-        </div>
-      </div>
-      <div style="display:flex;height:14px;border-radius:5px;overflow:hidden;margin-bottom:8px;gap:2px">
-        ${seg(ouD, ZONE_COLORS.distance)}
-        ${seg(ouI, ZONE_COLORS.intermediate)}
-        ${seg(ouN, ZONE_COLORS.near)}
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;font-family:ui-monospace,monospace;font-weight:600">
-        <span>원 <strong style="color:#fff">${ouD.toFixed(0)}</strong></span>
-        <span>중 <strong style="color:#fff">${ouI.toFixed(0)}</strong></span>
-        <span>근 <strong style="color:#fff">${ouN.toFixed(0)}</strong></span>
-        <span style="color:${gap > 5 ? '#fbbf24' : '#94a3b8'}">좌우격차 ${gap.toFixed(1)}점</span>
-      </div>
-    `;
+    const dur = animate ? 480 : 0;
+    countUp(refs['ou-num'], ouScore, { duration: dur, decimals: 0 });
+    refs['ou-d'].style.width = Math.round(ouD) + '%';
+    refs['ou-i'].style.width = Math.round(ouI) + '%';
+    refs['ou-n'].style.width = Math.round(ouN) + '%';
+    countUp(refs['ou-dn'], ouD, { duration: dur, decimals: 0 });
+    countUp(refs['ou-in'], ouI, { duration: dur, decimals: 0 });
+    countUp(refs['ou-nn'], ouN, { duration: dur, decimals: 0 });
+    refs['ou-gap'].textContent = `좌우격차 ${gap.toFixed(1)}점`;
+    refs['ou-gap'].classList.toggle('warn', gap > 5);
   }
-  render();
+  render(false);
 
   function update({ od, os, threshold } = {}) {
     if (od) currentOd = od;
     if (os) currentOs = os;
     if (threshold !== undefined) currentThreshold = threshold;
-    render();
+    render(true);
   }
   return { el, update };
 }

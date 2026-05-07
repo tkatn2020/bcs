@@ -5,32 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>누진다초점 시뮬레이터 · iPad</title>
-  <link rel="stylesheet" href="src/wavefront/styles.css?v=2">
+  <title>다초점 시뮬레이터</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/wavefront/styles.css?v=3">
 </head>
 <body>
   <div class="ipad-app">
 
-    <!-- ── Top bar ─────────────────────────────────────── -->
     <header id="topbar" class="topbar"></header>
 
-    <!-- ── Main content (active tab panel) ─────────────── -->
     <main id="tab-content" class="tab-content">
       <section id="tab-input"     class="tab-panel" data-tab="input"></section>
       <section id="tab-simulator" class="tab-panel" data-tab="simulator"></section>
       <section id="tab-compare"   class="tab-panel" data-tab="compare"></section>
     </main>
 
-    <!-- ── Bottom tab bar ──────────────────────────────── -->
     <nav id="tabbar" class="tabbar"></nav>
 
-    <!-- ── Settings modal (hidden by default) ──────────── -->
     <div id="settings-modal" class="modal-backdrop hidden"></div>
 
-    <!-- ── Orientation guard (portrait → message) ──────── -->
     <div class="orientation-guard">
       <div class="og-card">
-        <div class="og-icon">📱➡️🖥️</div>
+        <div class="og-icon-shape"></div>
         <div class="og-title">가로로 돌려주세요</div>
         <div class="og-sub">이 앱은 iPad 가로 화면에 최적화되어 있습니다</div>
       </div>
@@ -38,6 +38,8 @@
 
   </div>
 
-  <script type="module" src="src/wavefront/app.js?v=2"></script>
+  <script type="module" src="src/wavefront/app.js?v=3"></script>
 </body>
 </html>
+</content>
+</invoke>

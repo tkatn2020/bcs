@@ -1,18 +1,7 @@
 // Tab 1 — Prescription input.
-// Layout (landscape):
-//   ┌────────────────────────────────────────────────────────┐
-//   │  OD 우안 도수 (S/C/Ax + 큰 스텝퍼)                        │
-//   │  [양안 동기화 토글]                                      │
-//   │  OS 좌안 도수                                            │
-//   │  ADD 가입도                                              │
-//   ├────────────────────────────────────────────────────────┤
-//   │  사용 환경 (3개 카드)                                    │
-//   ├────────────────────────────────────────────────────────┤
-//   │                                       [시뮬레이션 →] CTA│
-//   └────────────────────────────────────────────────────────┘
+// Driving-only environment notice (per redesign brief).
 
 import { state, update, subscribe } from './state.js';
-import { ENVIRONMENTS } from './environments.js';
 
 const RX_LIMITS = {
   sphere:   { min: -10,  max: 6,   step: 0.25 },
@@ -21,47 +10,67 @@ const RX_LIMITS = {
   add:      { min: 0.5,  max: 3.5, step: 0.25 },
 };
 
+// Force-set environment to driving (we removed outdoor/indoor from the UI)
+if (state.environment !== 'driving') update({ environment: 'driving' });
+
 export function mountInputTab(root) {
   root.innerHTML = `
-    <h2 class="tab-title">📝 도수 입력</h2>
-    <p class="tab-subtitle">고객의 양안 도수(구면·난시·축)와 가입도(ADD), 사용 환경을 입력하세요.</p>
+    <div class="input-shell">
+      <p class="tab-eyebrow">STEP 01 · PRESCRIPTION</p>
+      <h2 class="tab-title">도수 입력</h2>
+      <p class="tab-subtitle">고객의 양안 도수(구면·난시·축)와 가입도(ADD)를 입력하세요. 입력값은 시뮬레이션 화면에서 실시간 반영됩니다.</p>
 
-    <div class="input-rx-grid">
-      ${rxCard('od', 'OD · 우안', state.od)}
-      ${rxCard('os', 'OS · 좌안', state.os)}
-      ${addCard(state.add)}
-    </div>
+      <div class="input-rx-grid">
+        ${rxCard('od', 'OD · 우안', state.od)}
+        ${rxCard('os', 'OS · 좌안', state.os)}
+        ${addCard(state.add)}
+      </div>
 
-    <div class="sync-row">
-      <label class="sync-label">
-        <span class="switch">
-          <input type="checkbox" id="sync-eyes" ${state.syncEyes ? 'checked' : ''}>
-          <span class="switch-track"></span>
-        </span>
-        <span class="sync-text">양안 동기화 — 우안 변경 시 좌안에도 자동 적용</span>
-      </label>
-    </div>
+      <div class="sync-row">
+        <label class="sync-label">
+          <span class="switch">
+            <input type="checkbox" id="sync-eyes" ${state.syncEyes ? 'checked' : ''}>
+            <span class="switch-track"></span>
+          </span>
+          <span class="sync-text">양안 동기화 — 우안 변경 시 좌안에도 자동 적용</span>
+        </label>
+      </div>
 
-    <div class="env-section">
-      <div class="section-h-lg">사용 환경</div>
-      <div class="env-grid-lg" id="env-grid"></div>
-    </div>
+      <div class="env-section">
+        <div class="section-h-lg">사용 환경</div>
+        <div class="env-driving-card">
+          <div class="env-driving-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 17h14l-1.4-5.6A2 2 0 0 0 15.66 10H8.34a2 2 0 0 0-1.94 1.4L5 17z"></path>
+              <circle cx="7" cy="17" r="2"></circle>
+              <circle cx="17" cy="17" r="2"></circle>
+              <path d="M5 17H3"></path>
+              <path d="M21 17h-2"></path>
+            </svg>
+          </div>
+          <div class="env-driving-text">
+            <div class="env-driving-title">운전 환경</div>
+            <div class="env-driving-desc">도로 표지판(원거리) · 대시보드(중간거리) · 휴대폰(근거리)</div>
+          </div>
+        </div>
+      </div>
 
-    <div class="cta-row">
-      <button class="btn btn-primary cta-btn" id="cta-next">시뮬레이션 보기 →</button>
+      <div class="cta-row">
+        <button class="btn cta-btn" id="cta-next">
+          <span>시뮬레이션 보기</span>
+          <span class="cta-arrow">→</span>
+        </button>
+      </div>
     </div>
   `;
 
-  // Bind Rx steppers + inputs
   ['od', 'os'].forEach(eye => {
     ['sphere', 'cylinder', 'axis'].forEach(field => {
       const lim = RX_LIMITS[field];
-      // Steppers
       root.querySelectorAll(`.stepper[data-eye="${eye}"][data-field="${field}"]`).forEach(btn => {
         const dir = Number(btn.dataset.dir);
         btn.addEventListener('click', () => stepRx(eye, field, dir, lim));
       });
-      // Direct input
       const inp = root.querySelector(`input.num-input[data-eye="${eye}"][data-field="${field}"]`);
       if (inp) {
         inp.addEventListener('change', () => {
@@ -73,7 +82,6 @@ export function mountInputTab(root) {
     });
   });
 
-  // ADD steppers
   root.querySelectorAll('.stepper[data-field="add"]').forEach(btn => {
     const dir = Number(btn.dataset.dir);
     btn.addEventListener('click', () => {
@@ -90,33 +98,14 @@ export function mountInputTab(root) {
     addInput.addEventListener('focus', () => addInput.select());
   }
 
-  // Sync toggle
   root.querySelector('#sync-eyes').addEventListener('change', e => {
     update({ syncEyes: e.target.checked });
   });
 
-  // Environment cards
-  const envGrid = root.querySelector('#env-grid');
-  ENVIRONMENTS.forEach(e => {
-    const card = document.createElement('button');
-    card.className = 'env-card-lg';
-    card.dataset.env = e.id;
-    card.dataset.active = String(state.environment === e.id);
-    card.innerHTML = `
-      <div class="ec-icon">${e.icon}</div>
-      <div class="ec-label">${e.label}</div>
-      <div class="ec-desc">${e.desc}</div>
-    `;
-    card.addEventListener('click', () => update({ environment: e.id }));
-    envGrid.appendChild(card);
-  });
-
-  // CTA → switch to simulator tab
   root.querySelector('#cta-next').addEventListener('click', () => {
     update({ activeTab: 'simulator' });
   });
 
-  // Subscribe — refresh fields when state changes
   subscribe(s => {
     ['od', 'os'].forEach(eye => {
       ['sphere', 'cylinder', 'axis'].forEach(field => {
@@ -130,11 +119,7 @@ export function mountInputTab(root) {
     if (addInp && document.activeElement !== addInp) {
       addInp.value = '+' + s.add.toFixed(2);
     }
-
     root.querySelector('#sync-eyes').checked = s.syncEyes;
-    root.querySelectorAll('[data-env]').forEach(el => {
-      el.dataset.active = String(s.environment === el.dataset.env);
-    });
   });
 
   function stepRx(eye, field, dir, lim) {
@@ -165,8 +150,6 @@ function rxCard(eye, label, val) {
 }
 
 function rxRow(eye, field, short, value, longLabel) {
-  // Always render diopters with 2 decimals + explicit sign (e.g. "+2.00" or "−2.00").
-  // Axis is rendered as integer.
   const display = field === 'axis' ? String(value) : fmt(value);
   return `
     <div class="rx-input-row">
@@ -184,17 +167,16 @@ function rxRow(eye, field, short, value, longLabel) {
 }
 
 function addCard(value) {
-  // ADD is always positive — display as "+X.XX" with explicit sign + 2 decimals.
   const display = '+' + Number(value).toFixed(2);
   return `
     <div class="rx-card-lg add-card">
       <div class="rx-card-h-lg">
-        <span class="rx-eye-tag-lg" style="background:#f59e0b">+</span>
+        <span class="rx-eye-tag-lg add">＋</span>
         <span>ADD · 가입도</span>
       </div>
       <div class="rx-input-row">
         <div class="rx-input-label">
-          <span class="rx-input-short">+</span>
+          <span class="rx-input-short">＋</span>
           <span class="rx-input-long">가입도</span>
         </div>
         <button class="stepper" data-field="add" data-dir="-1">−</button>
@@ -212,18 +194,11 @@ function fmt(v) {
   if (n === 0 || Number.isNaN(n)) return '0.00';
   return (n > 0 ? '+' : '−') + Math.abs(n).toFixed(2);
 }
-
-// Parse a user-typed Rx string. Accepts "+2.00", "-2.00", "−2.00" (U+2212),
-// "2", trailing whitespace, etc.
 function parseRxText(text) {
   if (typeof text !== 'string') return parseFloat(text);
-  const cleaned = text
-    .replace(/−/g, '-')   // U+2212 minus → ASCII hyphen
-    .replace(/[+\s]/g, '')     // strip plus signs and whitespace
-    .trim();
+  const cleaned = text.replace(/−/g, '-').replace(/[+\s]/g, '').trim();
   return parseFloat(cleaned);
 }
-
 function clampStep(v, lim) {
   if (Number.isNaN(v)) return lim.min;
   const stepped = Math.round(v / lim.step) * lim.step;
