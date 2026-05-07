@@ -12,8 +12,10 @@ const initial = {
   corridor: 12,
   threshold: 0.25,        // locked to 0.25D steps (slider step=0.25)
 
-  // Display options
-  showIso: true,
+  // Display options — iso contours OFF by default for a cleaner sales view
+  // (customers don't need optical iso lines; they understand the colored
+  // zone overlays + arrows). Opticians can re-enable in settings.
+  showIso: false,
   showBands: true,
   syncEyes: true,
   environment: 'driving',  // 'driving' | 'outdoor' | 'indoor'

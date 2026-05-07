@@ -179,28 +179,45 @@ export function drawZoneArrowsFromField(canvas, field, opts = {}) {
 
   ctx.save();
 
-  // Faint horizontal zone dividers — extend across lens width
-  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  // ── Color zone bands (semi-transparent overlays) ──
+  // Subtle colored regions matching the right-panel score colors. Replaces
+  // the previous orange dashed corridor curves which competed visually with
+  // the colored arrows. Each band is rendered at very low opacity so the
+  // underlying heat / driving scene reads through clearly; the goal is just
+  // to give customers a color-keyed sense of which area is which.
+  const lensTop    = H * 0.06;
+  const lensBottom = H * 0.94;
+  ctx.fillStyle = 'rgba(59, 130, 246, 0.07)';   // blue (distance)
+  ctx.fillRect(0, lensTop, W, divUpperY - lensTop);
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.07)';    // green (intermediate)
+  ctx.fillRect(0, divUpperY, W, divLowerY - divUpperY);
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.08)';   // amber (near)
+  ctx.fillRect(0, divLowerY, W, lensBottom - divLowerY);
+
+  // Faint horizontal zone dividers — colored hairlines now (not white dash)
+  // so they read as zone boundaries that match the bands' colors.
   ctx.lineWidth = 0.8;
-  ctx.setLineDash([3, 4]);
+  ctx.setLineDash([4, 5]);
+  ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)';   // upper divider — green tint
   ctx.beginPath();
-  ctx.moveTo(W * 0.06, divUpperY); ctx.lineTo(W * 0.94, divUpperY);
-  ctx.moveTo(W * 0.06, divLowerY); ctx.lineTo(W * 0.94, divLowerY);
+  ctx.moveTo(W * 0.04, divUpperY); ctx.lineTo(W * 0.96, divUpperY);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';  // lower divider — amber tint
+  ctx.beginPath();
+  ctx.moveTo(W * 0.04, divLowerY); ctx.lineTo(W * 0.96, divLowerY);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Center vertical
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.lineWidth = 0.7;
+  // Center vertical (corridor center) — kept as a thin guide
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 0.6;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(cx, H * 0.10); ctx.lineTo(cx, H * 0.92);
   ctx.stroke();
   ctx.setLineDash([]);
-
-  // Side dashed curves through plateau widths
-  drawSideCurves(ctx, cx, distY, midY, nearY,
-    distLPx, distRPx, midLPx, midRPx, nearLPx, nearRPx, lineW);
+  // (Removed: drawSideCurves orange corridor outline — replaced by colored
+  // zone bands above. The arrows alone now carry the per-zone width info.)
 
   // Distance arrow + label
   drawAsymHArrow(ctx, cx - distLPx, cx + distRPx, distY, C_DIST, lineW, arrowSize);
