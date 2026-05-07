@@ -25,20 +25,27 @@ const ACTIVITY_WEIGHTS = {
   phone:    { d: 0.00, i: 0.10, n: 1.00 },
 };
 
-// Three-tier recommendation:
-//   • FIT_MINIMUM    = 50  — "최소" : entry-level acceptable
-//   • FIT_SUFFICIENT = 65  — "충분" : comfortable, the sales sweet spot
-//   • (highest fit)        — "최상" : premium pick
-// Sufficient is highlighted as the recommended center anchor. If two tiers
-// resolve to the same grade, only distinct grades are rendered.
+// Three-tier recommendation — ALWAYS 3 consecutive grades centered on
+// the calibrated 충분 (sufficient) tier:
+//   • 최소 = 충분 − 1
+//   • 충분 = (lowest grade with fit ≥ FIT_SUFFICIENT, clamped to BP20–BP40)
+//   • 최상 = 충분 + 1
+//
+// Why clamp 충분 to BP20–BP40?
+//   • Avoids extreme defaults (BP10 as "buy this" feels too entry-level,
+//     BP50 as "buy this" feels too pushy). Mid-tier products are the sales
+//     sweet spot; the entry/premium tiers become down/upgrade options.
+//   • BP10 only ever appears as 최소 (when 충분 = BP20).
+//   • BP50 only ever appears as 최상 (when 충분 = BP40).
 //
 // Other tunings:
-//   • FIT_RETHINK_RX = 50  — even BEST grade < this → suggest Rx re-check
+//   • FIT_RETHINK_RX = 50      — even BEST grade < this → suggest Rx re-check
 //   • AUX_LENS_I_THRESHOLD = 70 — multi-monitor + BP50 corridor < this →
 //     suggest auxiliary lens (office / single-vision intermediate)
-const FIT_MINIMUM    = 50;
-const FIT_SUFFICIENT = 65;
-const FIT_RETHINK_RX = 50;
+const FIT_SUFFICIENT     = 70;
+const SUFFICIENT_MIN_ID  = 2;   // BP20 — lowest grade allowed as 충분
+const SUFFICIENT_MAX_ID  = 4;   // BP40 — highest grade allowed as 충분
+const FIT_RETHINK_RX     = 50;
 const AUX_LENS_I_THRESHOLD = 70;
 
 const ACTIVITIES = [
@@ -95,30 +102,32 @@ export function computeRecommendation(s) {
   });
 
   const best = fits.reduce((a, b) => b.fit > a.fit ? b : a);
-  const sufficient = fits.find(f => f.fit >= FIT_SUFFICIENT) ?? best;
-  const minimum    = fits.find(f => f.fit >= FIT_MINIMUM)    ?? best;
+  const rawSufficient = fits.find(f => f.fit >= FIT_SUFFICIENT) ?? best;
+  // Clamp the calibrated 충분 grade to [BP20, BP40] so the recommended
+  // center never lands on the entry tier (BP10 → too cheap to recommend)
+  // or the top tier (BP50 → upgrade option, not default). The clamped id
+  // determines which 3 consecutive grades are displayed.
+  const sufficientId = Math.max(SUFFICIENT_MIN_ID, Math.min(SUFFICIENT_MAX_ID, rawSufficient.gradeId));
   // "Re-check Rx" warning only fires when even the BEST grade falls below
   // the lower threshold — true clinical concern, not just I-heavy profile.
   const needsRxRecheck = best.fit < FIT_RETHINK_RX;
 
-  // Build distinct tiers list — collapse duplicates while preserving the
-  // 최소 → 충분 → 최상 ordering. Result has 1, 2, or 3 entries.
-  const tiers = [];
-  const seen = new Set();
-  const pushIfNew = (label, info) => {
-    if (seen.has(info.gradeId)) return;
-    seen.add(info.gradeId);
-    tiers.push({ label, ...info });
-  };
-  pushIfNew('최소', minimum);
-  pushIfNew('충분', sufficient);
-  pushIfNew('최상', best);
+  // Always 3 consecutive grades: 충분-1 / 충분 / 충분+1 (with clamp guarantees
+  // both neighbors exist within BP10..BP50 since 충분 ∈ [BP20, BP40]).
+  const tiers = [
+    { label: '최소', ...fits[sufficientId - 2] },  // gradeId = sufficientId - 1
+    { label: '충분', ...fits[sufficientId - 1] },  // gradeId = sufficientId
+    { label: '최상', ...fits[sufficientId    ] },  // gradeId = sufficientId + 1
+  ];
+  // The "sufficient" object used downstream by rationale text + aux check.
+  // We expose the DISPLAYED 충분 (clamped) as the recommendation handle.
+  const sufficient = fits[sufficientId - 1];
 
   // Aux-lens trigger: multi-monitor + BP50 corridor still tight
   const auxRecommended = (s.lifestyle.monitor >= 2) && (best.breakdown.I < AUX_LENS_I_THRESHOLD);
 
   return {
-    kind: tiers.length === 1 ? 'single' : tiers.length === 2 ? 'hybrid' : 'triple',
+    kind: 'triple',    // always 3 cards now (consecutive grade window)
     tiers,             // [{ label, gradeId, fit, breakdown, ... }] in 최소→충분→최상 order
     sufficient,        // kept for rationale + recommended highlight
     best,
