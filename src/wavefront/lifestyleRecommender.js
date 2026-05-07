@@ -25,13 +25,18 @@ const ACTIVITY_WEIGHTS = {
   phone:    { d: 0.00, i: 0.10, n: 1.00 },
 };
 
-// Tuning notes:
-//   • FIT_SUFFICIENT = 65 — practical threshold for "good enough". Calibrated
-//     so PC-heavy mild-Rx profiles (where BP50's I plateau ≈ 70) can find a
-//     sufficient grade rather than always landing in "all below" territory.
-//   • FIT_RETHINK_RX = 50 — only when even BEST grade can't reach this do we
-//     advise re-checking the prescription/corridor (clinically alarming case).
-//   • AUX_LENS_I_THRESHOLD = 70 — multi-monitor + BP50 corridor < 70 → aux lens.
+// Three-tier recommendation:
+//   • FIT_MINIMUM    = 50  — "최소" : entry-level acceptable
+//   • FIT_SUFFICIENT = 65  — "충분" : comfortable, the sales sweet spot
+//   • (highest fit)        — "최상" : premium pick
+// Sufficient is highlighted as the recommended center anchor. If two tiers
+// resolve to the same grade, only distinct grades are rendered.
+//
+// Other tunings:
+//   • FIT_RETHINK_RX = 50  — even BEST grade < this → suggest Rx re-check
+//   • AUX_LENS_I_THRESHOLD = 70 — multi-monitor + BP50 corridor < this →
+//     suggest auxiliary lens (office / single-vision intermediate)
+const FIT_MINIMUM    = 50;
 const FIT_SUFFICIENT = 65;
 const FIT_RETHINK_RX = 50;
 const AUX_LENS_I_THRESHOLD = 70;
@@ -91,23 +96,38 @@ export function computeRecommendation(s) {
 
   const best = fits.reduce((a, b) => b.fit > a.fit ? b : a);
   const sufficient = fits.find(f => f.fit >= FIT_SUFFICIENT) ?? best;
+  const minimum    = fits.find(f => f.fit >= FIT_MINIMUM)    ?? best;
   // "Re-check Rx" warning only fires when even the BEST grade falls below
   // the lower threshold — true clinical concern, not just I-heavy profile.
   const needsRxRecheck = best.fit < FIT_RETHINK_RX;
+
+  // Build distinct tiers list — collapse duplicates while preserving the
+  // 최소 → 충분 → 최상 ordering. Result has 1, 2, or 3 entries.
+  const tiers = [];
+  const seen = new Set();
+  const pushIfNew = (label, info) => {
+    if (seen.has(info.gradeId)) return;
+    seen.add(info.gradeId);
+    tiers.push({ label, ...info });
+  };
+  pushIfNew('최소', minimum);
+  pushIfNew('충분', sufficient);
+  pushIfNew('최상', best);
 
   // Aux-lens trigger: multi-monitor + BP50 corridor still tight
   const auxRecommended = (s.lifestyle.monitor >= 2) && (best.breakdown.I < AUX_LENS_I_THRESHOLD);
 
   return {
-    kind: sufficient.gradeId === best.gradeId ? 'single' : 'hybrid',
-    sufficient,
+    kind: tiers.length === 1 ? 'single' : tiers.length === 2 ? 'hybrid' : 'triple',
+    tiers,             // [{ label, gradeId, fit, breakdown, ... }] in 최소→충분→최상 order
+    sufficient,        // kept for rationale + recommended highlight
     best,
     needsRxRecheck,
     weights: W,
     auxRecommended,
     auxNote: auxRecommended ? {
-      headline: `다중 모니터 환경에서 BP50으로도 중간거리 폭이 ${Math.round(best.breakdown.I)}점 수준입니다`,
-      detail: '사무실 전용으로 오피스 렌즈 또는 중간거리 단초점 렌즈 병용을 검토해보세요. 누진렌즈와 함께 사용 시 데스크 시야 만족도가 크게 향상됩니다.',
+      headline: `BP50으로도 중간거리 폭이 ${Math.round(best.breakdown.I)}점 수준입니다`,
+      detail: '사무실 전용 오피스 렌즈 또는 중간거리 단초점 병용 검토 권장.',
     } : null,
     rationale: rationaleText(W, best, sufficient, s, needsRxRecheck),
     gap: best.gap,
@@ -234,7 +254,7 @@ function activityRow(a) {
       <span class="lifestyle-emoji">${a.icon}</span>
       <span class="lifestyle-text">
         <span class="lifestyle-label">${a.label}</span>
-        <span class="lifestyle-sub">${a.sub}</span>
+        <span class="lifestyle-sub-inline"> · ${a.sub}</span>
       </span>
       <span class="switch">
         <input type="checkbox" class="lifestyle-toggle" data-key="${a.key}">
@@ -251,15 +271,21 @@ function renderResult(root, rec, currentGradeId) {
     return;
   }
 
-  const card = (label, info, isPrimary) => {
-    const g = getGrade(info.gradeId);
-    const isCurrent = info.gradeId === currentGradeId;
+  // The 충분 tier is the "anchor" — visually highlighted as the recommended
+  // center choice. If 충분 doesn't exist as a distinct tier (e.g. 최소 ==
+  // 충분), fall back to highlighting whichever tier matches sufficient.
+  const recommendedId = rec.sufficient.gradeId;
+
+  const card = (tier) => {
+    const g = getGrade(tier.gradeId);
+    const isCurrent = tier.gradeId === currentGradeId;
+    const isRecommended = tier.gradeId === recommendedId;
     return `
-      <div class="recommend-card ${isPrimary ? 'is-best' : ''}">
-        <div class="recommend-tier">${label}</div>
+      <div class="recommend-card ${isRecommended ? 'is-best' : ''}">
+        <div class="recommend-tier">${tier.label}</div>
         <div class="recommend-bp">${g.bpCode}</div>
         <div class="recommend-name">${g.name}</div>
-        <div class="recommend-fit">${Math.round(info.fit)}<span class="recommend-fit-suffix">점</span></div>
+        <div class="recommend-fit">${Math.round(tier.fit)}<span class="recommend-fit-suffix">점</span></div>
         <button class="recommend-apply" data-grade-id="${g.id}" ${isCurrent ? 'disabled' : ''}>
           ${isCurrent ? '현재 등급' : '이 등급으로'}
         </button>
@@ -267,17 +293,11 @@ function renderResult(root, rec, currentGradeId) {
     `;
   };
 
-  let cardsHtml;
-  if (rec.kind === 'single') {
-    cardsHtml = `<div class="recommend-row recommend-single">${card('추천', rec.best, true)}</div>`;
-  } else {
-    cardsHtml = `
-      <div class="recommend-row">
-        ${card('필요충분', rec.sufficient, false)}
-        ${card('최상', rec.best, true)}
-      </div>
-    `;
-  }
+  const cardsHtml = `
+    <div class="recommend-row recommend-row-${rec.tiers.length}">
+      ${rec.tiers.map(card).join('')}
+    </div>
+  `;
 
   const auxHtml = rec.auxRecommended ? `
     <div class="lifestyle-aux">

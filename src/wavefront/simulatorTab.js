@@ -5,7 +5,7 @@ import { state, update, subscribe } from './state.js';
 import { GRADES } from '../optics/grades.js';
 import { getGeom, CORRIDOR_OPTIONS } from './helpers.js';
 import { createBinocularLenses } from './lensBox.js';
-import { createRatioPanel, createCombinedRatioBar } from './ratioPanel.js';
+import { createCombinedRatioBar } from './ratioPanel.js';
 import { mountLifestyleRecommender } from './lifestyleRecommender.js';
 
 const RX_LIMITS = {
@@ -64,13 +64,13 @@ export function mountSimulatorTab(root) {
   }
   requestAnimationFrame(() => requestAnimationFrame(buildLens));
 
-  // Aside panels
+  // Aside panels — OD/OS individual cards are intentionally hidden to make
+  // room for the lifestyle recommender. The OU bar already shows the
+  // headline score + per-zone OU averages + 좌우격차 indicator, which
+  // covers the sales narrative. (Re-enable per-eye panels in compareSection
+  // if optician needs detailed asymmetry breakdown.)
   const aside = root.querySelector('#sim-aside-content');
-  const odPanel = createRatioPanel(geomFor(state, 'OD'), { eyeLabel: 'OD · 우안', threshold: state.threshold });
-  const osPanel = createRatioPanel(geomFor(state, 'OS'), { eyeLabel: 'OS · 좌안', threshold: state.threshold });
   const ouBar = createCombinedRatioBar(geomFor(state, 'OD'), geomFor(state, 'OS'), state.threshold);
-  aside.appendChild(odPanel.el);
-  aside.appendChild(osPanel.el);
   aside.appendChild(ouBar.el);
   mountLifestyleRecommender(aside);
 
@@ -180,8 +180,6 @@ export function mountSimulatorTab(root) {
     if (dual) {
       const od = geomFor(s, 'OD'), os = geomFor(s, 'OS');
       dual.update({ od, os, opts: { showIso: s.showIso, showBands: s.showBands, showMarkings: s.showMarkings, environment: 'driving' } });
-      odPanel.update({ geom: od, threshold: s.threshold });
-      osPanel.update({ geom: os, threshold: s.threshold });
       ouBar.update({ od, os, threshold: s.threshold });
     }
   });

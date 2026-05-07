@@ -1322,10 +1322,10 @@ input { font-family: inherit; }
 .lifestyle-card {
   background: var(--stage);
   border-radius: var(--r-lg);
-  padding: 18px 20px;
+  padding: 14px 16px;
   color: var(--stage-ink);
   display: flex; flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   box-shadow: var(--sh-stage);
 }
 
@@ -1343,7 +1343,7 @@ input { font-family: inherit; }
 
 .lifestyle-list {
   display: flex; flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .lifestyle-row {
   display: flex; align-items: center; gap: 10px;
@@ -1358,19 +1358,21 @@ input { font-family: inherit; }
 }
 .lifestyle-text {
   flex: 1;
-  display: flex; flex-direction: column;
+  display: flex; align-items: baseline;
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lifestyle-label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--stage-ink);
 }
-.lifestyle-sub {
-  font-size: 10.5px;
+.lifestyle-sub-inline {
+  font-size: 11px;
   font-weight: 500;
   color: var(--stage-ink-3);
-  margin-top: 1px;
 }
 
 /* Override .switch on dark stage */
@@ -1420,8 +1422,8 @@ input { font-family: inherit; }
 /* Result area */
 .lifestyle-result {
   display: flex; flex-direction: column;
-  gap: 10px;
-  padding-top: 14px;
+  gap: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--stage-line);
 }
 .lifestyle-result-h {
@@ -1440,76 +1442,84 @@ input { font-family: inherit; }
 }
 
 .recommend-row {
-  display: flex; gap: 10px;
+  display: flex; gap: 6px;
 }
-.recommend-row.recommend-single {
+.recommend-row-1 {
   justify-content: center;
 }
-.recommend-row.recommend-single .recommend-card {
+.recommend-row-1 .recommend-card {
   flex: 0 1 60%;
 }
 .recommend-card {
   flex: 1;
-  padding: 12px 10px;
-  border-radius: var(--r);
+  padding: 10px 6px 8px;
+  border-radius: var(--r-sm);
   background: var(--stage-2);
   border: 1px solid transparent;
   display: flex; flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   text-align: center;
   min-width: 0;
+  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .recommend-card.is-best {
   border-color: var(--gold);
-  background: linear-gradient(180deg, var(--stage-2) 0%, color-mix(in oklch, var(--stage-2), var(--gold) 6%) 100%);
+  background: linear-gradient(180deg, var(--stage-2) 0%, color-mix(in oklch, var(--stage-2), var(--gold) 8%) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
 .recommend-tier {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.10em;
-  text-transform: uppercase;
   color: var(--stage-ink-3);
 }
+.recommend-card.is-best .recommend-tier { color: var(--gold); }
 .recommend-bp {
   font-family: var(--font-num);
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--gold);
   letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin-top: 2px;
+  line-height: 1.05;
+  margin-top: 1px;
 }
 .recommend-name {
-  font-size: 10.5px;
+  font-size: 9.5px;
   color: var(--stage-ink-2);
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .recommend-fit {
   font-family: var(--font-num);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--stage-ink);
   margin: 4px 0 6px;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 .recommend-fit-suffix {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
   color: var(--stage-ink-3);
   margin-left: 1px;
 }
 .recommend-apply {
   width: 100%;
-  height: 30px;
+  height: 26px;
   border-radius: var(--r-xs);
   border: 1px solid var(--gold);
   background: var(--gold);
   color: var(--stage);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
   transition: background var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
   -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
 }
 .recommend-apply:hover { background: var(--gold-deep); border-color: var(--gold-deep); }
 .recommend-apply:disabled {
@@ -1519,34 +1529,43 @@ input { font-family: inherit; }
   cursor: default;
   opacity: 0.7;
 }
+/* Non-recommended tiers get muted button so the recommended one stands out */
+.recommend-card:not(.is-best) .recommend-apply {
+  background: transparent;
+  border-color: rgba(244, 241, 234, 0.20);
+  color: var(--stage-ink-2);
+}
+.recommend-card:not(.is-best) .recommend-apply:hover:not(:disabled) {
+  background: rgba(244, 241, 234, 0.08);
+  border-color: var(--stage-ink-2);
+  color: var(--stage-ink);
+}
 
 /* Aux-lens alert (multi-monitor + tight corridor) */
 .lifestyle-aux {
   background: var(--gold-soft);
   border-left: 3px solid var(--gold);
   border-radius: var(--r-xs);
-  padding: 10px 12px;
-  margin-top: 4px;
+  padding: 8px 10px;
 }
 .lifestyle-aux-h {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--gold-deep);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 .lifestyle-aux-detail {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
   color: var(--stage-ink-2);
-  margin-top: 4px;
-  line-height: 1.5;
+  margin-top: 3px;
+  line-height: 1.45;
 }
 
 /* Rationale text */
 .lifestyle-rationale {
   display: flex; flex-direction: column;
-  gap: 3px;
-  margin-top: 4px;
+  gap: 2px;
 }
 .rationale-headline {
   font-size: 12px;
