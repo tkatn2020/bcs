@@ -31,6 +31,20 @@ function lensPath2D(W, H) {
   return p;
 }
 
+// CSS clip-path: path() interprets coordinates as CSS pixels (NOT viewBox).
+// We scale the LENS_PATH coords to the actual element size so the blur
+// layers' clip exactly matches the SVG frame outline (which uses
+// preserveAspectRatio="none" to stretch to the box). Without this scaling
+// the blur would leak well past the visible frame on non-720×440 boxes.
+function scaledLensPathStr(W, H) {
+  const sx = W / 720, sy = H / 440;
+  const f = (a, b) => `${(a * sx).toFixed(2)},${(b * sy).toFixed(2)}`;
+  return `M ${f(60, 184)} C ${f(60, 69)} ${f(187, 23)} ${f(360, 23)}` +
+         ` C ${f(533, 23)} ${f(660, 69)} ${f(660, 193)}` +
+         ` C ${f(660, 313)} ${f(562, 414)} ${f(360, 414)}` +
+         ` C ${f(158, 414)} ${f(60, 313)} ${f(60, 184)} Z`;
+}
+
 function buildSceneBg(opts = {}) {
   const { environment = 'driving', blur = false, distort = false, mirror = false } = opts;
   return buildEnvironmentScene(environment, { blur, distort, mirror });
@@ -71,13 +85,17 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
   let sceneLayer = buildSceneBg({ environment });
   el.appendChild(sceneLayer);
 
-  // [2-4] Blur layers (built dynamically; clipped to lens shape)
+  // [2-4] Blur layers (built dynamically; clipped to lens shape).
+  // clipPath uses the SCALED path so it exactly matches the rendered SVG
+  // frame at any width/height (was using raw 720×440 coords, which leaked
+  // blur past the frame on non-720×440 boxes).
+  const clipStr = scaledLensPathStr(width, height);
   const blurLayers = BLUR_STOPS.map((stop) => {
     const wrap = document.createElement('div');
     Object.assign(wrap.style, {
       position: 'absolute', inset: '0',
-      clipPath: `path("${LENS_PATH}")`,
-      WebkitClipPath: `path("${LENS_PATH}")`,
+      clipPath: `path("${clipStr}")`,
+      WebkitClipPath: `path("${clipStr}")`,
       pointerEvents: 'none',
     });
     const inner = buildSceneBg({ environment });

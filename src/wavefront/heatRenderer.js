@@ -110,12 +110,11 @@ export function paintHeatField(canvas, field, opts = {}) {
   }
   tctx.putImageData(img, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  // Soft upscale: use a one-pass Gaussian (matched to the mask blur radius)
-  // so heat cell seams melt into each other, exactly aligning with the
-  // softened blur masks. Without this, you can see the low-res cell grid
-  // peeking through where the palette is most saturated.
-  const cellPx = W / cols;
-  const blurPx = Math.max(2.5, cellPx * 0.7);
+  // Soft upscale matched to the mask blur radius (see buildBlurMaskDataURL).
+  // Heat color edges and blur mask edges share the SAME effective blur,
+  // so the visible color gradient and the visible blur gradient line up
+  // pixel-for-pixel — no more "color says here but blur says there".
+  const blurPx = Math.max(20, Math.round(W / cols * 6.0));
   ctx.filter = `blur(${blurPx}px)`;
   ctx.drawImage(tmp, 0, 0, W, H);
   ctx.filter = 'none';
