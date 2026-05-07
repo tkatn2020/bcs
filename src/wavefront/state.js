@@ -32,6 +32,16 @@ const initial = {
   // Prescription — shared across all sections (same patient)
   od: { sphere: -2.00, cylinder: 0, axis: 0 },
   os: { sphere: -2.00, cylinder: 0, axis: 0 },
+
+  // Lifestyle profile — drives the auto-recommend feature in the simulator
+  // aside. Activities map to D/I/N viewing-distance demand; the recommender
+  // weights the per-grade scores accordingly. monitor 0 = off, 1/2/3 = count.
+  lifestyle: {
+    driving: false,
+    monitor: 0,
+    laptop:  false,
+    phone:   false,
+  },
 };
 
 export const state = JSON.parse(JSON.stringify(initial));

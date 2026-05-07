@@ -6,6 +6,7 @@ import { GRADES } from '../optics/grades.js';
 import { getGeom, CORRIDOR_OPTIONS } from './helpers.js';
 import { createBinocularLenses } from './lensBox.js';
 import { createRatioPanel, createCombinedRatioBar } from './ratioPanel.js';
+import { mountLifestyleRecommender } from './lifestyleRecommender.js';
 
 const RX_LIMITS = {
   sphere:   { min: -10,  max: 6,   step: 0.25 },
@@ -71,6 +72,7 @@ export function mountSimulatorTab(root) {
   aside.appendChild(odPanel.el);
   aside.appendChild(osPanel.el);
   aside.appendChild(ouBar.el);
+  mountLifestyleRecommender(aside);
 
   // Grade pills
   const gradeBox = root.querySelector('#sim-grades');
