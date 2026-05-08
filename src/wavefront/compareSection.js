@@ -81,13 +81,20 @@ export function mountCompareSection(root) {
       refresh(); refreshDiff();
     });
 
-    // Lens viewer (will be sized after layout)
+    // Lens viewer (will be sized after layout — fits both width AND height
+    // so the lens never pushes cmp-ratiobar out of view on iPad Pro 11").
     let dual = null;
     function buildLens() {
       const wrap = col.querySelector('.cmp-lens-wrap');
       if (wrap.firstChild) wrap.removeChild(wrap.firstChild);
-      const w = Math.max(400, wrap.clientWidth - 4);
-      const h = Math.round(w * 0.58);
+      const ASPECT = 0.58;
+      const availW = wrap.clientWidth - 4;
+      const availH = wrap.clientHeight - 4;
+      let w = Math.max(380, availW);
+      let h = w * ASPECT;
+      if (h > availH) { h = availH; w = h / ASPECT; }   // height-bound → scale down
+      w = Math.max(380, Math.round(w));
+      h = Math.max(220, Math.round(h));
       dual = createBinocularLenses(
         w, h,
         buildGeom(side, 'OD'),
