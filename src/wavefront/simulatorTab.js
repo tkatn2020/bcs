@@ -5,7 +5,7 @@ import { state, update, subscribe } from './state.js';
 import { GRADES } from '../optics/grades.js';
 import { getGeom, CORRIDOR_OPTIONS } from './helpers.js';
 import { createBinocularLenses } from './lensBox.js';
-import { createCombinedRatioBar } from './ratioPanel.js';
+import { createCombinedRatioBar, createRatioPanel } from './ratioPanel.js';
 import { mountLifestyleRecommender } from './lifestyleRecommender.js';
 
 const RX_LIMITS = {
@@ -17,10 +17,12 @@ const RX_LIMITS = {
 export function mountSimulatorTab(root) {
   root.innerHTML = `
     <div class="sim-shell">
+      <aside class="sim-side-panel sim-side-os" id="sim-side-os"></aside>
       <div class="sim-stage">
         <div class="sim-hud" id="sim-hud"></div>
         <div class="sim-lens-wrap" id="sim-lens-wrap"></div>
       </div>
+      <aside class="sim-side-panel sim-side-od" id="sim-side-od"></aside>
       <aside class="sim-aside">
         <div class="sim-aside-content" id="sim-aside-content"></div>
       </aside>
@@ -64,15 +66,19 @@ export function mountSimulatorTab(root) {
   }
   requestAnimationFrame(() => requestAnimationFrame(buildLens));
 
-  // Aside panels — OD/OS individual cards are intentionally hidden to make
-  // room for the lifestyle recommender. The OU bar already shows the
-  // headline score + per-zone OU averages + 좌우격차 indicator, which
-  // covers the sales narrative. (Re-enable per-eye panels in compareSection
-  // if optician needs detailed asymmetry breakdown.)
+  // Right aside — OU 양안 평균 bar + lifestyle recommender.
   const aside = root.querySelector('#sim-aside-content');
   const ouBar = createCombinedRatioBar(geomFor(state, 'OD'), geomFor(state, 'OS'), state.threshold);
   aside.appendChild(ouBar.el);
   mountLifestyleRecommender(aside);
+
+  // Side panels — OD/OS individual Clear Vision Field scores, always visible.
+  // Lens widget convention is OS-left / OD-right (1인칭 뷰), so side panels
+  // mirror that: left column = OS, right column = OD.
+  const odPanel = createRatioPanel(geomFor(state, 'OD'), { eyeLabel: 'OD · 우안', threshold: state.threshold });
+  const osPanel = createRatioPanel(geomFor(state, 'OS'), { eyeLabel: 'OS · 좌안', threshold: state.threshold });
+  root.querySelector('#sim-side-od').appendChild(odPanel.el);
+  root.querySelector('#sim-side-os').appendChild(osPanel.el);
 
   // Grade pills
   const gradeBox = root.querySelector('#sim-grades');
@@ -181,6 +187,8 @@ export function mountSimulatorTab(root) {
       const od = geomFor(s, 'OD'), os = geomFor(s, 'OS');
       dual.update({ od, os, opts: { showIso: s.showIso, showBands: s.showBands, showMarkings: s.showMarkings, environment: 'driving' } });
       ouBar.update({ od, os, threshold: s.threshold });
+      odPanel.update({ geom: od, threshold: s.threshold });
+      osPanel.update({ geom: os, threshold: s.threshold });
     }
   });
 
