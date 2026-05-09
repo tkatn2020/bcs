@@ -51,7 +51,7 @@ export function mountSimulatorTab(root) {
   const lensWrap = root.querySelector('#sim-lens-wrap');
   let dual = null;
   function buildLens() {
-    const ASPECT = 0.70;          // was 0.56 — taller lens fills stage vertical area
+    const ASPECT = 0.56;
     const availW = lensWrap.clientWidth - 4;
     const availH = lensWrap.clientHeight - 4;
     let w = Math.min(960, availW);
