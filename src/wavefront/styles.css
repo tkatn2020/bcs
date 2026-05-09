@@ -672,46 +672,56 @@ input { font-family: inherit; }
   min-height: 0;
 }
 
-/* Side panels — OD/OS individual Clear Vision Field scores in stage gutters */
+/* Side panels — OD/OS individual Clear Vision Field scores in stage gutters.
+   Background matches the stage so the columns visually merge with the lens
+   stage into one continuous dark surface (per-customer feedback for cohesion). */
 .sim-side-panel {
-  background: var(--paper);
+  background: var(--stage);
   display: flex; flex-direction: column;
   overflow-y: auto;
   min-height: 0;
-  padding: 10px;
+  padding: 0;
 }
-.sim-side-os { border-right: 1px solid var(--hair-2); }
-.sim-side-od { border-left: 1px solid var(--hair-2); }
+.sim-side-os, .sim-side-od { border: none; }
 
-/* Compact overrides for the reused createRatioPanel inside the narrow column */
+/* Compact overrides for the reused createRatioPanel inside the narrow column.
+   Panel is flush edge-to-edge (no shadow/radius) and fills the full column
+   height — content distributes across the available vertical space so the
+   side panel doesn't leave a visible empty stripe below the rows. */
 .sim-side-panel .score-panel {
-  padding: 12px 12px;
-  border-radius: var(--r);
-  box-shadow: 0 4px 14px rgba(20,19,15,0.06);
+  flex: 1;
+  padding: 14px 14px;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex; flex-direction: column;
 }
 .sim-side-panel .score-eye-row {
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
 }
 .sim-side-panel .score-headline { text-align: left; }
-.sim-side-panel .score-num { font-size: 32px; }
-.sim-side-panel .score-num-suffix { font-size: 11px; }
-.sim-side-panel .score-eye-label { font-size: 9px; }
+.sim-side-panel .score-num { font-size: 36px; }
+.sim-side-panel .score-num-suffix { font-size: 12px; }
+.sim-side-panel .score-eye-label { font-size: 10px; }
 .sim-side-panel .score-eye-sub { font-size: 9px; }
 .sim-side-panel .score-caption { font-size: 9px; }
-.sim-side-panel .score-rows { gap: 8px; }
-.sim-side-panel .score-row { gap: 3px; }
-.sim-side-panel .score-row-h { flex-wrap: wrap; gap: 3px; row-gap: 1px; }
-.sim-side-panel .score-zone-name { font-size: 11px; }
-.sim-side-panel .score-zone-mm { font-size: 9px; }
-.sim-side-panel .score-zone-val { font-size: 14px; }
-.sim-side-panel .score-zone-val-suffix { font-size: 9px; }
+.sim-side-panel .score-rows {
+  flex: 1;
+  gap: 16px;
+  justify-content: flex-start;
+}
+.sim-side-panel .score-row { gap: 5px; }
+.sim-side-panel .score-row-h { flex-wrap: wrap; gap: 4px; row-gap: 2px; }
+.sim-side-panel .score-zone-name { font-size: 12px; }
+.sim-side-panel .score-zone-mm { font-size: 10px; }
+.sim-side-panel .score-zone-val { font-size: 16px; }
+.sim-side-panel .score-zone-val-suffix { font-size: 10px; }
 .sim-side-panel .score-zone-spacer { display: none; }   /* no spacer in narrow column */
 .sim-side-panel .score-zone-delta { display: none; }    /* no baseline diff in sim tab */
-.sim-side-panel .score-bar-track { height: 4px; }
+.sim-side-panel .score-bar-track { height: 6px; }
 
 .sim-stage {
   display: flex; flex-direction: column;
