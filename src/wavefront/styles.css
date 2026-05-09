@@ -699,8 +699,13 @@ input { font-family: inherit; }
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  margin-bottom: 14px;
+  /* Match HUD section height (114px on iPad Pro 11") + stage gap (10px) so
+     the first zone row top y aligns exactly with lens-wrap top y across
+     all three columns. */
+  min-height: 114px;
+  margin-bottom: 10px;
   padding-bottom: 10px;
+  box-sizing: border-box;
 }
 .sim-side-panel .score-headline { text-align: left; }
 .sim-side-panel .score-num { font-size: 36px; }
@@ -728,7 +733,7 @@ input { font-family: inherit; }
   background: var(--stage);
   background-image:
     radial-gradient(ellipse at 50% 35%, rgba(244,241,234,0.04) 0%, rgba(0,0,0,0) 60%);
-  padding: 14px 22px 16px;
+  padding: 14px 8px 12px;        /* was 14 22 16 — narrower H padding gives lens more room */
   gap: 10px;
   overflow: hidden;
   min-height: 0;
