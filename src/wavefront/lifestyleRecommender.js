@@ -48,7 +48,20 @@ const ACTIVITY_WEIGHTS = {
 //   • FIT_RETHINK_RX = 50      — even BEST grade < this → suggest Rx re-check
 //   • AUX_LENS_I_THRESHOLD = 70 — multi-monitor + BP50 corridor < this →
 //     suggest auxiliary lens (office / single-vision intermediate)
+//
+// Activity-count threshold escalation:
+//   The base FIT_SUFFICIENT (70) applies for a single activity. Each additional
+//   active category (driving / monitor / laptop / phone) raises the threshold
+//   by FIT_PER_ACTIVITY (3 pts). Why? The weight model is normalized (D+I+N=1),
+//   so adding an activity REDISTRIBUTES weight rather than ACCUMULATING demand.
+//   Without escalation, adding driving (a high-D activity) lowered the
+//   recommended grade because lower BP grades have wider distance plateau —
+//   counterintuitive to opticians who expect "more activities → higher grade".
+//   Escalating the threshold restores the accumulation intuition: covering
+//   more distances simultaneously requires a broader-plateau (= higher BP)
+//   lens design.
 const FIT_SUFFICIENT     = 70;
+const FIT_PER_ACTIVITY   = 3;
 const SUFFICIENT_MIN_ID  = 2;   // BP20 — lowest grade allowed as 충분
 const SUFFICIENT_MAX_ID  = 4;   // BP40 — highest grade allowed as 충분
 const FIT_RETHINK_RX     = 50;
@@ -108,7 +121,16 @@ export function computeRecommendation(s) {
   });
 
   const best = fits.reduce((a, b) => b.fit > a.fit ? b : a);
-  const rawSufficient = fits.find(f => f.fit >= FIT_SUFFICIENT) ?? best;
+  // Activity-diversity threshold: more active categories → higher fit needed
+  // to call a grade "충분". Counts driving / monitor (any count) / laptop /
+  // phone as one each. Single activity = base 70; each extra +3.
+  const activityCount =
+    (s.lifestyle.driving      ? 1 : 0) +
+    (s.lifestyle.monitor > 0  ? 1 : 0) +
+    (s.lifestyle.laptop       ? 1 : 0) +
+    (s.lifestyle.phone        ? 1 : 0);
+  const fitThreshold = FIT_SUFFICIENT + Math.max(0, activityCount - 1) * FIT_PER_ACTIVITY;
+  const rawSufficient = fits.find(f => f.fit >= fitThreshold) ?? best;
   // Clamp the calibrated 충분 grade to [BP20, BP40] so the recommended
   // center never lands on the entry tier (BP10 → too cheap to recommend)
   // or the top tier (BP50 → upgrade option, not default). The clamped id
