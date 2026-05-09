@@ -42,7 +42,13 @@ export function mountSimulatorTab(root) {
       </div>
       <div class="sim-ctrl-block">
         <div class="sim-ctrl-label">누진대 · CORRIDOR</div>
-        <div class="corridor-pills-lg" id="sim-corridors"></div>
+        <div class="sim-ctrl-corridor-row">
+          <div class="corridor-pills-lg" id="sim-corridors"></div>
+          <div class="corridor-note">
+            <div class="corridor-note-h">ⓘ 길수록 좋은 건 아닙니다</div>
+            <div class="corridor-note-body">왜곡은 줄지만 근거리를 볼 때 눈을 더 아래로 내려야 합니다.</div>
+          </div>
+        </div>
       </div>
     </div>
   `;
