@@ -668,7 +668,7 @@ input { font-family: inherit; }
 .sim-shell {
   flex: 1;
   display: grid;
-  grid-template-columns: 150px 1fr 150px 380px;   /* OS panel | stage | OD panel | lifestyle aside */
+  grid-template-columns: 150px 1fr 150px 340px;   /* OS panel | stage | OD panel | lifestyle aside */
   min-height: 0;
 }
 
@@ -694,15 +694,15 @@ input { font-family: inherit; }
   border-radius: 0;
   box-shadow: none;
   display: flex; flex-direction: column;
+  justify-content: center;       /* center content vertically in column */
+}
+.sim-side-panel .score-panel::before {
+  display: none;                 /* drop the cream-tint radial gradient → uniform black */
 }
 .sim-side-panel .score-eye-row {
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  /* Match HUD section height (114px on iPad Pro 11") + stage gap (10px) so
-     the first zone row top y aligns exactly with lens-wrap top y across
-     all three columns. */
-  min-height: 114px;
   margin-bottom: 10px;
   padding-bottom: 10px;
   box-sizing: border-box;
@@ -714,9 +714,8 @@ input { font-family: inherit; }
 .sim-side-panel .score-eye-sub { font-size: 9px; }
 .sim-side-panel .score-caption { font-size: 9px; }
 .sim-side-panel .score-rows {
-  flex: 1;
   gap: 16px;
-  justify-content: flex-start;
+  /* no flex: 1 — let score-panel's justify-content: center work */
 }
 .sim-side-panel .score-row { gap: 5px; }
 .sim-side-panel .score-row-h { flex-wrap: wrap; gap: 4px; row-gap: 2px; }
@@ -887,13 +886,13 @@ input { font-family: inherit; }
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  width: 380px;
+  width: 340px;
   flex-shrink: 0;
 }
 .sim-aside-content {
-  padding: 12px 16px;          /* was 18 20 */
+  padding: 10px 12px;
   display: flex; flex-direction: column;
-  gap: 10px;                   /* was 14 */
+  gap: 8px;
   overflow-y: auto;
   flex: 1;
 }
@@ -1403,7 +1402,7 @@ input { font-family: inherit; }
 .lifestyle-card {
   background: var(--stage);
   border-radius: var(--r-lg);
-  padding: 12px 14px;
+  padding: 10px 12px;
   color: var(--stage-ink);
   display: flex; flex-direction: column;
   gap: 8px;

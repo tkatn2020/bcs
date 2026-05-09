@@ -112,13 +112,13 @@ export function mountSimulatorTab(root) {
   // HUD
   const hud = root.querySelector('#sim-hud');
   hud.innerHTML = `
-    ${rxRowHud('os', 'OS', state.os)}
+    ${rxRowHud('od', 'OD', state.od)}
     <label class="hud-sync" title="양안 동기화: 한쪽을 바꾸면 반대쪽도 같이 변경됩니다">
       <input type="checkbox" id="hud-sync" ${state.syncEyes ? 'checked' : ''}>
       <span class="hud-sync-track"></span>
       <span class="hud-sync-label">양안 동기화</span>
     </label>
-    ${rxRowHud('od', 'OD', state.od)}
+    ${rxRowHud('os', 'OS', state.os)}
   `;
 
   // ± steppers
