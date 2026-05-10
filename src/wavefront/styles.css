@@ -668,64 +668,32 @@ input { font-family: inherit; }
 .sim-shell {
   flex: 1;
   display: grid;
-  grid-template-columns: 150px 1fr 150px 340px;   /* OS panel | stage | OD panel | lifestyle aside */
+  grid-template-columns: 1fr 380px;   /* stage | aside (OU bar + OD/OS panels + recommender) */
   min-height: 0;
 }
 
-/* Side panels — OD/OS individual Clear Vision Field scores in stage gutters.
-   Background matches the stage so the columns visually merge with the lens
-   stage into one continuous dark surface (per-customer feedback for cohesion). */
-.sim-side-panel {
-  background: var(--stage);
-  display: flex; flex-direction: column;
-  overflow-y: auto;
-  min-height: 0;
-  padding: 0;
+/* Compact OD/OS score panels stacked inside the right aside (after OU bar).
+   Smaller fonts than the stand-alone panel design — two of them have to
+   share aside height alongside OU bar + recommender section. */
+.sim-aside .score-panel {
+  padding: 12px 14px;
+  border-radius: var(--r);
+  box-shadow: 0 4px 14px rgba(20, 19, 15, 0.06);
 }
-.sim-side-os, .sim-side-od { border: none; }
-
-/* Compact overrides for the reused createRatioPanel inside the narrow column.
-   Panel is flush edge-to-edge (no shadow/radius) and fills the full column
-   height — content distributes across the available vertical space so the
-   side panel doesn't leave a visible empty stripe below the rows. */
-.sim-side-panel .score-panel {
-  flex: 1;
-  padding: 14px 14px;
-  border-radius: 0;
-  box-shadow: none;
-  display: flex; flex-direction: column;
-  justify-content: center;       /* center content vertically in column */
-}
-.sim-side-panel .score-panel::before {
-  display: none;                 /* drop the cream-tint radial gradient → uniform black */
-}
-.sim-side-panel .score-eye-row {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
+.sim-aside .score-eye-row {
   margin-bottom: 10px;
-  padding-bottom: 10px;
-  box-sizing: border-box;
+  padding-bottom: 8px;
 }
-.sim-side-panel .score-headline { text-align: left; }
-.sim-side-panel .score-num { font-size: 36px; }
-.sim-side-panel .score-num-suffix { font-size: 12px; }
-.sim-side-panel .score-eye-label { font-size: 10px; }
-.sim-side-panel .score-eye-sub { font-size: 9px; }
-.sim-side-panel .score-caption { font-size: 9px; }
-.sim-side-panel .score-rows {
-  gap: 16px;
-  /* no flex: 1 — let score-panel's justify-content: center work */
-}
-.sim-side-panel .score-row { gap: 5px; }
-.sim-side-panel .score-row-h { flex-wrap: wrap; gap: 4px; row-gap: 2px; }
-.sim-side-panel .score-zone-name { font-size: 12px; }
-.sim-side-panel .score-zone-mm { font-size: 10px; }
-.sim-side-panel .score-zone-val { font-size: 16px; }
-.sim-side-panel .score-zone-val-suffix { font-size: 10px; }
-.sim-side-panel .score-zone-spacer { display: none; }   /* no spacer in narrow column */
-.sim-side-panel .score-zone-delta { display: none; }    /* no baseline diff in sim tab */
-.sim-side-panel .score-bar-track { height: 6px; }
+.sim-aside .score-num { font-size: 30px; }
+.sim-aside .score-num-suffix { font-size: 11px; }
+.sim-aside .score-eye-label { font-size: 9.5px; }
+.sim-aside .score-rows { gap: 8px; }
+.sim-aside .score-row { gap: 4px; }
+.sim-aside .score-zone-name { font-size: 11.5px; }
+.sim-aside .score-zone-mm { font-size: 10px; }
+.sim-aside .score-zone-val { font-size: 14.5px; }
+.sim-aside .score-zone-delta { display: none; }   /* no baseline diff in sim tab */
+.sim-aside .score-bar-track { height: 5px; }
 
 .sim-stage {
   display: flex; flex-direction: column;
@@ -886,13 +854,13 @@ input { font-family: inherit; }
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  width: 340px;
+  width: 380px;
   flex-shrink: 0;
 }
 .sim-aside-content {
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex; flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   overflow-y: auto;
   flex: 1;
 }
@@ -1421,9 +1389,9 @@ input { font-family: inherit; }
 .score-num.is-rolling { color: var(--gold); transition: color 600ms var(--ease); }
 
 /* ============================================================
-   Lifestyle recommender card (sim-aside, after OU bar)
+   Score-based recommender section (sim-aside, after OU + OD + OS panels)
    ============================================================ */
-.lifestyle-card {
+.recommend-section {
   background: var(--stage);
   border-radius: var(--r-lg);
   padding: 10px 12px;
@@ -1432,117 +1400,12 @@ input { font-family: inherit; }
   gap: 8px;
   box-shadow: var(--sh-stage);
 }
-
-.lifestyle-h-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-}
-.lifestyle-h-sub {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--stage-ink-3);
-  margin-top: 2px;
-}
-
-.lifestyle-list {
-  display: flex; flex-direction: column;
-  gap: 6px;
-}
-.lifestyle-row {
-  display: flex; align-items: center; gap: 10px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.lifestyle-emoji {
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
-  flex-shrink: 0;
-}
-.lifestyle-text {
-  flex: 1;
-  display: flex; align-items: baseline;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lifestyle-label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--stage-ink);
-}
-.lifestyle-sub-inline {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--stage-ink-3);
-}
-
-/* Override .switch on dark stage */
-.lifestyle-card .switch-track {
-  background: rgba(244, 241, 234, 0.16);
-}
-.lifestyle-card .switch-track::before {
-  background: var(--stage-ink);
-}
-.lifestyle-card .switch input:checked + .switch-track {
-  background: var(--gold);
-}
-.lifestyle-card .switch input:checked + .switch-track::before {
-  background: var(--stage);
-}
-
-/* Monitor count segmented control */
-.monitor-count-row {
-  display: flex; gap: 6px;
-  padding-left: 34px;
-  margin-top: -4px;
-}
-.monitor-count-row[hidden] { display: none; }
-.monitor-count-pill {
-  flex: 1;
-  height: 28px;
-  background: rgba(244, 241, 234, 0.04);
-  border: 1px solid rgba(244, 241, 234, 0.10);
-  border-radius: var(--r-xs);
-  color: var(--stage-ink-2);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font-num);
-  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
-}
-.monitor-count-pill:hover {
-  background: rgba(244, 241, 234, 0.08);
-  color: var(--stage-ink);
-}
-.monitor-count-pill[data-active="true"] {
-  background: var(--gold-soft);
-  border-color: var(--gold);
-  color: var(--gold);
-}
-
-/* Result area */
-.lifestyle-result {
-  display: flex; flex-direction: column;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--stage-line);
-}
-.lifestyle-result-h {
+.recommend-section-h {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--stage-ink-3);
-}
-.lifestyle-empty {
-  font-size: 12px;
-  color: var(--stage-ink-3);
-  padding: 14px 0;
-  text-align: center;
-  line-height: 1.5;
 }
 
 .recommend-row {
@@ -1645,20 +1508,31 @@ input { font-family: inherit; }
   color: var(--stage-ink);
 }
 
-/* Aux-lens alert (multi-monitor + tight corridor) */
-.lifestyle-aux {
-  background: var(--gold-soft);
-  border-left: 3px solid var(--gold);
+/* Computer-glasses warning — two escalation levels driven by I@BP50:
+   - .top-grade  (I@BP50 in [50, 65))  → push customer to BP50
+   - .computer-lens (I@BP50 < 50)      → recommend dedicated computer/office lens
+   Visual difference: top-grade uses gold (advisory), computer-lens uses
+   coral/red (stronger clinical signal). */
+.computer-warning {
   border-radius: var(--r-xs);
   padding: 8px 10px;
 }
-.lifestyle-aux-h {
+.computer-warning-top-grade {
+  background: var(--gold-soft);
+  border-left: 3px solid var(--gold);
+}
+.computer-warning-computer-lens {
+  background: rgba(220, 80, 70, 0.10);
+  border-left: 3px solid oklch(0.62 0.18 25);
+}
+.computer-warning-h {
   font-size: 11px;
   font-weight: 700;
-  color: var(--gold-deep);
   line-height: 1.35;
 }
-.lifestyle-aux-detail {
+.computer-warning-top-grade .computer-warning-h { color: var(--gold-deep); }
+.computer-warning-computer-lens .computer-warning-h { color: oklch(0.55 0.18 25); }
+.computer-warning-detail {
   font-size: 10.5px;
   font-weight: 500;
   color: var(--stage-ink-2);
@@ -1666,8 +1540,8 @@ input { font-family: inherit; }
   line-height: 1.45;
 }
 
-/* Rationale text */
-.lifestyle-rationale {
+/* Rationale text — explains why the recommendation window centers where it does */
+.recommend-rationale {
   display: flex; flex-direction: column;
   gap: 2px;
 }
