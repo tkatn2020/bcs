@@ -1,5 +1,5 @@
 // Tab 1 — Prescription input.
-// Driving-only environment notice (per redesign brief).
+// Single-environment notice (office scene only).
 
 import { state, update, subscribe } from './state.js';
 
@@ -10,7 +10,7 @@ const RX_LIMITS = {
   add:      { min: 0.5,  max: 3.5, step: 0.25 },
 };
 
-// Force-set environment to driving (we removed outdoor/indoor from the UI)
+// Force-set environment to 'driving' (only env remaining; id retained for compat).
 if (state.environment !== 'driving') update({ environment: 'driving' });
 
 export function mountInputTab(root) {

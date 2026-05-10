@@ -23,7 +23,7 @@ const initial = {
   // in-house training overlay so staff learn what each engraving means.
   showMarkings: false,
   syncEyes: true,
-  environment: 'driving',  // 'driving' | 'outdoor' | 'indoor'
+  environment: 'driving',  // single env ('driving' id retained for compat — content is office scene)
 
   // iPad tab navigation
   activeTab: 'simulator', // 'simulator' | 'compare'

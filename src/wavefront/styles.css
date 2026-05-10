@@ -610,7 +610,7 @@ input { font-family: inherit; }
 }
 .sync-text { font-weight: 500; }
 
-/* Driving environment notice card */
+/* Office environment notice card */
 .env-section { margin-bottom: 22px; }
 .env-driving-card {
   display: flex; align-items: center; gap: 16px;
