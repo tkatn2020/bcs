@@ -34,7 +34,7 @@ const ANIM_REGISTRY = new WeakMap();
 
 export function countUp(el, toValue, opts = {}) {
   const {
-    duration = 480,
+    duration = 280,         // was 480 — shorter feels snappier on iPad without sacrificing the count-up effect
     decimals = 0,
     suffix = '',
     formatter = null,

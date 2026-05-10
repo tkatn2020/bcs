@@ -5,6 +5,22 @@
 
 const subscribers = new Set();
 
+// RAF batching for subscribers — multiple update() calls within the same JS
+// tick (e.g., sync-eyes patch that updates OD then OS sequentially, or
+// multi-field state changes from a single user action) fire subscribers
+// only ONCE per animation frame. On iPad this halves the rendering work for
+// common interaction patterns.
+let _rafScheduled = false;
+function _flushSubscribers() {
+  _rafScheduled = false;
+  subscribers.forEach(fn => { try { fn(state); } catch (e) { console.error(e); } });
+}
+function _scheduleNotify() {
+  if (_rafScheduled) return;
+  _rafScheduled = true;
+  requestAnimationFrame(_flushSubscribers);
+}
+
 const initial = {
   // Lens config (used by Section 1; Section 2/3 may override locally)
   grade: 3,
@@ -43,13 +59,13 @@ export function subscribe(fn) {
 
 export function update(patch) {
   applyPatch(state, patch);
-  subscribers.forEach(fn => { try { fn(state); } catch (e) { console.error(e); } });
+  _scheduleNotify();
 }
 
 export function reset() {
   Object.keys(state).forEach(k => delete state[k]);
   Object.assign(state, JSON.parse(JSON.stringify(initial)));
-  subscribers.forEach(fn => { try { fn(state); } catch (e) { console.error(e); } });
+  _scheduleNotify();
 }
 
 function applyPatch(target, patch) {

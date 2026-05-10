@@ -98,7 +98,7 @@ export function createRatioPanel(initialGeom, opts = {}) {
 
     // Count-up the headline. Pulse the panel if it improved noticeably.
     const onImprove = () => pulseClass(el, 'is-improving', 800);
-    countUp(refs.total, r.totalScore, { duration: animate ? 520 : 0, onImprove });
+    countUp(refs.total, r.totalScore, { duration: animate ? 280 : 0, onImprove });
     lastTotal = r.totalScore;
 
     // Per-zone values
@@ -147,7 +147,7 @@ export function createRatioPanel(initialGeom, opts = {}) {
     const r = computeClearRatios(currentGeom, currentThreshold);
     const base = currentBaseline ? computeClearRatios(currentBaseline, currentThreshold) : null;
     refs.eye.textContent = currentEyeLabel;
-    const dur = animate ? 520 : 0;
+    const dur = animate ? 280 : 0;     // was 520 — snappier for iPad
 
     const onImprove = () => pulseClass(el, 'is-improving', 800);
     countUp(refs.totalNum, r.totalScore, { duration: dur, decimals: 0, onImprove });
@@ -222,7 +222,7 @@ export function createCombinedRatioBar(odGeom, osGeom, threshold = 0.25) {
     const dGap = rxDioptricGap(currentOd, currentOs);
     const gapScore = gapScoreFromDioptric(dGap);
 
-    const dur = animate ? 480 : 0;
+    const dur = animate ? 260 : 0;     // was 480 — snappier for iPad
     countUp(refs['ou-num'], ouScore, { duration: dur, decimals: 0 });
     refs['ou-d'].style.width = Math.round(ouD) + '%';
     refs['ou-i'].style.width = Math.round(ouI) + '%';

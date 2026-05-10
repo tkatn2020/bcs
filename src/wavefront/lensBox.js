@@ -64,7 +64,35 @@ const BLUR_STOPS = [
   { blur: 32, lo: 1.55, hi: 2.70 },
 ];
 
-const MORPH_MS = 450;
+const MORPH_MS = 250;   // was 450 — halves morph rendering work on iPad
+
+// Mask URL cache — keyed on (width|height|fieldChecksum|lo|hi). Skipping
+// regeneration when the same field signature recurs is a big win during
+// the morph tween (many intermediate fields, but on quick repeated Rx
+// changes the start/end fields often match a recent computation).
+const _maskUrlCache = new Map();
+const MASK_URL_CACHE_MAX = 120;
+function fieldChecksum(field) {
+  // Lightweight hash — sample 8 well-distributed cells. Sufficient to
+  // distinguish distinct fields without scanning the entire array.
+  if (!field || !field.length) return 'x';
+  const n = field.length;
+  let h = 0;
+  for (let i = 0; i < 8; i++) {
+    const idx = Math.floor((i + 0.5) * n / 8);
+    h = ((h << 5) - h + Math.round(field[idx] * 1000)) | 0;
+  }
+  return h.toString(36);
+}
+function cachedBlurMaskUrl(field, w, h, lo, hi) {
+  const key = `${w}|${h}|${fieldChecksum(field)}|${lo}|${hi}`;
+  const hit = _maskUrlCache.get(key);
+  if (hit) return hit;
+  const url = buildBlurMaskDataURL(field, w, h, lo, hi);
+  if (_maskUrlCache.size >= MASK_URL_CACHE_MAX) _maskUrlCache.clear();
+  _maskUrlCache.set(key, url);
+  return url;
+}
 
 export function createLensBox(width, height, initialGeom, opts = {}) {
   const {
@@ -154,9 +182,18 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
   let morphStart = 0;
   let morphRaf = 0;
 
+  // Reused tmp canvas for heat painting — avoids allocating + GC churn
+  // every frame of the morph tween (was creating ~27 canvases per Rx change
+  // per lens before this).
+  const tmp = document.createElement('canvas');
+  tmp.width = width; tmp.height = height;
+  const tmpCtx = tmp.getContext('2d');
+  const heatCtx = heat.getContext('2d');
+  const lensClip = lensPath2D(width, height);
+
   function applyMasks(field) {
     blurLayers.forEach(({ wrap, stop }) => {
-      const url = buildBlurMaskDataURL(field, width, height, stop.lo, stop.hi);
+      const url = cachedBlurMaskUrl(field, width, height, stop.lo, stop.hi);
       wrap.style.maskImage = `url(${url})`;
       wrap.style.webkitMaskImage = `url(${url})`;
       wrap.style.maskSize = '100% 100%';
@@ -167,10 +204,8 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
   }
 
   function paintHeat(field) {
-    const ctx = heat.getContext('2d');
-    ctx.clearRect(0, 0, width, height);
-    const tmp = document.createElement('canvas');
-    tmp.width = width; tmp.height = height;
+    heatCtx.clearRect(0, 0, width, height);
+    tmpCtx.clearRect(0, 0, width, height);
     paintHeatField(tmp, field, {
       drawIso: currentOpts.showIso,
       drawBands: currentOpts.showBands,
@@ -178,10 +213,10 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
       geom: currentGeom,
       eye: currentOpts.mirror ? 'OS' : 'OD',
     });
-    ctx.save();
-    ctx.clip(lensPath2D(width, height));
-    ctx.drawImage(tmp, 0, 0);
-    ctx.restore();
+    heatCtx.save();
+    heatCtx.clip(lensClip);
+    heatCtx.drawImage(tmp, 0, 0);
+    heatCtx.restore();
   }
 
   function tick(ts) {
