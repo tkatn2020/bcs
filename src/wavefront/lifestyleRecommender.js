@@ -168,6 +168,58 @@ export function mountRecommender(parent) {
   subscribe(refresh);
 }
 
+// ── Grade-spec card (sales rationale for the recommended 충분 tier) ─────
+
+const TARGET_CUSTOMER = {
+  1: '· 예산 한정 / 단순 처방\n· 첫 다초점',
+  2: '· 표준 가성비\n· 일반 활동 위주',
+  3: '· 다양한 시 활동\n· 균형 잡힌 시야 필요',
+  4: '· 정밀 작업 종사자\n· 두 번째 누진 (적응 우수)',
+  5: '· 까다로운 적응자\n· 최고 시야 추구\n· 첫 누진렌즈 비추',
+};
+
+function adaptationToStars(adaptation) {
+  const map = { '어려움': '★★☆☆☆', '보통': '★★★☆☆', '쉬움': '★★★★☆', '매우 쉬움': '★★★★★' };
+  return map[adaptation] ?? '★★★☆☆';
+}
+
+export function mountGradeSpecCard(parent) {
+  const el = document.createElement('div');
+  el.className = 'grade-spec-card';
+  parent.appendChild(el);
+
+  function refresh(s) {
+    const rec = computeRecommendation(s);
+    if (rec.kind !== 'triple') { el.innerHTML = ''; return; }
+    const g = getGrade(rec.sufficient.gradeId);
+    const adaptationStars = adaptationToStars(g.adaptation);
+    const target = TARGET_CUSTOMER[g.id] ?? '';
+    // Both metrics are derived from grades.js source-of-truth values:
+    // - cylReductionFactor: 1.05 (BP10) → 0.55 (BP50)
+    // - clearZoneScale:     0.95 (BP10) → 1.30 (BP50)
+    const cylReductionPct = Math.round((1 - g.cylReductionFactor / 1.05) * 100);
+    const corridorWidthPct = Math.round((g.clearZoneScale / 0.95 - 1) * 100);
+    el.innerHTML = `
+      <div class="grade-spec-h">▶ 추천 등급 상세</div>
+      <div class="grade-spec-title">
+        <span class="grade-spec-bp">${g.bpCode}</span>
+        <span class="grade-spec-name">${g.name}</span>
+      </div>
+      <div class="grade-spec-en">${g.nameEn}</div>
+      <div class="grade-spec-desc">${g.description}</div>
+      <div class="grade-spec-metrics">
+        <div class="metric"><span class="metric-l">적응</span><span class="metric-v">${adaptationStars}</span></div>
+        <div class="metric"><span class="metric-l">가격</span><span class="metric-v">${g.priceLevel}</span></div>
+        <div class="metric"><span class="metric-l">코리도 폭</span><span class="metric-v">+${corridorWidthPct}%</span></div>
+        <div class="metric"><span class="metric-l">왜곡 감소</span><span class="metric-v">-${cylReductionPct}%</span></div>
+      </div>
+      <div class="grade-spec-target">${target}</div>
+    `;
+  }
+  refresh(state);
+  subscribe(refresh);
+}
+
 function renderResult(root, rec, currentGradeId) {
   const recommendedId = rec.sufficient.gradeId;
 

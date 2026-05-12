@@ -668,32 +668,56 @@ input { font-family: inherit; }
 .sim-shell {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 380px;   /* stage | aside (OU bar + OD/OS panels + recommender) */
+  grid-template-columns: 150px 1fr 150px 340px;   /* OS panel | stage | OD panel | aside */
   min-height: 0;
 }
 
-/* Compact OD/OS score panels stacked inside the right aside (after OU bar).
-   Smaller fonts than the stand-alone panel design — two of them have to
-   share aside height alongside OU bar + recommender section. */
-.sim-aside .score-panel {
-  padding: 12px 14px;
-  border-radius: var(--r);
-  box-shadow: 0 4px 14px rgba(20, 19, 15, 0.06);
+/* Side panels — OD/OS individual Clear Vision Field scores in stage gutters.
+   Background matches the stage so the columns visually merge with the lens
+   stage into one continuous dark surface. */
+.sim-side-panel {
+  background: var(--stage);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0;
 }
-.sim-aside .score-eye-row {
+.sim-side-os, .sim-side-od { border: none; }
+
+/* Compact overrides for the reused createRatioPanel inside the narrow column. */
+.sim-side-panel .score-panel {
+  flex: 1;
+  padding: 14px 14px;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex; flex-direction: column;
+  justify-content: center;
+}
+.sim-side-panel .score-panel::before { display: none; }
+.sim-side-panel .score-eye-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   margin-bottom: 10px;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
+  box-sizing: border-box;
 }
-.sim-aside .score-num { font-size: 30px; }
-.sim-aside .score-num-suffix { font-size: 11px; }
-.sim-aside .score-eye-label { font-size: 9.5px; }
-.sim-aside .score-rows { gap: 8px; }
-.sim-aside .score-row { gap: 4px; }
-.sim-aside .score-zone-name { font-size: 11.5px; }
-.sim-aside .score-zone-mm { font-size: 10px; }
-.sim-aside .score-zone-val { font-size: 14.5px; }
-.sim-aside .score-zone-delta { display: none; }   /* no baseline diff in sim tab */
-.sim-aside .score-bar-track { height: 5px; }
+.sim-side-panel .score-headline { text-align: left; }
+.sim-side-panel .score-num { font-size: 36px; }
+.sim-side-panel .score-num-suffix { font-size: 12px; }
+.sim-side-panel .score-eye-label { font-size: 10px; }
+.sim-side-panel .score-eye-sub { font-size: 9px; }
+.sim-side-panel .score-caption { font-size: 9px; }
+.sim-side-panel .score-rows { gap: 16px; }
+.sim-side-panel .score-row { gap: 5px; }
+.sim-side-panel .score-row-h { flex-wrap: wrap; gap: 4px; row-gap: 2px; }
+.sim-side-panel .score-zone-name { font-size: 12px; }
+.sim-side-panel .score-zone-mm { font-size: 10px; }
+.sim-side-panel .score-zone-val { font-size: 16px; }
+.sim-side-panel .score-zone-val-suffix { font-size: 10px; }
+.sim-side-panel .score-zone-spacer { display: none; }
+.sim-side-panel .score-zone-delta { display: none; }
+.sim-side-panel .score-bar-track { height: 6px; }
 
 .sim-stage {
   display: flex; flex-direction: column;
@@ -854,13 +878,13 @@ input { font-family: inherit; }
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  width: 380px;
+  width: 340px;
   flex-shrink: 0;
 }
 .sim-aside-content {
-  padding: 12px 14px;
+  padding: 8px 12px;
   display: flex; flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   overflow-y: auto;
   flex: 1;
 }
@@ -1394,10 +1418,10 @@ input { font-family: inherit; }
 .recommend-section {
   background: var(--stage);
   border-radius: var(--r-lg);
-  padding: 10px 12px;
+  padding: 8px 12px;
   color: var(--stage-ink);
   display: flex; flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   box-shadow: var(--sh-stage);
 }
 .recommend-section-h {
@@ -1406,6 +1430,78 @@ input { font-family: inherit; }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--stage-ink-3);
+}
+
+/* Grade-spec card — shows the recommended 충분 grade's full spec sheet
+   (description, optical properties, target customer). Auto-updates when
+   the recommendation changes. */
+.grade-spec-card {
+  background: var(--stage);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+  color: var(--stage-ink);
+  display: flex; flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--sh-stage);
+}
+.grade-spec-h {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stage-ink-3);
+}
+.grade-spec-title {
+  display: flex; align-items: baseline; gap: 8px;
+}
+.grade-spec-bp {
+  font-family: var(--font-num);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: -0.02em;
+}
+.grade-spec-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--stage-ink);
+}
+.grade-spec-en {
+  font-size: 10px;
+  color: var(--stage-ink-3);
+  margin-top: -4px;
+  font-style: italic;
+}
+.grade-spec-desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--stage-ink-2);
+  padding: 5px 0;
+  border-top: 1px solid var(--stage-line);
+  border-bottom: 1px solid var(--stage-line);
+}
+.grade-spec-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+.grade-spec-metrics .metric {
+  display: flex; justify-content: space-between;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.grade-spec-metrics .metric-l { color: var(--stage-ink-3); }
+.grade-spec-metrics .metric-v {
+  font-family: var(--font-num);
+  font-weight: 600;
+  color: var(--stage-ink);
+}
+.grade-spec-target {
+  font-size: 10.5px;
+  color: var(--stage-ink-2);
+  white-space: pre-line;
+  line-height: 1.4;
+  padding-top: 2px;
 }
 
 .recommend-row {
