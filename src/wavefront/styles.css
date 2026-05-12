@@ -1496,11 +1496,39 @@ input { font-family: inherit; }
   font-weight: 600;
   color: var(--stage-ink);
 }
-.grade-spec-target {
-  font-size: 10.5px;
-  color: var(--stage-ink-2);
-  white-space: pre-line;
+.grade-spec-metrics .metric-suffix {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.55;
+  margin-left: 1px;
+}
+
+/* Rx-aware adaptation period — one of 4 levels, dynamic text */
+.grade-spec-adapt {
+  padding-top: 4px;
+  border-top: 1px solid var(--stage-line);
+  display: flex; flex-direction: column;
+  gap: 2px;
+}
+.grade-spec-adapt-l {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--stage-ink-3);
+}
+.grade-spec-adapt-v {
+  font-size: 11px;
+  color: var(--stage-ink);
   line-height: 1.4;
+}
+
+/* Neighbor-grade comparison (vs lower / upper tier minZone) — one-line */
+.grade-spec-compare {
+  font-size: 10px;
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  letter-spacing: -0.005em;
   padding-top: 2px;
 }
 

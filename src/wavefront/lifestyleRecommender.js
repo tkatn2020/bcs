@@ -168,19 +168,66 @@ export function mountRecommender(parent) {
   subscribe(refresh);
 }
 
-// ── Grade-spec card (sales rationale for the recommended 충분 tier) ─────
-
-const TARGET_CUSTOMER = {
-  1: '· 예산 한정 / 단순 처방\n· 첫 다초점',
-  2: '· 표준 가성비\n· 일반 활동 위주',
-  3: '· 다양한 시 활동\n· 균형 잡힌 시야 필요',
-  4: '· 정밀 작업 종사자\n· 두 번째 누진 (적응 우수)',
-  5: '· 까다로운 적응자\n· 최고 시야 추구\n· 첫 누진렌즈 비추',
-};
+// ── Grade-spec card (rationale for the currently SELECTED grade) ────────
 
 function adaptationToStars(adaptation) {
   const map = { '어려움': '★★☆☆☆', '보통': '★★★☆☆', '쉬움': '★★★★☆', '매우 쉬움': '★★★★★' };
   return map[adaptation] ?? '★★★☆☆';
+}
+
+// Composite difficulty score combining Rx strength, ADD, cylinder, corridor,
+// and the grade's intrinsic adaptation rating. Higher = harder to adapt.
+// Range: 1 (BP50 + light Rx + 14mm) → ~14 (BP10 + strong Rx + 10mm).
+function adaptationDifficulty(grade, state) {
+  const adaptBase = { '어려움': 4, '보통': 3, '쉬움': 2, '매우 쉬움': 1 }[grade.adaptation] ?? 3;
+  const avgSph = (Math.abs(state.od.sphere) + Math.abs(state.os.sphere)) / 2;
+  const avgCyl = (Math.abs(state.od.cylinder) + Math.abs(state.os.cylinder)) / 2;
+  let sphereLoad = 0;
+  if (avgSph > 5) sphereLoad = 3;
+  else if (avgSph > 3.5) sphereLoad = 2;
+  else if (avgSph >= 2) sphereLoad = 1;
+  let addLoad = 0;
+  if (state.add > 2.5) addLoad = 3;
+  else if (state.add >= 2) addLoad = 2;
+  else if (state.add >= 1.5) addLoad = 1;
+  let cylLoad = 0;
+  if (avgCyl > 1.5) cylLoad = 2;
+  else if (avgCyl >= 0.5) cylLoad = 1;
+  const corridorLoad = state.corridor === 10 ? 2 : state.corridor === 12 ? 1 : 0;
+  return adaptBase + sphereLoad + addLoad + cylLoad + corridorLoad;
+}
+
+function adaptationText(score) {
+  if (score <= 3) return '수일 내 자연스럽게 적응 예상';
+  if (score <= 6) return '약 1주 적응 기간 — 가벼운 어지러움 가능';
+  if (score <= 9) return '2-3주 적응 권장 — 첫 며칠 운전 등 정밀 활동 주의';
+  return '3-4주 이상 적응 어려움 가능 — 단계적 착용 또는 처방 재검토 권장';
+}
+
+// Per-grade fit per current Rx — used for matching rate + neighbor comparison.
+function computeFitForGrade(gradeId, s) {
+  const od = computeClearRatios(getGeom({
+    grade: gradeId, corridorLength: s.corridor, add: s.add,
+    sphere: s.od.sphere, cylinder: s.od.cylinder, axis: s.od.axis, eye: 'OD',
+  }));
+  const os = computeClearRatios(getGeom({
+    grade: gradeId, corridorLength: s.corridor, add: s.add,
+    sphere: s.os.sphere, cylinder: s.os.cylinder, axis: s.os.axis, eye: 'OS',
+  }));
+  const D = (od.distanceWidthPct     + os.distanceWidthPct)     / 2;
+  const I = (od.intermediateWidthPct + os.intermediateWidthPct) / 2;
+  const N = (od.nearWidthPct         + os.nearWidthPct)         / 2;
+  return Math.min(D, I, N);    // weakest-zone minZone = matching rate
+}
+
+// Neighbor differential — selected grade vs ±1 tier.
+// Returns formatted strings for display. Edge cases: BP10 has no lower,
+// BP50 has no upper.
+function neighborDiff(gradeId, s) {
+  const cur = computeFitForGrade(gradeId, s);
+  const lower = gradeId > 1 ? { bp: getGrade(gradeId - 1).bpCode, diff: Math.round(cur - computeFitForGrade(gradeId - 1, s)) } : null;
+  const upper = gradeId < 5 ? { bp: getGrade(gradeId + 1).bpCode, diff: Math.round(computeFitForGrade(gradeId + 1, s) - cur) } : null;
+  return { lower, upper };
 }
 
 export function mountGradeSpecCard(parent) {
@@ -189,18 +236,25 @@ export function mountGradeSpecCard(parent) {
   parent.appendChild(el);
 
   function refresh(s) {
-    const rec = computeRecommendation(s);
-    if (rec.kind !== 'triple') { el.innerHTML = ''; return; }
-    const g = getGrade(rec.sufficient.gradeId);
-    const adaptationStars = adaptationToStars(g.adaptation);
-    const target = TARGET_CUSTOMER[g.id] ?? '';
-    // Both metrics are derived from grades.js source-of-truth values:
-    // - cylReductionFactor: 1.05 (BP10) → 0.55 (BP50)
-    // - clearZoneScale:     0.95 (BP10) → 1.30 (BP50)
+    // SELECTED grade (s.grade), not the recommended one — so the card
+    // updates when the user clicks any BP pill or recommendation card.
+    const g = getGrade(s.grade);
+    const adaptStars = adaptationToStars(g.adaptation);
+    // Both metrics from grades.js source-of-truth (BP10 baseline).
     const cylReductionPct = Math.round((1 - g.cylReductionFactor / 1.05) * 100);
     const corridorWidthPct = Math.round((g.clearZoneScale / 0.95 - 1) * 100);
+    // Rx-aware extensions
+    const adaptScore = adaptationDifficulty(g, s);
+    const adaptMsg = adaptationText(adaptScore);
+    const matchRate = Math.round(computeFitForGrade(g.id, s));
+    const { lower, upper } = neighborDiff(g.id, s);
+    const compareParts = [];
+    if (lower) compareParts.push(`${lower.bp} 대비 ${lower.diff >= 0 ? '+' : ''}${lower.diff}점`);
+    if (upper) compareParts.push(`${upper.bp}까지 ${upper.diff >= 0 ? '+' : '-'}${Math.abs(upper.diff)}점`);
+    const compareStr = compareParts.join(' · ');
+
     el.innerHTML = `
-      <div class="grade-spec-h">▶ 추천 등급 상세</div>
+      <div class="grade-spec-h">▶ 등급 상세</div>
       <div class="grade-spec-title">
         <span class="grade-spec-bp">${g.bpCode}</span>
         <span class="grade-spec-name">${g.name}</span>
@@ -208,12 +262,16 @@ export function mountGradeSpecCard(parent) {
       <div class="grade-spec-en">${g.nameEn}</div>
       <div class="grade-spec-desc">${g.description}</div>
       <div class="grade-spec-metrics">
-        <div class="metric"><span class="metric-l">적응</span><span class="metric-v">${adaptationStars}</span></div>
-        <div class="metric"><span class="metric-l">가격</span><span class="metric-v">${g.priceLevel}</span></div>
-        <div class="metric"><span class="metric-l">코리도 폭</span><span class="metric-v">+${corridorWidthPct}%</span></div>
-        <div class="metric"><span class="metric-l">왜곡 감소</span><span class="metric-v">-${cylReductionPct}%</span></div>
+        <div class="metric"><span class="metric-l">적응</span><span class="metric-v">${adaptStars}</span></div>
+        <div class="metric"><span class="metric-l">처방 매칭률</span><span class="metric-v">${matchRate}<span class="metric-suffix">%</span></span></div>
+        <div class="metric"><span class="metric-l">중간거리 폭</span><span class="metric-v">+${corridorWidthPct}<span class="metric-suffix">%</span></span></div>
+        <div class="metric"><span class="metric-l">왜곡 감소</span><span class="metric-v">-${cylReductionPct}<span class="metric-suffix">%</span></span></div>
       </div>
-      <div class="grade-spec-target">${target}</div>
+      <div class="grade-spec-adapt">
+        <div class="grade-spec-adapt-l">예상 적응 기간</div>
+        <div class="grade-spec-adapt-v">${adaptMsg}</div>
+      </div>
+      ${compareStr ? `<div class="grade-spec-compare">${compareStr}</div>` : ''}
     `;
   }
   refresh(state);
