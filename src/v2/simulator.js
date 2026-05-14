@@ -48,13 +48,13 @@ export function mountSimulator(root) {
   hud.innerHTML = `
     <div class="hud-rx-group">
       ${rxRow('od', 'OD', state.od)}
-      <label class="hud-sync" title="양안 동기화">
-        <input type="checkbox" id="hud-sync" ${state.syncEyes ? 'checked' : ''}>
-        <span class="hud-sync-track"></span>
-        <span class="hud-sync-label">양안 동기화</span>
-      </label>
       ${rxRow('os', 'OS', state.os)}
     </div>
+    <label class="hud-sync" title="양안 동기화 — 한쪽을 바꾸면 반대쪽도 같이 변경됩니다">
+      <input type="checkbox" id="hud-sync" ${state.syncEyes ? 'checked' : ''}>
+      <span class="hud-sync-track"></span>
+      <span class="hud-sync-label">양안 동기화</span>
+    </label>
     <div class="hud-mode" data-role="mode-toggle">
       <button class="hud-mode-btn" data-mode="2d">2D 분석</button>
       <button class="hud-mode-btn" data-mode="3d">3D 렌즈</button>
