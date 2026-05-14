@@ -1,13 +1,12 @@
-// Lens stage — switches between the 4 display modes:
+// Lens stage — switches between the 3 display modes:
 //   '2d' — binocular wavefront heatmap (default; reuses lensBox.js)
 //   '3d' — Three.js rotating progressive lens
-//   'ba' — Before/After photo slider with shader distortion
 //   'ar' — live camera with overlaid distortion
 //
 // On mode change, the inner content is rebuilt; on state changes, the
 // active mode's `update()` is called.
 
-import { state, subscribe } from '../wavefront/state.js';
+import { state, update, subscribe } from '../wavefront/state.js';
 import { createBinocularLenses } from '../wavefront/lensBox.js';
 import { geomFor } from './geom.js?v=17';
 import { rxDioptricGap } from '../wavefront/helpers.js';
@@ -17,9 +16,12 @@ import { rxDioptricGap } from '../wavefront/helpers.js';
 // from breaking the 2D simulator.
 const lazyMods = {
   '3d': () => import('./lens3d.js?v=17').then(m => m.mountLens3D),
-  'ba': () => import('./beforeAfter.js?v=17').then(m => m.mountBeforeAfter),
   'ar': () => import('./cameraAr.js?v=17').then(m => m.mountCameraAr),
 };
+
+// Migration guard: if state.lensMode references the removed 'ba' mode
+// (e.g., user reloaded with stale state in dev), fall back to '2d'.
+if (state.lensMode === 'ba') update({ lensMode: '2d' });
 
 export function mountLensStage(wrap) {
   let active = null;       // active mode handle { el, update?, dispose? }

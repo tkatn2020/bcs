@@ -72,10 +72,10 @@
 /* HUD bar — Rx + sync + mode toggle */
 .sim-hud {
   display: flex;
-  align-items: center;
+  align-items: center;       /* center rx-group + mode-toggle vertically */
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 14px;
+  gap: 14px;
+  padding: 10px 14px;
   background: var(--stage-2);
   border-bottom: 1px solid var(--stage-line);
   flex-wrap: nowrap;
@@ -214,19 +214,22 @@
   text-transform: uppercase;
 }
 
-/* Mode toggle — 2D / 3D / Before-After / AR */
+/* Mode toggle — 2D / 3D / AR (vertical stack to balance with rx-group's
+   3-row column on the left side of the HUD) */
 .hud-mode {
   display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 2px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--stage-line);
   border-radius: var(--r);
 }
 .hud-mode-btn {
-  height: 24px;
-  padding: 0 10px;
+  height: 26px;
+  min-width: 116px;
+  padding: 0 12px;
   border: none;
   background: transparent;
   color: var(--stage-ink-2);
@@ -235,6 +238,8 @@
   font-weight: 600;
   letter-spacing: 0.10em;
   text-transform: uppercase;
+  text-align: center;
+  border-radius: var(--r-sm);
   border-radius: var(--r-sm);
   transition: all var(--t-fast) var(--ease);
   display: inline-flex;
@@ -444,32 +449,33 @@
 }
 
 /* Corridor info — pill button + collapsing tip */
-.ctrl-note-btn {
+/* Corridor note toggle — ON/OFF switch (replaces the wordy info button).
+   When ON, the .ctrl-note-tip below the pill row is revealed. */
+.ctrl-note-switch {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 12px 0 8px;
-  border: 1px solid var(--hair);
-  background: var(--paper);
-  color: var(--ink-3);
-  border-radius: var(--r-pill);
-  font-size: 11.5px;
-  font-weight: 600;
-  transition: all var(--t-fast) var(--ease);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.ctrl-note-btn:hover { color: var(--ink); border-color: var(--ink-4); }
-.ctrl-note-btn .info-mark {
-  display: inline-flex;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: var(--ink-4);
-  color: var(--paper);
-  font-size: 9.5px;
+.ctrl-note-switch-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 700;
-  align-items: center;
-  justify-content: center;
-  font-style: normal;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ctrl-note-switch .switch {
+  width: 32px;
+  height: 18px;
+  margin-top: 0;
+}
+.ctrl-note-switch .switch-track::before {
+  width: 14px; height: 14px;
+}
+.ctrl-note-switch .switch input:checked + .switch-track::before {
+  transform: translateX(14px);
 }
 .ctrl-note-tip {
   position: absolute;

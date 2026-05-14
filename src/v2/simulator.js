@@ -58,7 +58,6 @@ export function mountSimulator(root) {
     <div class="hud-mode" data-role="mode-toggle">
       <button class="hud-mode-btn" data-mode="2d">2D 분석</button>
       <button class="hud-mode-btn" data-mode="3d">3D 렌즈</button>
-      <button class="hud-mode-btn" data-mode="ba">Before / After</button>
       <button class="hud-mode-btn" data-mode="ar">매장 AR</button>
     </div>
   `;
@@ -126,15 +125,18 @@ export function mountSimulator(root) {
     </div>
     <div class="ctrl-block ctrl-block-grow">
       <div class="mono-label">CORRIDOR · 누진대</div>
-      <div style="display:flex;align-items:center;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
         <div class="ctrl-pills" id="ctrl-corridors"></div>
-        <button class="ctrl-note-btn" type="button" id="ctrl-note-toggle" aria-label="누진대 안내">
-          <i class="info-mark">i</i>
-          <span>길수록 좋은 건 아닙니다</span>
-        </button>
+        <label class="ctrl-note-switch" title="누진대 안내 보기">
+          <span class="ctrl-note-switch-label">안내</span>
+          <span class="switch">
+            <input type="checkbox" id="ctrl-note-toggle">
+            <span class="switch-track"></span>
+          </span>
+        </label>
       </div>
       <div class="ctrl-note-tip" id="ctrl-note-tip" hidden>
-        왜곡은 줄지만 근거리를 볼 때 시선을 더 아래로 내려야 합니다.
+        길수록 좋은 건 아닙니다. 왜곡은 줄지만 근거리를 볼 때 시선을 더 아래로 내려야 합니다.
       </div>
     </div>
   `;
@@ -172,8 +174,8 @@ export function mountSimulator(root) {
   // Corridor info tip toggle
   const noteToggle = ctrls.querySelector('#ctrl-note-toggle');
   const noteTip = ctrls.querySelector('#ctrl-note-tip');
-  noteToggle?.addEventListener('click', () => {
-    noteTip.hidden = !noteTip.hidden;
+  noteToggle?.addEventListener('change', (e) => {
+    noteTip.hidden = !e.target.checked;
   });
 
   // Aside — hero score + recommendation + adapt chart
