@@ -48,7 +48,7 @@ function computeRecommendation(s) {
   } else if (I_at_top < T1_TOP_GRADE) {
     computerWarning = {
       headline: `중간거리 시야가 약합니다 (BP50 기준 ${Math.round(I_at_top)}점)`,
-      detail: '컴퓨터 작업이 잦다면 최상 등급(BP50)을 권장드립니다.',
+      detail: '중간거리용 안경(컴퓨터 안경)을 따로 병행하시는 것을 권장드립니다.',
     };
   }
   return {
