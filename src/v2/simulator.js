@@ -4,11 +4,11 @@
 import { state, update, subscribe } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
 import { CORRIDOR_OPTIONS } from '../wavefront/helpers.js';
-import { mountEyePanel } from './eyePanel.js?v=17';
-import { mountLensStage } from './lensStage.js?v=17';
-import { mountHeroScore } from './heroScore.js?v=17';
-import { mountRecommender } from './recommender.js?v=17';
-import { mountAdaptChart } from './adaptChart.js?v=17';
+import { mountEyePanel } from './eyePanel.js?v=18';
+import { mountLensStage } from './lensStage.js?v=18';
+import { mountHeroScore } from './heroScore.js?v=18';
+import { mountRecommender } from './recommender.js?v=18';
+import { mountAdaptChart } from './adaptChart.js?v=18';
 
 const RX_LIMITS = {
   sphere:   { min: -10, max: 6,   step: 0.25 },
@@ -171,7 +171,7 @@ export function mountSimulator(root) {
   ctrls.querySelector('#add-plus').addEventListener('click', () =>
     update({ add: clamp(state.add + 0.25, 0.5, 3.5) }));
 
-  // Corridor info tip toggle
+  // Corridor info tip toggle (ON/OFF switch)
   const noteToggle = ctrls.querySelector('#ctrl-note-toggle');
   const noteTip = ctrls.querySelector('#ctrl-note-tip');
   noteToggle?.addEventListener('change', (e) => {

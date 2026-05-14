@@ -157,7 +157,11 @@
   aspect-ratio: 16 / 9;
   border-radius: var(--r-lg);
   overflow: hidden;
-  background: radial-gradient(circle at 50% 40%, var(--stage-3) 0%, var(--stage) 70%);
+  /* Match the surrounding stage — no boxed "frame" around the lens.
+     A very faint radial highlight gives the lens a spotlight feel. */
+  background: radial-gradient(ellipse at 50% 38%,
+              rgba(46, 91, 170, 0.10) 0%,
+              rgba(14, 22, 38, 0) 60%);
 }
 .lens3d-stage canvas {
   width: 100% !important;
@@ -188,13 +192,19 @@
 .lens3d-legend {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 6px 10px;
-  background: rgba(11, 15, 26, 0.78);
-  border: 1px solid rgba(250, 251, 252, 0.10);
+  background: rgba(14, 22, 38, 0.78);
+  border: 1px solid rgba(212, 165, 75, 0.20);
   border-radius: var(--r-sm);
   backdrop-filter: blur(8px);
   pointer-events: auto;
+}
+.lens3d-legend-divider {
+  width: 1px;
+  height: 12px;
+  background: rgba(250, 251, 252, 0.16);
+  margin: 0 2px;
 }
 .lens3d-legend-item {
   display: inline-flex;

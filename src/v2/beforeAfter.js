@@ -13,7 +13,7 @@
 import { state, update, subscribe } from '../wavefront/state.js';
 import { getGrade } from '../optics/grades.js';
 import { getGeom } from '../wavefront/helpers.js';
-import { geomFor } from './geom.js?v=17';
+import { geomFor } from './geom.js?v=18';
 
 const PHOTOS = [
   { id: 'driving', label: '운전 시점', src: 'scenes/driving.png' },

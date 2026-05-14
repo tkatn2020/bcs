@@ -1,6 +1,7 @@
-// Lens stage — switches between the 3 display modes:
+// Lens stage — switches between the 4 display modes:
 //   '2d' — binocular wavefront heatmap (default; reuses lensBox.js)
 //   '3d' — Three.js rotating progressive lens
+//   'ba' — Before/After photo slider with shader distortion
 //   'ar' — live camera with overlaid distortion
 //
 // On mode change, the inner content is rebuilt; on state changes, the
@@ -8,19 +9,18 @@
 
 import { state, update, subscribe } from '../wavefront/state.js';
 import { createBinocularLenses } from '../wavefront/lensBox.js';
-import { geomFor } from './geom.js?v=17';
+import { geomFor } from './geom.js?v=18';
 import { rxDioptricGap } from '../wavefront/helpers.js';
 
 // Lazy imports for the non-default modes — keeps initial load light
 // and isolates any module-level failures (e.g., Three.js CDN issues)
 // from breaking the 2D simulator.
 const lazyMods = {
-  '3d': () => import('./lens3d.js?v=17').then(m => m.mountLens3D),
-  'ar': () => import('./cameraAr.js?v=17').then(m => m.mountCameraAr),
+  '3d': () => import('./lens3d.js?v=18').then(m => m.mountLens3D),
+  'ar': () => import('./cameraAr.js?v=18').then(m => m.mountCameraAr),
 };
 
-// Migration guard: if state.lensMode references the removed 'ba' mode
-// (e.g., user reloaded with stale state in dev), fall back to '2d'.
+// Migration guard: 'ba' mode removed; fall back to '2d' if stale state references it.
 if (state.lensMode === 'ba') update({ lensMode: '2d' });
 
 export function mountLensStage(wrap) {
@@ -82,20 +82,18 @@ export function mountLensStage(wrap) {
   function build2D(parent) {
     let dual = null;
     function rebuild() {
-      // Use parent (stage-col) clientWidth — `wrap.clientWidth` can grow
-      // past the grid cell when the previously-built binocular widget had
-      // a larger width, causing right-side clipping by stage-col's
-      // overflow:hidden. Parent reflects the grid-imposed column width.
+      // Use parent (stage-col) clientWidth — wrap.clientWidth can grow past
+      // the grid cell when previously-built widget had larger width.
       const parentW = wrap.parentElement ? wrap.parentElement.clientWidth : wrap.clientWidth;
       const W = Math.min(wrap.clientWidth, parentW) - 20;
       const H = wrap.clientHeight - 20;
       if (W < 50 || H < 50) return;     // wrap not yet sized
       if (parent.firstChild) parent.removeChild(parent.firstChild);
       const ASPECT = 0.55;
-      let w = Math.min(W, 820);          // 820 ceiling — leaves breathing room in 1280 layout
+      let w = Math.min(W, 820);
       let h = w * ASPECT;
       if (h > H) { h = H; w = h / ASPECT; }
-      w = Math.max(380, Math.min(Math.round(w), W));   // never exceed available W
+      w = Math.max(380, Math.min(Math.round(w), W));
       h = Math.max(220, Math.round(h));
       dual = createBinocularLenses(
         w, h,

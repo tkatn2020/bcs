@@ -5,7 +5,7 @@
 import { state, update, subscribe } from '../wavefront/state.js';
 import { GRADES, getGrade } from '../optics/grades.js';
 import { computeClearRatios, rxDioptricGap, gapScoreFromDioptric } from '../wavefront/helpers.js';
-import { geomFor } from './geom.js?v=17';
+import { geomFor } from './geom.js?v=18';
 
 const MIN_ZONE_SUFFICIENT = 65;
 const SUFFICIENT_MIN_ID = 2;

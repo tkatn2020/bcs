@@ -4,7 +4,7 @@
 import { state, subscribe } from '../wavefront/state.js';
 import { computeClearRatios } from '../wavefront/helpers.js';
 import { tween } from '../wavefront/animations.js';
-import { geomFor } from './geom.js?v=17';
+import { geomFor } from './geom.js?v=18';
 
 export function mountEyePanel(root, eye /* 'OD' | 'OS' */) {
   const isOD = eye === 'OD';

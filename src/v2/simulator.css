@@ -72,7 +72,7 @@
 /* HUD bar — Rx + sync + mode toggle */
 .sim-hud {
   display: flex;
-  align-items: center;       /* center rx-group + mode-toggle vertically */
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 10px 14px;
@@ -85,7 +85,7 @@
 .sim-hud::-webkit-scrollbar { display: none; }
 .hud-rx-group {
   display: flex;
-  flex-direction: column;     /* stack OS / sync / OD vertically — halves the horizontal footprint */
+  flex-direction: column;     /* stack OS / sync / OD vertically */
   align-items: flex-start;
   gap: 4px;
   flex-wrap: nowrap;
@@ -214,8 +214,7 @@
   text-transform: uppercase;
 }
 
-/* Mode toggle — 2D / 3D / AR (vertical stack to balance with rx-group's
-   3-row column on the left side of the HUD) */
+/* Mode toggle — 2D / 3D / AR (vertical stack to balance with rx-group) */
 .hud-mode {
   display: flex;
   flex-direction: column;
@@ -240,10 +239,10 @@
   text-transform: uppercase;
   text-align: center;
   border-radius: var(--r-sm);
-  border-radius: var(--r-sm);
   transition: all var(--t-fast) var(--ease);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
 }
 .hud-mode-btn[data-active="true"] {
@@ -256,8 +255,8 @@
 .sim-lens-wrap {
   position: relative;
   min-height: 0;
-  min-width: 0;           /* prevent grid item from growing past column width */
-  max-width: 100%;        /* stay within stage-col cell */
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -449,8 +448,7 @@
 }
 
 /* Corridor info — pill button + collapsing tip */
-/* Corridor note toggle — ON/OFF switch (replaces the wordy info button).
-   When ON, the .ctrl-note-tip below the pill row is revealed. */
+/* Corridor note toggle — ON/OFF switch (replaces wordy info button) */
 .ctrl-note-switch {
   display: inline-flex;
   align-items: center;
