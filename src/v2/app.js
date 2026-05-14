@@ -2,9 +2,9 @@
 // Mounts header + simulator/compare screens and routes between tabs.
 
 import { state, update, subscribe } from '../wavefront/state.js';
-import { mountHeader } from './header.js?v=13';
-import { mountSimulator } from './simulator.js?v=13';
-import { mountCompare } from './compare.js?v=13';
+import { mountHeader } from './header.js?v=17';
+import { mountSimulator } from './simulator.js?v=17';
+import { mountCompare } from './compare.js?v=17';
 import { mountSettingsModal } from '../wavefront/settingsModal.js';
 
 function bootstrap() {

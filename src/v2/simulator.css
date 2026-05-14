@@ -46,11 +46,27 @@
 .sim-stage-col {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-columns: minmax(0, 1fr);   /* constrain inner column to stage-col width */
+  grid-template-columns: minmax(0, 1fr);    /* constrain inner column to stage-col width */
   background: var(--stage);
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  position: relative;
+}
+/* C — gradient bridge: the stage's right edge fades into a soft band
+   before the bright aside takes over. Adds visual depth instead of a
+   1px hairline jump cut. */
+.sim-stage-col::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; right: 0;
+  width: 24px;
+  pointer-events: none;
+  background: linear-gradient(to right,
+    rgba(14, 22, 38, 0) 0%,
+    rgba(14, 22, 38, 0.55) 60%,
+    rgba(14, 22, 38, 0.85) 100%);
+  box-shadow: var(--bridge-shadow);
 }
 
 /* HUD bar — Rx + sync + mode toggle */
@@ -305,8 +321,10 @@
   align-items: flex-start;
   gap: 18px;
   padding: 12px 20px;
-  background: var(--paper);
+  background: var(--paper-elev);
   border-top: 1px solid var(--hair-2);
+  /* D — thin gold hairline at the top of the controls bar */
+  box-shadow: inset 0 1px 0 var(--gold-line);
   flex-shrink: 0;
   height: 96px;
   overflow: visible;
@@ -344,10 +362,84 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
-  background: var(--paper);
+  background: var(--paper-elev);
   border: 1px solid var(--hair);
   border-radius: var(--r);
   color: var(--ink);
+}
+
+/* ADD block — visually emphasized so 가입도 reads as the primary
+   decision point. Gold-tinted display, bold steppers, gold underline. */
+.ctrl-block.sim-add-emph {
+  position: relative;
+  padding: 0 18px;
+  margin: -12px -2px -12px -2px;
+  background:
+    linear-gradient(180deg, rgba(212, 165, 75, 0.06), rgba(212, 165, 75, 0.02));
+  border-left: 1px solid var(--hair-2);
+  border-right: 1px solid var(--hair-2);
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.ctrl-block.sim-add-emph .mono-label {
+  color: var(--gold-deep);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.ctrl-block.sim-add-emph .add-control {
+  gap: 8px;
+}
+.ctrl-block.sim-add-emph .stepper {
+  width: 36px;
+  height: 36px;
+  border-color: var(--hair);
+  background: var(--paper-elev);
+  font-weight: 600;
+  color: var(--gold-deep);
+  font-size: 20px;
+}
+.ctrl-block.sim-add-emph .stepper:hover {
+  background: var(--gold-soft);
+  border-color: var(--gold-deep);
+  color: var(--gold-deep);
+}
+.ctrl-block.sim-add-emph .add-display {
+  position: relative;
+  min-width: 92px;
+  height: 44px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  background: var(--paper-elev);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  box-shadow:
+    0 0 0 3px var(--gold-soft),
+    inset 0 -2px 0 var(--gold);
+}
+.ctrl-block.sim-add-emph .add-display::after {
+  content: "D";
+  position: absolute;
+  right: 8px;
+  bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--gold-deep);
+  opacity: 0.7;
+}
+.add-display.is-pulse {
+  animation: addPulse 600ms var(--ease);
+}
+@keyframes addPulse {
+  0%   { box-shadow: 0 0 0 0 var(--gold-soft), inset 0 -2px 0 var(--gold); }
+  40%  { box-shadow: 0 0 0 8px oklch(0.75 0.11 80 / 0.28), inset 0 -2px 0 var(--gold); }
+  100% { box-shadow: 0 0 0 3px var(--gold-soft), inset 0 -2px 0 var(--gold); }
 }
 
 /* Corridor info — pill button + collapsing tip */
@@ -408,20 +500,33 @@
 .sim-aside {
   display: flex;
   flex-direction: column;
-  background: var(--paper-2);
-  border-left: 1px solid var(--hair-2);
+  background: var(--paper);
+  border-left: 1px solid var(--gold-line);  /* D — gold hairline divider */
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
   min-width: 0;
   width: 360px;
   flex-shrink: 0;
+  position: relative;
+}
+/* C — soft inner-glow on the aside's left edge to receive the gradient
+   bridge from the stage. The two surfaces interlock optically. */
+.sim-aside::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 12px;
+  pointer-events: none;
+  background: linear-gradient(to right,
+    rgba(14, 22, 38, 0.10) 0%,
+    rgba(14, 22, 38, 0) 100%);
 }
 .sim-aside-inner {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 12px 16px;
+  gap: 8px;
+  padding: 10px 10px 14px;
   min-width: 0;
 }
 .sim-aside-inner > * { min-width: 0; }

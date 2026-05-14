@@ -4,12 +4,10 @@
 
 /* ============================================================
    🅓 Hero score card — Apple Watch ring + count-up + glow
-   The headline number, big like Toss, with a measured ring
-   that fills up when the score improves.
    ============================================================ */
 .hero-score {
   position: relative;
-  padding: 20px 18px 18px;
+  padding: 16px 16px 14px;
   background: var(--stage);
   color: var(--stage-ink);
   border-radius: var(--r-xl);
@@ -73,8 +71,8 @@
 }
 .hero-score-ring {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 156px;
+  height: 156px;
   flex-shrink: 0;
 }
 .hero-score-ring svg {
@@ -127,7 +125,7 @@
 }
 .hero-score-num-int {
   font-family: var(--font-num);
-  font-size: 76px;
+  font-size: 58px;
   font-weight: 800;
   letter-spacing: -0.04em;
   color: var(--stage-ink);
@@ -135,14 +133,14 @@
 }
 .hero-score-num-suffix {
   font-family: var(--font-num);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--stage-ink-3);
   letter-spacing: -0.005em;
 }
 .hero-score-cap {
-  margin-top: 6px;
-  font-size: 11.5px;
+  margin-top: 4px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--stage-ink-2);
 }
@@ -152,9 +150,9 @@
 .hero-score-zones {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
-  padding-top: 14px;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--stage-line);
 }
 .zone-row {
@@ -208,12 +206,12 @@
 .zone-bar-fill.n { background: var(--z-n); }
 .zone-row-val {
   font-family: var(--font-num);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--stage-ink);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
-  min-width: 36px;
+  min-width: 32px;
   text-align: right;
 }
 
@@ -328,11 +326,19 @@
    and glows. Cards stagger in.
    ============================================================ */
 .recommend-card {
-  background: var(--paper);
+  background: var(--paper-elev);
   border-radius: var(--r-xl);
-  padding: 16px 16px 14px;
-  border: 1px solid var(--hair-2);
+  padding: 12px 14px 12px;
+  border: 1.5px solid var(--ink-5);
   box-shadow: var(--sh-card);
+  position: relative;
+}
+.recommend-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 16px; right: 16px;
+  height: 1px;
+  background: var(--gold-line);
 }
 .recommend-h {
   display: flex;
@@ -375,9 +381,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 12px 6px 10px;
-  background: var(--paper-2);
+  gap: 3px;
+  padding: 10px 4px 8px;
+  background: var(--paper);
   border-radius: var(--r-lg);
   border: 1px solid transparent;
   opacity: 0;
@@ -418,7 +424,7 @@
 }
 .recommend-tier-bp {
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.04em;
   color: var(--ink);
@@ -428,11 +434,15 @@
   color: var(--paper);
 }
 .recommend-tier-name {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--ink-3);
   line-height: 1.2;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .recommend-tier.is-best .recommend-tier-name {
   color: rgba(250, 251, 252, 0.7);
@@ -445,7 +455,7 @@
 }
 .recommend-tier-score-num {
   font-family: var(--font-num);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--ink);
@@ -464,13 +474,13 @@
 }
 
 .recommend-apply {
-  margin-top: 8px;
+  margin-top: 6px;
   width: 100%;
-  height: 28px;
+  height: 26px;
   border: 1px solid var(--hair);
   background: var(--paper);
   border-radius: var(--r-sm);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--ink-2);
   transition: all var(--t-fast) var(--ease);
@@ -495,23 +505,23 @@
 }
 
 .recommend-foot {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--hair-2);
 }
 .recommend-foot-h {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--ink);
-  line-height: 1.45;
+  line-height: 1.4;
 }
 .recommend-foot-body {
-  margin-top: 4px;
+  margin-top: 3px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--ink-3);
   letter-spacing: 0.02em;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .computer-warning {
@@ -541,11 +551,19 @@
    3 phase rows · caution tip.
    ============================================================ */
 .adapt-card {
-  background: var(--paper);
+  background: var(--paper-elev);
   border-radius: var(--r-xl);
   padding: 14px 16px 14px;
-  border: 1px solid var(--hair-2);
+  border: 1.5px solid var(--ink-5);
   box-shadow: var(--sh-card);
+  position: relative;
+}
+.adapt-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 16px; right: 16px;
+  height: 1px;
+  background: var(--gold-line);
 }
 .adapt-h {
   display: flex;
@@ -718,19 +736,19 @@
   gap: 10px;
   align-items: start;
   padding: 8px 10px;
-  background: var(--paper-2);
+  background: var(--paper);
   border-radius: var(--r);
   border: 1px solid transparent;
   transition: all var(--t-fast) var(--ease);
 }
 .adapt-phase.is-future { opacity: 0.55; }
 .adapt-phase.is-current {
-  background: var(--paper);
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--brand-soft);
+  background: var(--paper-elev);
+  border-color: var(--gold-deep);
+  box-shadow: 0 0 0 3px var(--gold-soft);
 }
 .adapt-phase.is-done {
-  background: var(--paper-2);
+  background: var(--paper);
   opacity: 0.85;
 }
 .adapt-phase.is-done .adapt-phase-icon {
@@ -1038,7 +1056,6 @@
   color: var(--ink);
 }
 
-/* Settings-specific sections */
 .settings-section {
   margin-bottom: 22px;
 }
@@ -1082,7 +1099,6 @@
   line-height: 1.45;
 }
 
-/* Toggle switch (reused for settings + compare overrides) */
 .switch {
   position: relative;
   width: 40px;

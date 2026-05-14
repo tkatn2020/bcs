@@ -5,11 +5,12 @@
    ============================================================ */
 
 :root {
-  /* ── Paper · neutrals (cool, instrument-like) ───────────── */
-  --paper:        #FAFBFC;
-  --paper-2:      #F4F6F9;
-  --paper-3:      #ECEFF4;
-  --paper-tint:   #EAF0F8;          /* subtle blue-tinted highlight */
+  /* ── Paper · cool blue-tinted neutrals (ZEISS calibration family) ── */
+  --paper:        #EDF1F6;           /* slight blue cast — same family as --stage */
+  --paper-2:      #E4EAF1;
+  --paper-3:      #D7DEE8;
+  --paper-tint:   #DBE3EE;
+  --paper-elev:   #F4F7FB;           /* lifted card surface, slightly brighter */
 
   /* ── Ink ─────────────────────────────────────────────── */
   --ink:          #0A0E1A;           /* near-black, cool */
@@ -19,9 +20,9 @@
   --ink-5:        #B4BCCB;
 
   /* ── Hairline borders ────────────────────────────────── */
-  --hair:         #DCE1EA;
-  --hair-2:       #E7EBF1;
-  --hair-3:       #F0F2F6;
+  --hair:         #C8D0DD;
+  --hair-2:       #D5DCE7;
+  --hair-3:       #E2E7EF;
 
   /* ── Brand · deep navy (ZEISS-coded) ─────────────────── */
   --brand:        #0E1F4E;
@@ -30,15 +31,16 @@
   --brand-soft:   rgba(14, 31, 78, 0.06);
   --brand-soft-2: rgba(14, 31, 78, 0.12);
 
-  /* ── Accent · warm gold (Toss premium) ───────────────── */
+  /* ── Accent · warm gold (Toss premium · used across both surfaces) */
   --gold:         oklch(0.75 0.11 80);
   --gold-deep:    oklch(0.55 0.10 75);
   --gold-soft:    oklch(0.75 0.11 80 / 0.14);
+  --gold-line:    oklch(0.75 0.11 80 / 0.45);   /* hairline use */
 
   /* ── Eye colors ───────────────────────────────────────── */
-  --od:           #2E5BFF;            /* OD blue */
+  --od:           #2E5BFF;
   --od-soft:      rgba(46, 91, 255, 0.10);
-  --os:           #00C2A8;            /* OS teal */
+  --os:           #00C2A8;
   --os-soft:      rgba(0, 194, 168, 0.10);
 
   /* ── Zones ───────────────────────────────────────────── */
@@ -54,15 +56,15 @@
   --neg:          #EF4444;
   --warn:         #F59E0B;
 
-  /* ── Stage · dark (lens visualization) ──────────────── */
-  --stage:        #0B0F1A;
-  --stage-2:      #11172A;
-  --stage-3:      #1A2138;
-  --stage-edge:   #232B47;
-  --stage-ink:    #FAFBFC;
-  --stage-ink-2:  #A4ADC1;
+  /* ── Stage · slightly desaturated midnight (shares hue with paper) ── */
+  --stage:        #0E1626;
+  --stage-2:      #15203A;
+  --stage-3:      #1D2A48;
+  --stage-edge:   #2A375A;
+  --stage-ink:    #EDF1F6;
+  --stage-ink-2:  #A7B0C5;
   --stage-ink-3:  #6B7388;
-  --stage-line:   rgba(250, 251, 252, 0.08);
+  --stage-line:   rgba(237, 241, 246, 0.08);
 
   /* ── Type ────────────────────────────────────────────── */
   --font-sans:    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
@@ -74,9 +76,9 @@
   --r-xs:         2px;
   --r-sm:         4px;
   --r-md:         6px;
-  --r:            8px;       /* default — sharp instrument */
+  --r:            8px;
   --r-lg:         12px;
-  --r-xl:         20px;      /* Toss-soft for hero / recommendation cards */
+  --r-xl:         20px;
   --r-pill:       999px;
 
   /* ── Shadow · extremely restrained ──────────────────── */
@@ -85,7 +87,9 @@
   --sh-3:         0 12px 32px rgba(10, 14, 26, 0.10), 0 1px 0 rgba(10, 14, 26, 0.04);
   --sh-card:      0 1px 0 rgba(10, 14, 26, 0.04);
   --sh-hero:      0 24px 60px rgba(10, 14, 26, 0.16), 0 1px 0 rgba(10, 14, 26, 0.04);
-  --sh-stage:     0 0 0 1px rgba(250, 251, 252, 0.03) inset;
+  --sh-stage:     0 0 0 1px rgba(237, 241, 246, 0.03) inset;
+  /* C — gradient bridge between dark stage and light aside */
+  --bridge-shadow: 8px 0 16px -8px rgba(10, 14, 26, 0.45);
 
   /* ── Motion ──────────────────────────────────────────── */
   --ease:         cubic-bezier(0.22, 0.61, 0.36, 1);

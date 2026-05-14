@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { state, subscribe } from '../wavefront/state.js';
 import { sampleUnwantedCyl, paletteSample, REFERENCE_CYL } from '../wavefront/helpers.js';
-import { geomFor } from './geom.js?v=13';
+import { geomFor } from './geom.js?v=17';
 
 export function mountLens3D(parent) {
   const stage = document.createElement('div');

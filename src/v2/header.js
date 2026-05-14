@@ -6,11 +6,6 @@ export function mountHeader(root) {
   root.innerHTML = `
     <div class="brand">
       <img class="brand-logo" src="src/wavefront/assets/logo.png" alt="breezm" />
-      <span class="brand-sep"></span>
-      <div class="brand-product">
-        <span class="brand-product-ko">다초점 시뮬레이터 — v5</span>
-        <span class="brand-product-en">Progressive Lens · Consultation</span>
-      </div>
       <div class="topbar-tabs">
         <button class="topbar-tab" data-tab="simulator">
           <span class="topbar-tab-num">01</span>

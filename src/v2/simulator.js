@@ -4,11 +4,11 @@
 import { state, update, subscribe } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
 import { CORRIDOR_OPTIONS } from '../wavefront/helpers.js';
-import { mountEyePanel } from './eyePanel.js?v=13';
-import { mountLensStage } from './lensStage.js?v=13';
-import { mountHeroScore } from './heroScore.js?v=13';
-import { mountRecommender } from './recommender.js?v=13';
-import { mountAdaptChart } from './adaptChart.js?v=13';
+import { mountEyePanel } from './eyePanel.js?v=17';
+import { mountLensStage } from './lensStage.js?v=17';
+import { mountHeroScore } from './heroScore.js?v=17';
+import { mountRecommender } from './recommender.js?v=17';
+import { mountAdaptChart } from './adaptChart.js?v=17';
 
 const RX_LIMITS = {
   sphere:   { min: -10, max: 6,   step: 0.25 },
@@ -116,7 +116,7 @@ export function mountSimulator(root) {
       <div class="mono-label">LENS GRADE · 렌즈 등급</div>
       <div class="ctrl-pills" id="ctrl-grades"></div>
     </div>
-    <div class="ctrl-block">
+    <div class="ctrl-block sim-add-emph">
       <div class="mono-label">ADD · 가입도</div>
       <div class="add-control">
         <button class="stepper" id="add-minus">−</button>
@@ -199,7 +199,16 @@ export function mountSimulator(root) {
   subscribe(s => {
     root.querySelectorAll('[data-grade]').forEach(b => b.dataset.active = String(s.grade === Number(b.dataset.grade)));
     root.querySelectorAll('[data-corridor]').forEach(b => b.dataset.active = String(s.corridor === Number(b.dataset.corridor)));
-    ctrls.querySelector('#add-display').textContent = '+' + s.add.toFixed(2);
+    const addEl = ctrls.querySelector('#add-display');
+    const prevAdd = addEl.dataset.addVal;
+    const nextAdd = '+' + s.add.toFixed(2);
+    addEl.textContent = nextAdd;
+    if (prevAdd && prevAdd !== nextAdd) {
+      addEl.classList.remove('is-pulse');
+      void addEl.offsetWidth;
+      addEl.classList.add('is-pulse');
+    }
+    addEl.dataset.addVal = nextAdd;
     refreshHud(s);
   });
 }

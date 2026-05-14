@@ -12,7 +12,7 @@ html, body {
   padding: 0;
   height: 100%;
   font-family: var(--font-sans);
-  background: var(--paper-2);
+  background: var(--paper);
   color: var(--ink);
   font-size: 14px;
   font-feature-settings: 'tnum' 1, 'cv11' 1, 'ss01' 1;
@@ -70,11 +70,9 @@ input  { font-family: inherit; }
 .app {
   display: grid;
   grid-template-rows: var(--topbar-h) 1fr;
-  /* Width/height set by inline fit-host wrapper; defaults below are
-     fallbacks for direct loads. */
   width: 1280px;
   height: 800px;
-  background: var(--paper-2);
+  background: var(--paper);
   overflow: hidden;
 }
 
@@ -85,8 +83,10 @@ input  { font-family: inherit; }
   align-items: center;
   gap: 16px;
   padding: 0 20px;
-  background: var(--paper);
+  background: var(--paper-elev);
   border-bottom: 1px solid var(--hair-2);
+  /* D — hairline gold tick to tie brand color through chrome */
+  box-shadow: inset 0 -1px 0 var(--gold-line);
   position: relative;
   z-index: 5;
 }
@@ -97,7 +97,7 @@ input  { font-family: inherit; }
   gap: 14px;
 }
 .brand-logo {
-  height: 22px;
+  height: 34px;
   width: auto;
   display: block;
 }
@@ -135,7 +135,7 @@ input  { font-family: inherit; }
   gap: 14px;
   height: 36px;
   padding: 0 16px;
-  background: var(--paper-2);
+  background: var(--paper);
   border: 1px solid var(--hair-2);
   border-radius: var(--r-pill);
   font-family: var(--font-mono);
@@ -203,7 +203,7 @@ input  { font-family: inherit; }
   height: var(--touch);
   padding: 0 16px;
   border: 1px solid var(--hair);
-  background: var(--paper);
+  background: var(--paper-elev);
   color: var(--ink-2);
   border-radius: var(--r-pill);
   font-size: 13px;
@@ -219,8 +219,9 @@ input  { font-family: inherit; }
 .pill:hover { color: var(--ink); border-color: var(--ink-4); }
 .pill[data-active="true"] {
   background: var(--ink);
-  color: var(--paper);
+  color: var(--paper-elev);
   border-color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--gold);  /* D — gold underline accent */
 }
 
 /* Stepper (square 40px button) */
@@ -228,7 +229,7 @@ input  { font-family: inherit; }
   width: 40px;
   height: 40px;
   border: 1px solid var(--hair);
-  background: var(--paper);
+  background: var(--paper-elev);
   border-radius: var(--r);
   font-size: 18px;
   font-weight: 500;
@@ -276,7 +277,7 @@ input  { font-family: inherit; }
   min-width: 76px;
   padding: 8px 12px;
   border: 1px solid var(--hair);
-  background: var(--paper);
+  background: var(--paper-elev);
   border-radius: var(--r);
   display: flex;
   flex-direction: column;
@@ -290,8 +291,9 @@ input  { font-family: inherit; }
 .grade-pill:hover { border-color: var(--ink-4); }
 .grade-pill[data-active="true"] {
   background: var(--brand);
-  color: var(--paper);
+  color: var(--paper-elev);
   border-color: var(--brand);
+  box-shadow: inset 0 -2px 0 var(--gold);  /* D — gold underline tick */
 }
 .grade-pill[data-recommended="true"]::before {
   content: "";

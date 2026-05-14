@@ -5,7 +5,7 @@ import { state, subscribe } from '../wavefront/state.js';
 import { computeClearRatios } from '../wavefront/helpers.js';
 import { tween, pulseClass } from '../wavefront/animations.js';
 import { getGrade } from '../optics/grades.js';
-import { geomFor } from './geom.js?v=13';
+import { geomFor } from './geom.js?v=17';
 
 const RADIUS = 86;
 const CIRC = 2 * Math.PI * RADIUS;

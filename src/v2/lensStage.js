@@ -9,16 +9,16 @@
 
 import { state, subscribe } from '../wavefront/state.js';
 import { createBinocularLenses } from '../wavefront/lensBox.js';
-import { geomFor } from './geom.js?v=13';
+import { geomFor } from './geom.js?v=17';
 import { rxDioptricGap } from '../wavefront/helpers.js';
 
 // Lazy imports for the non-default modes — keeps initial load light
 // and isolates any module-level failures (e.g., Three.js CDN issues)
 // from breaking the 2D simulator.
 const lazyMods = {
-  '3d': () => import('./lens3d.js?v=13').then(m => m.mountLens3D),
-  'ba': () => import('./beforeAfter.js?v=13').then(m => m.mountBeforeAfter),
-  'ar': () => import('./cameraAr.js?v=13').then(m => m.mountCameraAr),
+  '3d': () => import('./lens3d.js?v=17').then(m => m.mountLens3D),
+  'ba': () => import('./beforeAfter.js?v=17').then(m => m.mountBeforeAfter),
+  'ar': () => import('./cameraAr.js?v=17').then(m => m.mountCameraAr),
 };
 
 export function mountLensStage(wrap) {
