@@ -273,9 +273,9 @@ input  { font-family: inherit; }
    ============================================================ */
 .grade-pill {
   position: relative;
-  height: 56px;
-  min-width: 76px;
-  padding: 8px 12px;
+  height: 50px;
+  min-width: 50px;
+  padding: 5px 6px;
   border: 1px solid var(--hair);
   background: var(--paper-elev);
   border-radius: var(--r);
@@ -317,10 +317,11 @@ input  { font-family: inherit; }
   margin-bottom: 1px;
 }
 .grade-pill .gp-name {
-  font-size: 11.5px;
+  font-size: 9.5px;
   font-weight: 500;
   opacity: 0.85;
-  line-height: 1.2;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 /* ============================================================
