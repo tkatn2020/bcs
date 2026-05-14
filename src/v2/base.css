@@ -274,8 +274,8 @@ input  { font-family: inherit; }
 .grade-pill {
   position: relative;
   height: 50px;
-  min-width: 50px;
-  padding: 5px 6px;
+  min-width: 68px;
+  padding: 6px 10px;
   border: 1px solid var(--hair);
   background: var(--paper-elev);
   border-radius: var(--r);

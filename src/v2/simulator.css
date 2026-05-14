@@ -89,6 +89,7 @@
   align-items: flex-start;
   gap: 2px;
   flex-wrap: nowrap;
+  flex: 1;                    /* take available left-side space; sync + mode toggle cluster on right */
 }
 .hud-rx-row {
   display: flex;
@@ -133,7 +134,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
+  width: 120px;
   height: 28px;
   padding: 0 6px;
   font-family: var(--font-num);
@@ -414,8 +415,8 @@
   gap: 8px;
 }
 .ctrl-block.sim-add-emph .stepper {
-  width: 30px;
-  height: 36px;
+  width: 36px;
+  height: 40px;
   border-color: var(--hair);
   background: var(--paper-elev);
   font-weight: 600;
@@ -429,8 +430,8 @@
 }
 .ctrl-block.sim-add-emph .add-display {
   position: relative;
-  min-width: 72px;
-  height: 40px;
+  min-width: 100px;
+  height: 44px;
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.02em;
