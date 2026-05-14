@@ -38,16 +38,18 @@ function computeRecommendation(s) {
   ];
 
   const needsRxRecheck = best.minZone < FIT_RETHINK_RX;
-  const I_at_top = fits[fits.length - 1].I;
+  // Warning is evaluated against the SELECTED grade's intermediate score so
+  // it directly reflects what the customer would see at their current pick.
+  const I_selected = fits[s.grade - 1].I;
   let computerWarning = null;
-  if (I_at_top < T2_COMPUTER_LENS) {
+  if (I_selected < T2_COMPUTER_LENS) {
     computerWarning = {
-      headline: `BP50으로도 중간거리가 ${Math.round(I_at_top)}점에 머무릅니다`,
+      headline: `중간거리가 ${Math.round(I_selected)}점에 머무릅니다`,
       detail: '사무실/컴퓨터 전용 안경 병용을 권장드립니다 — 누진 단일 렌즈로는 중간시야 확보가 어렵습니다.',
     };
-  } else if (I_at_top < T1_TOP_GRADE) {
+  } else if (I_selected < T1_TOP_GRADE) {
     computerWarning = {
-      headline: `중간거리 시야가 약합니다 (BP50 기준 ${Math.round(I_at_top)}점)`,
+      headline: `중간거리 시야가 약합니다 (${Math.round(I_selected)}점)`,
       detail: '중간거리용 안경(컴퓨터 안경)을 따로 병행하시는 것을 권장드립니다.',
     };
   }
@@ -98,7 +100,8 @@ export function mountRecommender(root) {
     if (structureChanged) {
       rowEl.innerHTML = rec.tiers.map((t, idx) => {
         const g = getGrade(t.gradeId);
-        const isBest = t.gradeId === recId;
+        // is-best follows the SELECTED grade, not the recommended (충분) one.
+        const isBest = t.gradeId === s.grade;
         const isCurrent = t.gradeId === s.grade;
         return `
           <div class="recommend-tier ${isBest ? 'is-best' : ''}" style="transition-delay:${idx * 90}ms" data-tier="${t.gradeId}">
@@ -120,11 +123,12 @@ export function mountRecommender(root) {
         rowEl.querySelectorAll('.recommend-tier').forEach(t => t.classList.add('is-revealed'));
       });
     } else {
-      // Just update buttons + scores
+      // Just update buttons + scores + highlight on selected change
       rec.tiers.forEach(t => {
         const tierEl = rowEl.querySelector(`[data-tier="${t.gradeId}"]`);
         if (!tierEl) return;
         const isCurrent = t.gradeId === s.grade;
+        tierEl.classList.toggle('is-best', isCurrent);   // move gold highlight with selection
         const btn = tierEl.querySelector('.recommend-apply');
         btn.disabled = isCurrent;
         btn.textContent = isCurrent ? '현재 등급' : '이 등급으로';

@@ -93,8 +93,8 @@
 .hud-rx-row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px 4px 3px 6px;
+  gap: 4px;
+  padding: 4px 6px 4px 8px;
   border: 1px solid var(--stage-line);
   border-radius: var(--r-pill);
   background: rgba(255,255,255,0.02);
@@ -103,11 +103,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  padding: 0 9px;
+  height: 26px;
+  padding: 0 11px;
   border-radius: var(--r-pill);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: #fff;
@@ -122,22 +122,22 @@
 }
 .hud-rx-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--stage-ink-3);
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  margin: 0 3px 0 4px;
+  margin: 0 4px 0 6px;
 }
 .hud-rx-input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 24px;
-  padding: 0 4px;
+  width: 80px;
+  height: 28px;
+  padding: 0 6px;
   font-family: var(--font-num);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--stage-ink);
@@ -157,13 +157,13 @@
   border-color: var(--gold);
 }
 .hud-step {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--stage-line);
   background: rgba(255,255,255,0.04);
   color: var(--stage-ink);
   border-radius: var(--r-sm);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
