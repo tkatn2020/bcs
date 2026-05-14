@@ -1,0 +1,355 @@
+/* ============================================================
+   Base · reset, typography, scrollbars
+   ============================================================ */
+
+* { box-sizing: border-box; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-sans);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 14px;
+  font-feature-settings: 'tnum' 1, 'cv11' 1, 'ss01' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  letter-spacing: -0.005em;
+  line-height: 1.4;
+}
+
+button { font-family: inherit; color: inherit; cursor: pointer; }
+input  { font-family: inherit; }
+
+/* Tabular numerals everywhere a number lives */
+.num, [data-num], .score-num, .hud-rx-val, .ratio-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ============================================================
+   Mono labels — ZEISS DNA. Used for technical readouts.
+   ============================================================ */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  line-height: 1.2;
+}
+.mono-label-dim { color: var(--ink-5); }
+.mono-label-bold { color: var(--ink-2); }
+.mono-label-stage { color: var(--stage-ink-2); }
+
+/* Hairline divider */
+.hairline {
+  height: 1px;
+  background: var(--hair-2);
+  margin: 12px 0;
+}
+.hairline-v {
+  width: 1px;
+  background: var(--hair-2);
+  align-self: stretch;
+}
+
+/* ============================================================
+   App shell
+   ============================================================ */
+.app {
+  display: grid;
+  grid-template-rows: var(--topbar-h) 1fr;
+  /* Width/height set by inline fit-host wrapper; defaults below are
+     fallbacks for direct loads. */
+  width: 1280px;
+  height: 800px;
+  background: var(--paper-2);
+  overflow: hidden;
+}
+
+/* ── Top bar ─────────────────────────────────────────── */
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--hair-2);
+  position: relative;
+  z-index: 5;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.brand-logo {
+  height: 22px;
+  width: auto;
+  display: block;
+}
+.brand-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--hair);
+}
+.brand-product {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.1;
+}
+.brand-product-ko {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.brand-product-en {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--ink-4);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Rx readout pill in center */
+.rx-readout {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 36px;
+  padding: 0 16px;
+  background: var(--paper-2);
+  border: 1px solid var(--hair-2);
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.rx-readout strong { color: var(--ink); font-weight: 600; }
+.rx-readout .rx-sep {
+  color: var(--ink-5);
+  font-size: 8px;
+}
+.rx-eye-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+.rx-eye-tag.od { background: var(--od); }
+.rx-eye-tag.os { background: var(--os); }
+.rx-eye-tag.add { background: var(--gold-deep); }
+
+/* Actions */
+.topbar-actions {
+  display: flex;
+  gap: 4px;
+}
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  transition: background var(--t-fast) var(--ease);
+}
+.icon-btn:hover { background: var(--paper-2); color: var(--ink); }
+.icon-btn:active { transform: scale(0.94); }
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+}
+
+/* ============================================================
+   Generic controls
+   ============================================================ */
+
+/* Pill button (segmented set) */
+.pill {
+  height: var(--touch);
+  padding: 0 16px;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  color: var(--ink-2);
+  border-radius: var(--r-pill);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all var(--t-fast) var(--ease);
+  font-variant-numeric: tabular-nums;
+}
+.pill:hover { color: var(--ink); border-color: var(--ink-4); }
+.pill[data-active="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+/* Stepper (square 40px button) */
+.stepper {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  border-radius: var(--r);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-2);
+  flex-shrink: 0;
+  transition: all var(--t-fast) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepper:hover { background: var(--paper-2); color: var(--ink); border-color: var(--ink-4); }
+.stepper:active { transform: scale(0.94); }
+
+/* Sharp button (primary) */
+.btn {
+  height: var(--touch);
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: var(--r);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--t-fast) var(--ease);
+}
+.btn:hover { background: var(--paper-2); border-color: var(--ink-4); }
+.btn-primary {
+  background: var(--brand);
+  color: var(--paper);
+  border-color: var(--brand);
+}
+.btn-primary:hover { background: var(--brand-2); border-color: var(--brand-2); }
+
+/* ============================================================
+   Grade pill (large, with id + bp code + name)
+   ============================================================ */
+.grade-pill {
+  position: relative;
+  height: 56px;
+  min-width: 76px;
+  padding: 8px 12px;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  color: var(--ink-2);
+  transition: all var(--t-fast) var(--ease);
+  text-align: left;
+}
+.grade-pill:hover { border-color: var(--ink-4); }
+.grade-pill[data-active="true"] {
+  background: var(--brand);
+  color: var(--paper);
+  border-color: var(--brand);
+}
+.grade-pill[data-recommended="true"]::before {
+  content: "";
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+.grade-pill[data-active="true"][data-recommended="true"]::before {
+  box-shadow: 0 0 0 2px var(--brand);
+}
+.grade-pill .gp-bp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-bottom: 1px;
+}
+.grade-pill .gp-name {
+  font-size: 11.5px;
+  font-weight: 500;
+  opacity: 0.85;
+  line-height: 1.2;
+}
+
+/* ============================================================
+   Switch
+   ============================================================ */
+.switch {
+  position: relative;
+  width: 36px;
+  height: 22px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--hair);
+  border-radius: var(--r-pill);
+  transition: background var(--t-fast) var(--ease);
+}
+.switch-track::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform var(--t-mid) var(--ease);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.switch input:checked + .switch-track { background: var(--brand); }
+.switch input:checked + .switch-track::before { transform: translateX(14px); }

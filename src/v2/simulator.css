@@ -1,0 +1,424 @@
+/* ============================================================
+   Simulator screen — main consultation surface
+   Layout (iPad landscape ≥ 1194×834):
+   ┌─────────────────────────────────────────────────────┐
+   │  topbar                                              │
+   ├──────┬─────────────────────────────┬───────────────┤
+   │  OS  │    lens stage + HUD          │  hero score   │
+   │ slim │    (mode toggle)             │  recommend    │
+   │      │                              │  adapt curve  │
+   │  OD  │                              │               │
+   │ slim │    bottom controls           │               │
+   ├──────┴─────────────────────────────┴───────────────┤
+   │  Day-in-life storyboard (collapsible)               │
+   └─────────────────────────────────────────────────────┘
+   ============================================================ */
+
+.sim-screen {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sim-main {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) 360px;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Left eye gutter (OS top / OD bottom) ──────────── */
+.sim-eye-gutter {
+  background: var(--stage);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 1px minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+.sim-eye-gutter .gutter-divider {
+  background: var(--stage-line);
+}
+
+/* ── Stage column ──────────────────────────────────── */
+.sim-stage-col {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--stage);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* HUD bar — Rx + sync + mode toggle */
+.sim-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--stage-2);
+  border-bottom: 1px solid var(--stage-line);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sim-hud::-webkit-scrollbar { display: none; }
+.hud-rx-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+.hud-rx-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px 3px 6px;
+  border: 1px solid var(--stage-line);
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.02);
+}
+.hud-rx-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  flex-shrink: 0;
+}
+.hud-rx-tag.od { background: var(--od); }
+.hud-rx-tag.os { background: var(--os); }
+.hud-rx-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+.hud-rx-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--stage-ink-3);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  margin: 0 3px 0 4px;
+}
+.hud-rx-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 24px;
+  padding: 0 4px;
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--stage-ink);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  letter-spacing: -0.01em;
+  text-align: center;
+  outline: none;
+  cursor: text;
+  caret-color: var(--gold);
+  transition: all var(--t-fast) var(--ease);
+}
+.hud-rx-input:hover { background: rgba(255,255,255,0.09); }
+.hud-rx-input:focus {
+  background: rgba(255,255,255,0.14);
+  border-color: var(--gold);
+}
+.hud-step {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--stage-line);
+  background: rgba(255,255,255,0.04);
+  color: var(--stage-ink);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast) var(--ease);
+}
+.hud-step:hover { background: rgba(255,255,255,0.10); }
+.hud-step:active { background: rgba(255,255,255,0.18); }
+
+/* Sync chip */
+.hud-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 4px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--r-pill);
+}
+.hud-sync input { display: none; }
+.hud-sync-track {
+  position: relative;
+  width: 24px;
+  height: 14px;
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.16);
+  transition: background var(--t-fast) var(--ease);
+  flex-shrink: 0;
+}
+.hud-sync-track::after {
+  content: "";
+  position: absolute;
+  left: 2px; top: 2px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--stage-ink);
+  transition: left var(--t-fast) var(--ease);
+}
+.hud-sync input:checked + .hud-sync-track { background: var(--gold); }
+.hud-sync input:checked + .hud-sync-track::after { left: 12px; background: var(--stage); }
+.hud-sync-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--stage-ink-2);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+/* Mode toggle — 2D / 3D / Before-After / AR */
+.hud-mode {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--r);
+}
+.hud-mode-btn {
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--stage-ink-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.hud-mode-btn[data-active="true"] {
+  background: var(--gold);
+  color: var(--stage);
+}
+.hud-mode-btn:hover:not([data-active="true"]) { color: var(--stage-ink); }
+
+/* Lens stage — fills available space */
+.sim-lens-wrap {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--stage);
+  background-image:
+    radial-gradient(ellipse at 50% 35%, rgba(250,251,252,0.04) 0%, rgba(0,0,0,0) 60%);
+  overflow: hidden;
+  padding: 12px 8px;
+}
+.sim-lens-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(250,251,252,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(250,251,252,0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+}
+
+/* corner reticles — measurement-instrument vibe */
+.sim-lens-wrap::after {
+  content: "";
+  position: absolute;
+  top: 12px; left: 12px; right: 12px; bottom: 12px;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, var(--stage-line) 12px, transparent 12px) top left / 12px 1px no-repeat,
+    linear-gradient(to bottom, var(--stage-line) 12px, transparent 12px) top left / 1px 12px no-repeat,
+    linear-gradient(to left,  var(--stage-line) 12px, transparent 12px) top right / 12px 1px no-repeat,
+    linear-gradient(to bottom, var(--stage-line) 12px, transparent 12px) top right / 1px 12px no-repeat,
+    linear-gradient(to right, var(--stage-line) 12px, transparent 12px) bottom left / 12px 1px no-repeat,
+    linear-gradient(to top, var(--stage-line) 12px, transparent 12px) bottom left / 1px 12px no-repeat,
+    linear-gradient(to left, var(--stage-line) 12px, transparent 12px) bottom right / 12px 1px no-repeat,
+    linear-gradient(to top, var(--stage-line) 12px, transparent 12px) bottom right / 1px 12px no-repeat;
+}
+
+.sim-lens-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mode placeholder cards (3D / B-A / AR not yet built) */
+.mode-placeholder {
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 16 / 9;
+  border: 1px dashed var(--stage-line);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--stage-ink-2);
+}
+
+/* ── Bottom controls ────────────────────────────────── */
+.sim-controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 12px 20px;
+  background: var(--paper);
+  border-top: 1px solid var(--hair-2);
+  flex-shrink: 0;
+  height: 96px;
+  overflow: visible;
+  position: relative;
+}
+.ctrl-block {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.ctrl-block + .ctrl-block {
+  padding-left: 20px;
+  border-left: 1px solid var(--hair-2);
+}
+.ctrl-block-grow { flex: 1; min-width: 0; }
+.ctrl-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.add-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.add-display {
+  min-width: 82px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-num);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: var(--r);
+  color: var(--ink);
+}
+
+/* Corridor info — pill button + collapsing tip */
+.ctrl-note-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  color: var(--ink-3);
+  border-radius: var(--r-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  transition: all var(--t-fast) var(--ease);
+}
+.ctrl-note-btn:hover { color: var(--ink); border-color: var(--ink-4); }
+.ctrl-note-btn .info-mark {
+  display: inline-flex;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  color: var(--paper);
+  font-size: 9.5px;
+  font-weight: 700;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+}
+.ctrl-note-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 320px;
+  padding: 10px 14px;
+  background: var(--stage);
+  color: var(--stage-ink);
+  border-radius: var(--r);
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: var(--sh-3);
+  z-index: 5;
+}
+.ctrl-note-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--stage);
+}
+.ctrl-note-tip[hidden] { display: none; }
+
+/* ── Right aside (hero score + recommendation + adapt) ─ */
+.sim-aside {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-2);
+  border-left: 1px solid var(--hair-2);
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  min-width: 0;
+  width: 360px;
+  flex-shrink: 0;
+}
+.sim-aside-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 16px;
+  min-width: 0;
+}
+.sim-aside-inner > * { min-width: 0; }

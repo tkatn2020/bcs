@@ -1,0 +1,106 @@
+/* ============================================================
+   다초점 시뮬레이터 v2 — ZEISS × Toss design tokens
+   ZEISS = clinical authority (cool grays, hairlines, mono labels)
+   Toss  = Korean premium fintech (huge numbers, generous space, soft cards)
+   ============================================================ */
+
+:root {
+  /* ── Paper · neutrals (cool, instrument-like) ───────────── */
+  --paper:        #FAFBFC;
+  --paper-2:      #F4F6F9;
+  --paper-3:      #ECEFF4;
+  --paper-tint:   #EAF0F8;          /* subtle blue-tinted highlight */
+
+  /* ── Ink ─────────────────────────────────────────────── */
+  --ink:          #0A0E1A;           /* near-black, cool */
+  --ink-2:        #1F2638;
+  --ink-3:        #4A5468;
+  --ink-4:        #818BA0;
+  --ink-5:        #B4BCCB;
+
+  /* ── Hairline borders ────────────────────────────────── */
+  --hair:         #DCE1EA;
+  --hair-2:       #E7EBF1;
+  --hair-3:       #F0F2F6;
+
+  /* ── Brand · deep navy (ZEISS-coded) ─────────────────── */
+  --brand:        #0E1F4E;
+  --brand-2:      #1B3870;
+  --brand-3:      #2E5BAA;
+  --brand-soft:   rgba(14, 31, 78, 0.06);
+  --brand-soft-2: rgba(14, 31, 78, 0.12);
+
+  /* ── Accent · warm gold (Toss premium) ───────────────── */
+  --gold:         oklch(0.75 0.11 80);
+  --gold-deep:    oklch(0.55 0.10 75);
+  --gold-soft:    oklch(0.75 0.11 80 / 0.14);
+
+  /* ── Eye colors ───────────────────────────────────────── */
+  --od:           #2E5BFF;            /* OD blue */
+  --od-soft:      rgba(46, 91, 255, 0.10);
+  --os:           #00C2A8;            /* OS teal */
+  --os-soft:      rgba(0, 194, 168, 0.10);
+
+  /* ── Zones ───────────────────────────────────────────── */
+  --z-d:          #3B82F6;
+  --z-d-soft:     rgba(59, 130, 246, 0.14);
+  --z-i:          #10B981;
+  --z-i-soft:     rgba(16, 185, 129, 0.14);
+  --z-n:          #F59E0B;
+  --z-n-soft:     rgba(245, 158, 11, 0.14);
+
+  /* ── Status ──────────────────────────────────────────── */
+  --pos:          #10B981;
+  --neg:          #EF4444;
+  --warn:         #F59E0B;
+
+  /* ── Stage · dark (lens visualization) ──────────────── */
+  --stage:        #0B0F1A;
+  --stage-2:      #11172A;
+  --stage-3:      #1A2138;
+  --stage-edge:   #232B47;
+  --stage-ink:    #FAFBFC;
+  --stage-ink-2:  #A4ADC1;
+  --stage-ink-3:  #6B7388;
+  --stage-line:   rgba(250, 251, 252, 0.08);
+
+  /* ── Type ────────────────────────────────────────────── */
+  --font-sans:    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+                  'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-num:     'Pretendard Variable', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ── Radii ───────────────────────────────────────────── */
+  --r-xs:         2px;
+  --r-sm:         4px;
+  --r-md:         6px;
+  --r:            8px;       /* default — sharp instrument */
+  --r-lg:         12px;
+  --r-xl:         20px;      /* Toss-soft for hero / recommendation cards */
+  --r-pill:       999px;
+
+  /* ── Shadow · extremely restrained ──────────────────── */
+  --sh-1:         0 1px 0 rgba(10, 14, 26, 0.04);
+  --sh-2:         0 1px 2px rgba(10, 14, 26, 0.05), 0 1px 0 rgba(10, 14, 26, 0.03);
+  --sh-3:         0 12px 32px rgba(10, 14, 26, 0.10), 0 1px 0 rgba(10, 14, 26, 0.04);
+  --sh-card:      0 1px 0 rgba(10, 14, 26, 0.04);
+  --sh-hero:      0 24px 60px rgba(10, 14, 26, 0.16), 0 1px 0 rgba(10, 14, 26, 0.04);
+  --sh-stage:     0 0 0 1px rgba(250, 251, 252, 0.03) inset;
+
+  /* ── Motion ──────────────────────────────────────────── */
+  --ease:         cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snap:    cubic-bezier(0.6, 0.05, 0.4, 1);
+  --t-fast:       140ms;
+  --t-mid:        320ms;
+  --t-slow:       520ms;
+  --t-pulse:      800ms;
+
+  /* ── Touch ───────────────────────────────────────────── */
+  --touch:        44px;
+  --touch-lg:     52px;
+
+  /* ── Layout ──────────────────────────────────────────── */
+  --topbar-h:     64px;
+  --tabbar-h:     0px;
+}

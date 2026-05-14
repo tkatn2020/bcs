@@ -1,0 +1,678 @@
+/* ============================================================
+   Advanced modes & compare tab
+   - Before/After slider with photo + shader
+   - 3D lens stage
+   - Anisometropia 3D offset overlay (in 2D mode)
+   - Camera AR
+   - Compare tab
+   ============================================================ */
+
+/* ============================================================
+   🅑 Before/After slider
+   Two photos sit on top of each other; a draggable vertical
+   divider reveals the right (BP50) over the left (BP10).
+   ============================================================ */
+.ba-stage {
+  position: relative;
+  width: 100%;
+  max-width: 980px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--stage-2);
+  box-shadow: var(--sh-stage);
+  cursor: ew-resize;
+  user-select: none;
+}
+.ba-layer {
+  position: absolute;
+  inset: 0;
+}
+.ba-layer canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.ba-layer-right {
+  clip-path: inset(0 0 0 50%);
+  transition: clip-path 80ms linear;
+}
+.ba-label {
+  position: absolute;
+  top: 14px;
+  padding: 6px 10px;
+  background: rgba(11, 15, 26, 0.78);
+  border: 1px solid rgba(250, 251, 252, 0.10);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--stage-ink);
+  backdrop-filter: blur(8px);
+}
+.ba-label-left { left: 14px; }
+.ba-label-right { right: 14px; }
+.ba-label-grade {
+  font-family: var(--font-num);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+  display: block;
+}
+.ba-label-desc {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--stage-ink-2);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.ba-divider {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: var(--stage-ink);
+  transform: translateX(-1px);
+  pointer-events: none;
+  box-shadow: 0 0 10px rgba(0,0,0,0.4);
+}
+.ba-handle {
+  position: absolute;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--stage-ink);
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.ba-handle svg {
+  width: 22px;
+  height: 22px;
+  stroke: var(--stage);
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ba-foot {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ba-foot-tip {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--stage-ink-2);
+  font-weight: 600;
+}
+.ba-foot-photo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ba-foot-photo-btn {
+  height: 26px;
+  padding: 0 10px;
+  background: rgba(11, 15, 26, 0.78);
+  border: 1px solid rgba(250, 251, 252, 0.10);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--stage-ink-2);
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+.ba-foot-photo-btn:hover { color: var(--stage-ink); }
+.ba-foot-photo-btn[data-active="true"] {
+  background: var(--gold);
+  color: var(--stage);
+  border-color: var(--gold);
+}
+
+/* ============================================================
+   🅐 3D lens stage
+   ============================================================ */
+.lens3d-stage {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, var(--stage-3) 0%, var(--stage) 70%);
+}
+.lens3d-stage canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+.lens3d-foot {
+  position: absolute;
+  left: 14px; bottom: 12px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+.lens3d-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--stage-ink-2);
+  font-weight: 600;
+}
+.lens3d-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  background: rgba(11, 15, 26, 0.78);
+  border: 1px solid rgba(250, 251, 252, 0.10);
+  border-radius: var(--r-sm);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+.lens3d-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stage-ink-2);
+  font-weight: 600;
+}
+.lens3d-legend-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+
+/* ============================================================
+   🅔 Anisometropia (좌우격차) 3D offset visualization
+   The two lens halves rise/sink and tilt apart proportional
+   to the dioptric gap. Lives in the 2D heatmap mode.
+   ============================================================ */
+.aniso-card {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: rgba(11, 15, 26, 0.85);
+  border: 1px solid rgba(250, 251, 252, 0.10);
+  border-radius: var(--r-pill);
+  backdrop-filter: blur(8px);
+  z-index: 4;
+}
+.aniso-card-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--stage-ink-2);
+  font-weight: 600;
+}
+.aniso-card-val {
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stage-ink);
+}
+.aniso-card-bar {
+  position: relative;
+  width: 80px;
+  height: 4px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.aniso-card-bar-fill {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--z-i), var(--z-n), var(--neg));
+  transition: width var(--t-mid) var(--ease);
+}
+.aniso-card.is-warn {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(58, 36, 12, 0.85);
+}
+.aniso-card.is-warn .aniso-card-val {
+  color: var(--z-n);
+}
+.aniso-card-bar-mark {
+  position: absolute;
+  top: -2px;
+  width: 1px;
+  height: 8px;
+  background: var(--stage-ink);
+  opacity: 0.4;
+}
+
+/* ============================================================
+   🅘 Camera AR overlay mode
+   ============================================================ */
+.ar-stage {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--stage);
+}
+.ar-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ar-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ar-prompt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: linear-gradient(180deg, rgba(11,15,26,0.65), rgba(11,15,26,0.85));
+}
+.ar-prompt-icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--stage-ink);
+}
+.ar-prompt-icon svg {
+  width: 26px; height: 26px;
+  stroke: currentColor; fill: none; stroke-width: 1.5;
+}
+.ar-prompt-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--stage-ink);
+  letter-spacing: -0.01em;
+}
+.ar-prompt-body {
+  font-size: 11.5px;
+  color: var(--stage-ink-2);
+  text-align: center;
+  max-width: 380px;
+  line-height: 1.5;
+}
+.ar-prompt-btn {
+  margin-top: 6px;
+  height: 38px;
+  padding: 0 18px;
+  background: var(--gold);
+  color: var(--stage);
+  border: none;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+.ar-grade-label {
+  position: absolute;
+  top: 14px; left: 14px;
+  padding: 8px 12px;
+  background: rgba(11, 15, 26, 0.80);
+  border: 1px solid rgba(250, 251, 252, 0.10);
+  border-radius: var(--r-sm);
+  backdrop-filter: blur(8px);
+}
+.ar-grade-label .lbl-mono {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--stage-ink-3);
+  font-weight: 600;
+}
+.ar-grade-label .lbl-bp {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  display: block;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   Compare tab — A ↔ B
+   ============================================================ */
+.compare-screen {
+  display: grid;
+  grid-template-columns: 1fr 100px 1fr;
+  gap: 20px;
+  padding: 18px 24px 24px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+.compare-side {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--hair-2);
+  border-radius: var(--r-lg);
+  padding: 14px 14px 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+.compare-side-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.compare-side-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  border-radius: var(--r-sm);
+  text-transform: uppercase;
+}
+.compare-side-tag.a { background: var(--brand-soft); color: var(--brand); }
+.compare-side-tag.b { background: rgba(212, 165, 75, 0.12); color: var(--gold-deep); }
+.compare-side-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+}
+.compare-side-title:focus { background: var(--paper-2); }
+
+.compare-side-ctrls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: var(--paper-2);
+  border-radius: var(--r);
+}
+.compare-ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compare-ctrl-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  width: 56px;
+  flex-shrink: 0;
+}
+.compare-ctrl-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.compare-ctrl-pill {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  transition: all var(--t-fast) var(--ease);
+}
+.compare-ctrl-pill[data-active="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.compare-mini-add {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.compare-mini-add .stepper { width: 28px; height: 28px; font-size: 14px; }
+.compare-mini-add .add-display {
+  height: 28px; min-width: 56px; font-size: 13px;
+}
+
+.compare-side-stage {
+  flex: 1;
+  min-height: 0;
+  background: var(--stage);
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.compare-side-stage::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  border: 1px solid rgba(250,251,252,0.05);
+  border-radius: var(--r-sm);
+}
+
+.compare-side-foot {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.compare-side-foot-l {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.compare-side-foot-l-num {
+  font-family: var(--font-num);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.compare-side-foot-l-suf {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--ink-4);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+.compare-side-foot-zones {
+  display: flex;
+  gap: 8px;
+}
+.compare-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.compare-zone-lbl {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+.compare-zone-val {
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Diff column (middle) */
+.compare-diff {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 60px;
+}
+.compare-diff-arrow {
+  font-size: 24px;
+  color: var(--ink-4);
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.compare-diff-card {
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--hair-2);
+  border-radius: var(--r-lg);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.compare-diff-h {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.compare-diff-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.compare-diff-row-l {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.compare-diff-row-v {
+  font-family: var(--font-num);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.compare-diff-row.pos .compare-diff-row-v { color: var(--pos); }
+.compare-diff-row.neg .compare-diff-row-v { color: var(--neg); }
+.compare-diff-row.flat .compare-diff-row-v { color: var(--ink-4); }
+.compare-diff-row.total {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--hair-2);
+  margin-bottom: 2px;
+}
+.compare-diff-row.total .compare-diff-row-l { color: var(--ink); font-weight: 700; font-size: 11px; }
+.compare-diff-row.total .compare-diff-row-v { font-size: 17px; }
+
+/* ============================================================
+   Tab bar at top (when needed) — switch simulator ↔ compare
+   ============================================================ */
+.topbar-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  background: var(--paper-2);
+  border-radius: var(--r-pill);
+  margin-left: 16px;
+}
+.topbar-tab {
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--t-fast) var(--ease);
+}
+.topbar-tab:hover { color: var(--ink); }
+.topbar-tab[data-active="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.topbar-tab-num {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+/* ============================================================
+   Mode placeholder (for when something isn't built yet)
+   ============================================================ */
+.mode-loading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--stage-ink-3);
+  font-weight: 600;
+}

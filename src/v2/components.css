@@ -1,0 +1,969 @@
+/* ============================================================
+   Components — score, recommend, adapt, day-in-life, aniso
+   ============================================================ */
+
+/* ============================================================
+   🅓 Hero score card — Apple Watch ring + count-up + glow
+   The headline number, big like Toss, with a measured ring
+   that fills up when the score improves.
+   ============================================================ */
+.hero-score {
+  position: relative;
+  padding: 20px 18px 18px;
+  background: var(--stage);
+  color: var(--stage-ink);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--sh-hero);
+}
+.hero-score::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(250,251,252,0.06) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(250,251,252,0.02), transparent 40%);
+  pointer-events: none;
+}
+.hero-score-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  position: relative;
+}
+.hero-score-h-l {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hero-score-h-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--stage-ink);
+  letter-spacing: -0.005em;
+}
+.hero-score-h-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--stage-ink-3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.hero-score-bp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  padding: 4px 8px;
+  background: rgba(255, 200, 80, 0.10);
+  border: 1px solid rgba(255, 200, 80, 0.22);
+  border-radius: var(--r-sm);
+}
+
+/* Ring + number container */
+.hero-score-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+.hero-score-ring {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+}
+.hero-score-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.hero-score-ring .ring-bg {
+  stroke: rgba(255,255,255,0.08);
+  fill: none;
+}
+.hero-score-ring .ring-fg {
+  stroke: var(--gold);
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--t-slow) var(--ease);
+  filter: drop-shadow(0 0 6px rgba(212, 165, 75, 0.4));
+}
+.hero-score-ring .ring-glow {
+  stroke: var(--gold);
+  fill: none;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity var(--t-pulse) var(--ease);
+}
+.hero-score.is-improving .ring-glow {
+  animation: ringPulse var(--t-pulse) var(--ease) 1;
+}
+@keyframes ringPulse {
+  0%   { opacity: 0; stroke-width: 6; }
+  40%  { opacity: 0.6; stroke-width: 18; }
+  100% { opacity: 0; stroke-width: 24; }
+}
+
+/* Center numbers */
+.hero-score-num-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.hero-score-num {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 0.9;
+}
+.hero-score-num-int {
+  font-family: var(--font-num);
+  font-size: 76px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--stage-ink);
+  font-variant-numeric: tabular-nums;
+}
+.hero-score-num-suffix {
+  font-family: var(--font-num);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--stage-ink-3);
+  letter-spacing: -0.005em;
+}
+.hero-score-cap {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--stage-ink-2);
+}
+.hero-score-cap.is-positive { color: var(--gold); }
+
+/* Zone rows below */
+.hero-score-zones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--stage-line);
+}
+.zone-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.zone-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.zone-dot.d { background: var(--z-d); }
+.zone-dot.i { background: var(--z-i); }
+.zone-dot.n { background: var(--z-n); }
+.zone-row-mid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.zone-row-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--stage-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.zone-row-mm {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--stage-ink-3);
+  letter-spacing: 0.06em;
+}
+.zone-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.zone-bar-fill {
+  height: 100%;
+  transition: width var(--t-slow) var(--ease);
+  border-radius: 2px;
+}
+.zone-bar-fill.d { background: var(--z-d); }
+.zone-bar-fill.i { background: var(--z-i); }
+.zone-bar-fill.n { background: var(--z-n); }
+.zone-row-val {
+  font-family: var(--font-num);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--stage-ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ============================================================
+   Side gutter — per-eye score panel (compact)
+   ============================================================ */
+.eye-panel {
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--stage-ink);
+  position: relative;
+}
+.eye-panel-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.eye-panel-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: #fff;
+}
+.eye-panel-tag.od { background: var(--od); }
+.eye-panel-tag.os { background: var(--os); }
+.eye-panel-tag-ko {
+  font-size: 10px;
+  color: var(--stage-ink-2);
+  font-weight: 500;
+}
+.eye-panel-score {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.eye-panel-score-num {
+  font-family: var(--font-num);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--stage-ink);
+  line-height: 1;
+}
+.eye-panel-score-suffix {
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--stage-ink-3);
+}
+.eye-panel-cap {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--stage-ink-3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.eye-panel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.eye-row {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+.eye-row-name {
+  font-size: 10px;
+  color: var(--stage-ink-2);
+  font-weight: 600;
+}
+.eye-row-val {
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--stage-ink);
+}
+.eye-row-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 1.5px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.eye-row-bar-fill {
+  height: 100%;
+  transition: width var(--t-slow) var(--ease);
+}
+.eye-row-bar-fill.d { background: var(--z-d); }
+.eye-row-bar-fill.i { background: var(--z-i); }
+.eye-row-bar-fill.n { background: var(--z-n); }
+
+/* ============================================================
+   🅗 Recommendation cards — Toss soft reveal
+   Three tier cards (최소 · 충분 · 최상), the middle one lifts
+   and glows. Cards stagger in.
+   ============================================================ */
+.recommend-card {
+  background: var(--paper);
+  border-radius: var(--r-xl);
+  padding: 16px 16px 14px;
+  border: 1px solid var(--hair-2);
+  box-shadow: var(--sh-card);
+}
+.recommend-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.recommend-h-l {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.recommend-h-l::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  background: var(--brand);
+  border-radius: 2px;
+}
+.recommend-h-mono {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--ink-4);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.recommend-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.recommend-tier {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 6px 10px;
+  background: var(--paper-2);
+  border-radius: var(--r-lg);
+  border: 1px solid transparent;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all var(--t-mid) var(--ease);
+  overflow: hidden;
+}
+.recommend-tier.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.recommend-tier.is-best {
+  background: var(--brand);
+  color: var(--paper);
+  border-color: var(--brand);
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 28px rgba(14, 31, 78, 0.20);
+}
+.recommend-tier.is-best::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(255, 200, 80, 0.20) 0%, transparent 50%);
+  pointer-events: none;
+}
+.recommend-tier-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 2px;
+}
+.recommend-tier.is-best .recommend-tier-label {
+  color: var(--gold);
+}
+.recommend-tier-bp {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  line-height: 1;
+}
+.recommend-tier.is-best .recommend-tier-bp {
+  color: var(--paper);
+}
+.recommend-tier-name {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  line-height: 1.2;
+  text-align: center;
+}
+.recommend-tier.is-best .recommend-tier-name {
+  color: rgba(250, 251, 252, 0.7);
+}
+.recommend-tier-score {
+  margin-top: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.recommend-tier-score-num {
+  font-family: var(--font-num);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.recommend-tier.is-best .recommend-tier-score-num {
+  color: var(--paper);
+}
+.recommend-tier-score-suffix {
+  font-size: 9px;
+  color: var(--ink-4);
+  font-weight: 600;
+}
+.recommend-tier.is-best .recommend-tier-score-suffix {
+  color: rgba(250, 251, 252, 0.5);
+}
+
+.recommend-apply {
+  margin-top: 8px;
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: all var(--t-fast) var(--ease);
+}
+.recommend-apply:hover { border-color: var(--ink-3); }
+.recommend-apply:disabled {
+  background: var(--paper-3);
+  border-color: var(--paper-3);
+  color: var(--ink-4);
+  cursor: default;
+}
+.recommend-tier.is-best .recommend-apply {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--stage);
+  font-weight: 700;
+}
+.recommend-tier.is-best .recommend-apply:disabled {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.10);
+  color: rgba(250, 251, 252, 0.6);
+}
+
+.recommend-foot {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hair-2);
+}
+.recommend-foot-h {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.45;
+}
+.recommend-foot-body {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+
+.computer-warning {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--z-n-soft);
+  border: 1px solid rgba(245, 158, 11, 0.30);
+  border-radius: var(--r);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.computer-warning-h {
+  font-weight: 700;
+  color: oklch(0.50 0.12 70);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.computer-warning-body {
+  margin-top: 3px;
+  color: var(--ink-3);
+}
+
+/* ============================================================
+   🅕 Adaptation period — consumer-friendly explainer
+   Card with: tier badge · big days number · headline · phase strip ·
+   3 phase rows · caution tip.
+   ============================================================ */
+.adapt-card {
+  background: var(--paper);
+  border-radius: var(--r-xl);
+  padding: 14px 16px 14px;
+  border: 1px solid var(--hair-2);
+  box-shadow: var(--sh-card);
+}
+.adapt-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.adapt-h-l {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.adapt-h-l::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  background: var(--brand);
+  border-radius: 2px;
+}
+.adapt-tier {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+}
+.adapt-tier.easy { background: rgba(16,185,129,0.10); color: oklch(0.42 0.12 160); }
+.adapt-tier.mid  { background: rgba(245,158,11,0.12); color: oklch(0.46 0.13 70); }
+.adapt-tier.hard { background: rgba(239,68,68,0.10);  color: oklch(0.46 0.16 28); }
+
+/* Hero — the big number that answers "며칠?" */
+.adapt-hero {
+  margin: 6px 0 12px;
+}
+.adapt-hero-num {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1;
+}
+.adapt-hero-num::before {
+  content: "약";
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-4);
+  margin-right: 4px;
+  align-self: baseline;
+  padding-bottom: 4px;
+}
+.adapt-hero-num-int {
+  font-family: var(--font-num);
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.adapt-hero-num-suf {
+  font-family: var(--font-num);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-3);
+  letter-spacing: -0.01em;
+}
+.adapt-hero-msg {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: -0.005em;
+}
+
+/* Strip — clinical timeline from Day 1 → 4 weeks. The customer's
+   predicted completion day is marked with a flagged dot. */
+.adapt-strip {
+  margin-bottom: 14px;
+}
+.adapt-strip-track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--paper-3);
+  overflow: visible;
+}
+.adapt-strip-band {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-radius: 4px;
+}
+.adapt-strip-band.easy { left: 0;   width: 10%; background: rgba(239, 68, 68, 0.32); }
+.adapt-strip-band.mid  { left: 10%; width: 40%; background: rgba(245, 158, 11, 0.32); }
+.adapt-strip-band.done { left: 50%; width: 50%; background: rgba(16, 185, 129, 0.28); }
+.adapt-strip-divider {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--paper);
+}
+.adapt-strip-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: left var(--t-slow) var(--ease);
+  z-index: 2;
+}
+.adapt-strip-marker-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 3px solid var(--paper);
+  box-shadow: 0 0 0 1px var(--ink), 0 2px 6px rgba(10, 14, 26, 0.30);
+}
+.adapt-strip-marker-flag {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--r-sm);
+  font-family: var(--font-num);
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.adapt-strip-marker-flag::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--ink);
+}
+.adapt-strip-ticks {
+  display: grid;
+  grid-template-columns: 10% 15% 25% auto;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.adapt-strip-ticks span:nth-child(1) { text-align: left; padding-left: 0; }
+.adapt-strip-ticks span:nth-child(2) { text-align: center; }
+.adapt-strip-ticks span:nth-child(3) { text-align: center; }
+.adapt-strip-ticks span:nth-child(4) { text-align: right; }
+
+/* Phase rows — concrete expectations the customer can read at a glance */
+.adapt-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.adapt-phase {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  background: var(--paper-2);
+  border-radius: var(--r);
+  border: 1px solid transparent;
+  transition: all var(--t-fast) var(--ease);
+}
+.adapt-phase.is-future { opacity: 0.55; }
+.adapt-phase.is-current {
+  background: var(--paper);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+.adapt-phase.is-done {
+  background: var(--paper-2);
+  opacity: 0.85;
+}
+.adapt-phase.is-done .adapt-phase-icon {
+  color: var(--pos);
+}
+.adapt-phase-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--hair-2);
+  color: var(--ink-3);
+}
+.adapt-phase.is-current .adapt-phase-icon {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.adapt-phase-icon svg {
+  width: 14px;
+  height: 14px;
+}
+.adapt-phase-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.adapt-phase-h {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.adapt-phase-range {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--ink-4);
+}
+.adapt-phase.is-current .adapt-phase-range {
+  color: var(--brand);
+}
+.adapt-phase-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.adapt-phase-desc {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+/* Caution tip — yellow-tinted note with a 💡 prefix */
+.adapt-tip {
+  margin-top: 10px;
+  padding: 9px 11px;
+  background: rgba(212, 165, 75, 0.06);
+  border: 1px solid rgba(212, 165, 75, 0.20);
+  border-radius: var(--r);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+  display: flex;
+  gap: 6px;
+}
+.adapt-tip::before {
+  content: "ⓘ";
+  color: var(--gold-deep);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   🅒 Day-in-life storyboard
+   Horizontal scroll of moments. Each card has an icon, a
+   time label, a zone-of-use indicator, and a clarity score.
+   ============================================================ */
+.day-bar {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-top: 1px solid var(--hair-2);
+  padding: 10px 18px 12px;
+  flex-shrink: 0;
+  max-height: 200px;
+  min-height: 0;
+}
+.day-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.day-h-l {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.day-h-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.day-h-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+
+.day-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scroll-behavior: smooth;
+}
+.day-track::-webkit-scrollbar { height: 0; }
+
+.day-card {
+  flex: 1;
+  min-width: 140px;
+  position: relative;
+  background: var(--paper-2);
+  border: 1px solid var(--hair-2);
+  border-radius: var(--r-lg);
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.day-card:hover { border-color: var(--ink-4); background: var(--paper); }
+.day-card[data-active="true"] {
+  background: var(--paper);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.day-card-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.day-card-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--ink-4);
+}
+.day-card-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.day-card-zone-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.day-card-zone-dot.d { background: var(--z-d); }
+.day-card-zone-dot.i { background: var(--z-i); }
+.day-card-zone-dot.n { background: var(--z-n); }
+
+.day-card-illustration {
+  height: 42px;
+  border-radius: var(--r);
+  background: var(--stage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.day-card-illustration svg {
+  width: 100%;
+  height: 100%;
+}
+.day-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+}
+.day-card-desc {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+.day-card-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--hair-2);
+}
+.day-card-score-num {
+  font-family: var(--font-num);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.day-card-score-suf {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+.day-card-score-meta {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+}

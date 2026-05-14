@@ -45,6 +45,9 @@ const initial = {
   activeTab: 'simulator', // 'simulator' | 'compare'
   settingsOpen: false,
 
+  // Lens stage mode (v2 design — 4 modes for the main visualization)
+  lensMode: '2d',          // '2d' | '3d' | 'ba' | 'ar'
+
   // Prescription — shared across all sections (same patient)
   od: { sphere: -2.00, cylinder: 0, axis: 0 },
   os: { sphere: -2.00, cylinder: 0, axis: 0 },
