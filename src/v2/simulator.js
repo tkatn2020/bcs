@@ -19,23 +19,19 @@ const RX_LIMITS = {
 export function mountSimulator(root) {
   root.innerHTML = `
     <div class="sim-screen">
-      <div class="sim-main">
-        <aside class="sim-eye-gutter">
-          <div data-role="gutter-os"></div>
-          <div class="gutter-divider"></div>
-          <div data-role="gutter-od"></div>
-        </aside>
-
-        <section class="sim-stage-col">
-          <div class="sim-hud" id="sim-hud"></div>
-          <div class="sim-lens-wrap" id="sim-lens-wrap"></div>
-          <div class="sim-controls" id="sim-controls"></div>
-        </section>
-
-        <aside class="sim-aside">
-          <div class="sim-aside-inner" id="sim-aside-inner"></div>
-        </aside>
-      </div>
+      <div class="sim-hud" id="sim-hud"></div>
+      <aside class="sim-eye-gutter">
+        <div data-role="gutter-os"></div>
+        <div class="gutter-divider"></div>
+        <div data-role="gutter-od"></div>
+      </aside>
+      <section class="sim-stage-col">
+        <div class="sim-lens-wrap" id="sim-lens-wrap"></div>
+      </section>
+      <aside class="sim-aside">
+        <div class="sim-aside-inner" id="sim-aside-inner"></div>
+      </aside>
+      <div class="sim-controls" id="sim-controls"></div>
     </div>
   `;
 

@@ -16,19 +16,21 @@
 
 .sim-screen {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: 130px minmax(0, 1fr) 360px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "hud      hud   aside"
+    "gutter   stage aside"
+    "controls controls aside";
   height: 100%;
   min-height: 0;
   overflow: hidden;
 }
-
-.sim-main {
-  display: grid;
-  grid-template-columns: 130px minmax(0, 1fr) 360px;
-  grid-template-rows: minmax(0, 1fr);
-  min-height: 0;
-  overflow: hidden;
-}
+.sim-screen > .sim-hud { grid-area: hud; }
+.sim-screen > .sim-eye-gutter { grid-area: gutter; }
+.sim-screen > .sim-stage-col { grid-area: stage; }
+.sim-screen > .sim-aside { grid-area: aside; }
+.sim-screen > .sim-controls { grid-area: controls; }
 
 /* ── Left eye gutter (OS top / OD bottom) ──────────── */
 .sim-eye-gutter {
@@ -44,9 +46,7 @@
 
 /* ── Stage column ──────────────────────────────────── */
 .sim-stage-col {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-columns: minmax(0, 1fr);    /* constrain inner column to stage-col width */
+  display: block;        /* contains only lens-wrap now — HUD/Controls moved to sim-screen */
   background: var(--stage);
   min-height: 0;
   min-width: 0;
@@ -269,6 +269,7 @@
 /* Lens stage — fills available space */
 .sim-lens-wrap {
   position: relative;
+  height: 100%;
   min-height: 0;
   min-width: 0;
   max-width: 100%;
