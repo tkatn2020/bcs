@@ -5,6 +5,7 @@ import { state, update, subscribe } from '../wavefront/state.js';
 import { mountHeader } from './header.js?v=13';
 import { mountSimulator } from './simulator.js?v=13';
 import { mountCompare } from './compare.js?v=13';
+import { mountSettingsModal } from '../wavefront/settingsModal.js';
 
 function bootstrap() {
   const headerRoot = document.getElementById('topbar');
@@ -15,6 +16,9 @@ function bootstrap() {
 
   const cmpRoot = document.getElementById('screen-compare');
   mountCompare(cmpRoot);
+
+  const settingsRoot = document.getElementById('settings-modal');
+  if (settingsRoot) mountSettingsModal(settingsRoot);
 
   // Tab routing
   function applyTab(s) {

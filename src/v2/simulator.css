@@ -46,6 +46,7 @@
 .sim-stage-col {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);   /* constrain inner column to stage-col width */
   background: var(--stage);
   min-height: 0;
   min-width: 0;
@@ -233,6 +234,8 @@
 .sim-lens-wrap {
   position: relative;
   min-height: 0;
+  min-width: 0;           /* prevent grid item from growing past column width */
+  max-width: 100%;        /* stay within stage-col cell */
   display: flex;
   align-items: center;
   justify-content: center;

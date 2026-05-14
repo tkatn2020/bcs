@@ -80,15 +80,20 @@ export function mountLensStage(wrap) {
   function build2D(parent) {
     let dual = null;
     function rebuild() {
-      const W = wrap.clientWidth - 20;
+      // Use parent (stage-col) clientWidth — `wrap.clientWidth` can grow
+      // past the grid cell when the previously-built binocular widget had
+      // a larger width, causing right-side clipping by stage-col's
+      // overflow:hidden. Parent reflects the grid-imposed column width.
+      const parentW = wrap.parentElement ? wrap.parentElement.clientWidth : wrap.clientWidth;
+      const W = Math.min(wrap.clientWidth, parentW) - 20;
       const H = wrap.clientHeight - 20;
       if (W < 50 || H < 50) return;     // wrap not yet sized
       if (parent.firstChild) parent.removeChild(parent.firstChild);
       const ASPECT = 0.55;
-      let w = Math.min(960, W);
+      let w = Math.min(W, 820);          // 820 ceiling — leaves breathing room in 1280 layout
       let h = w * ASPECT;
       if (h > H) { h = H; w = h / ASPECT; }
-      w = Math.max(380, Math.round(w));
+      w = Math.max(380, Math.min(Math.round(w), W));   // never exceed available W
       h = Math.max(220, Math.round(h));
       dual = createBinocularLenses(
         w, h,
