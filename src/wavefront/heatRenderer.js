@@ -405,26 +405,8 @@ export function drawZoneArrowsFromField(canvas, field, opts = {}) {
   ctx.moveTo(cx, cy - 6); ctx.lineTo(cx, cy + 6);
   ctx.stroke();
 
-  // Side zone labels (left edge) — small caps with color dots
-  if (W >= 220) {
-    const sideX = 10;
-    const sideFont = Math.max(8, Math.min(10, W / 32));
-    ctx.font = `600 ${sideFont}px ui-sans-serif, system-ui`;
-    ctx.textAlign = 'left';
-    ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 3;
-    const drawTag = (color, label, y) => {
-      ctx.fillStyle = color;
-      ctx.beginPath(); ctx.arc(sideX + 3, y, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.fillText(label, sideX + 10, y + sideFont * 0.35);
-    };
-    drawTag(C_DIST, '원거리',  (H * 0.10 + divUpperY) / 2);
-    drawTag(C_MID,  '중간거리', (divUpperY + divLowerY) / 2);
-    drawTag(C_NEAR, '근거리',  (divLowerY + H * 0.92) / 2);
-    ctx.shadowBlur = 0;
-  }
-
-  // Eye label (right edge so it doesn't collide with zone tags)
+  // Eye label (right edge — side zone tags previously here removed; clipped
+  // by lens curve and visually noisy. Center arrows/labels still cover zones.)
   if (opts.eye && W >= 200) {
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.font = `700 ${Math.max(9, Math.min(11, W/30))}px ui-sans-serif, system-ui`;
