@@ -50,7 +50,7 @@ function computeRecommendation(s) {
   } else if (I_selected < T1_TOP_GRADE) {
     computerWarning = {
       headline: `중간거리 시야가 약합니다 (${Math.round(I_selected)}점)`,
-      detail: '중간거리용 안경(컴퓨터 안경)을 따로 병행하시는 것을 권장드립니다.',
+      detail: '중간거리 시야 폭이 표준 기준 미달입니다. 작업 거리·다중 모니터 환경에 따라 개인차가 있을 수 있습니다.',
     };
   }
   return {
