@@ -32,7 +32,7 @@
 .sim-screen > .sim-aside { grid-area: aside; }
 .sim-screen > .sim-controls { grid-area: controls; }
 
-/* ── Left eye gutter (OS top / OD bottom) ──────────── */
+/* ── Left eye gutter (OD top / OS bottom) ──────────── */
 .sim-eye-gutter {
   background: var(--stage);
   display: grid;

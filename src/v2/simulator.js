@@ -21,9 +21,9 @@ export function mountSimulator(root) {
     <div class="sim-screen">
       <div class="sim-hud" id="sim-hud"></div>
       <aside class="sim-eye-gutter">
-        <div data-role="gutter-os"></div>
-        <div class="gutter-divider"></div>
         <div data-role="gutter-od"></div>
+        <div class="gutter-divider"></div>
+        <div data-role="gutter-os"></div>
       </aside>
       <section class="sim-stage-col">
         <div class="sim-lens-wrap" id="sim-lens-wrap"></div>
