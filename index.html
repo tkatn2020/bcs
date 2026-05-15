@@ -118,15 +118,17 @@
   </style>
 
   <script>
-    // Scale the fixed 1280×800 app to fit the viewport.
+    // Non-uniform scale the fixed 1280×800 app to fill the viewport exactly
+    // — eliminates letterbox on both iPad and desktop. Slight aspect distortion
+    // (~11% on iPad 11", ~20% on iPad 12.9") is accepted in exchange for
+    // full-screen coverage with no content cropping.
     (function fitToViewport() {
       const app = () => document.querySelector('.app');
       function apply() {
         const el = app(); if (!el) return;
         const sx = window.innerWidth / 1280;
         const sy = window.innerHeight / 800;
-        const s = Math.min(sx, sy, 1.2);
-        el.style.transform = `scale(${s})`;
+        el.style.transform = `scale(${sx}, ${sy})`;
       }
       window.addEventListener('resize', apply);
       window.addEventListener('load', apply);
