@@ -18,8 +18,10 @@ const ASYMMETRY_THRESHOLD_D = 1.5;
 // Longer corridor pushes the near zone deeper (more downward gaze, less
 // neck-comfortable reading posture, frame fit constraints). Apply a
 // modest penalty to displayed near-zone score in recommendation logic
-// only — geometric heatmap stays pure optics.
-const CORRIDOR_NEAR_PENALTY_PER_MM = 0.025;  // 2.5% per mm over 12mm baseline
+// only — geometric heatmap stays pure optics. Anchored at 10mm baseline
+// (no penalty) so 12mm and 14mm progressively give up small near-zone
+// score, complementing the corridorPeakRatio reduction in helpers.js.
+const CORRIDOR_NEAR_PENALTY_PER_MM = 0.020;  // 2.0% per mm over 10mm baseline
 
 function computeRecommendation(s) {
   // Corridor penalty applied uniformly to all grades (depends on s.corridor,
@@ -27,7 +29,7 @@ function computeRecommendation(s) {
   // pure optical model misses.
   const corridorNearPenalty = Math.max(
     0.85,
-    1 - Math.max(0, s.corridor - 12) * CORRIDOR_NEAR_PENALTY_PER_MM
+    1 - Math.max(0, s.corridor - 10) * CORRIDOR_NEAR_PENALTY_PER_MM
   );
 
   const fits = GRADES.map(g => {

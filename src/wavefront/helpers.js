@@ -87,8 +87,12 @@ export function getGeom({
   const magnificationFactor = 1 + Math.max(0, sphere) * 0.03
                                 - Math.max(0, -sphere) * 0.005;
 
-  // ADD penalty: higher ADD narrows clear zones (peripheral cyl ramps faster)
-  const addPenalty = Math.min(0.35, Math.max(0, (add - 1.0) * 0.12));
+  // ADD penalty: higher ADD narrows clear zones (peripheral cyl ramps faster).
+  // Slope 0.20 (was 0.12) + cap 0.50 (was 0.35) to make grade differentiation
+  // more pronounced at high ADD — low grades visibly fail at ADD 3.0+ while
+  // high grades remain viable, matching the clinical reality that high-ADD
+  // wearers need premium designs.
+  const addPenalty = Math.min(0.50, Math.max(0, (add - 1.0) * 0.20));
   const addScale = 1 - addPenalty;
 
   // ── Non-linear compound penalty for extreme ADD × hyperopia combos ──
@@ -101,12 +105,14 @@ export function getGeom({
   const combinedScale = sphereScale * addScale * (1 - compoundPenalty);
 
   // ── Corridor peakCyl mapping ──
-  // Strict Minkwitz (cyl × corridor = const) yields a (12/corridor) linear
-  // ratio — but in practice the 10/14 mm gap appears overstated because the
-  // model ignores the cost side of long corridor (lower near-zone position,
-  // frame fit, reading posture). Sublinear exponent 0.6 dampens the gap
-  // by ~25% while preserving the physics direction.
-  const corridorPeakRatio = Math.pow(12 / corridorLength, 0.6);
+  // Anchored at 10mm (1.0) with linear 2.5%/mm reduction for longer corridors.
+  //   10mm: 1.000   12mm: 0.950   14mm: 0.900
+  // Strict Minkwitz (cyl × corridor = const) would give a steeper ~20% gap
+  // (10mm to 14mm), but practical sales experience shows that gap overstates
+  // 14mm's optical advantage while ignoring its cost side (lower near-zone
+  // position, frame fit, reading posture). 10mm becomes the credible "default
+  // short corridor" with 12/14mm as modest variations.
+  const corridorPeakRatio = 1 - Math.max(0, corridorLength - 10) * 0.025;
 
   return {
     grade: g, gradeId: grade, add, corridor: corridorLength,
