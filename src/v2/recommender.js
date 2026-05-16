@@ -12,7 +12,7 @@ const SUFFICIENT_MIN_ID = 2;
 const SUFFICIENT_MAX_ID = 4;
 const FIT_RETHINK_RX = 50;
 const T1_TOP_GRADE = 65;
-const T2_COMPUTER_LENS = 50;
+const T2_COMPUTER_LENS = 60;
 const ASYMMETRY_THRESHOLD_D = 1.5;
 
 function computeRecommendation(s) {
