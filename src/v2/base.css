@@ -100,6 +100,10 @@ input  { font-family: inherit; }
   height: 34px;
   width: auto;
   display: block;
+  /* PNG has a white background that visibly clips against the topbar's
+     paper-elev tint. Multiply blend collapses the white into the surface
+     color while preserving the dark logo glyph. */
+  mix-blend-mode: multiply;
 }
 .brand-sep {
   width: 1px;
