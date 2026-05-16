@@ -9,8 +9,10 @@
 //      of the blur matches the heatmap exactly (Minkwitz pinched corridor,
 //      asymmetric distance/near widths, Rx-cyl axis interaction, sphere
 //      swim residual).
-//   4. Blur radius (px) = (cyl / REFERENCE_CYL) ^ 0.65 × MAX_BLUR_PX
-//      — identical gamma curve to the heatmap palette mapping.
+//   4. Blur radius (px) = (cylEff / (REFERENCE_CYL - SHARP_THRESHOLD)) ^ 0.65 × MAX_BLUR_PX,
+//      where cylEff = max(0, cyl - SHARP_THRESHOLD). Pixels at cyl ≤ 0.25 D
+//      (inside the cyan ISO contour) are perfectly sharp — same dead zone as
+//      the 2D heatmap and clarity score.
 //   5. 16-tap Poisson-disk variable blur per fragment.
 //
 // All optics happen on the GPU. State changes only update uniforms; no
@@ -18,6 +20,7 @@
 
 import { state, subscribe } from '../wavefront/state.js';
 import { getGrade } from '../optics/grades.js';
+import { CYL_CLEAR_THRESHOLD } from '../wavefront/helpers.js';
 import { geomFor } from './geom.js?v=18';
 
 // ── Tunables ───────────────────────────────────────────────────────────
@@ -62,6 +65,7 @@ uniform float u_eyeSign;        // +1 OD, -1 OS (currently fixed to +1)
 
 uniform float u_maxBlur;
 uniform float u_referenceCyl;
+uniform float u_sharpThreshold; // cyl ≤ this → perfectly sharp (0.25 D, cyan ISO contour)
 uniform float u_gamma;
 uniform vec2  u_lensExtentMm;   // (LENS_W_MM, LENS_H_MM)
 
@@ -154,7 +158,9 @@ void main() {
   float yMm = -(v_uv.y - 0.5) * u_lensExtentMm.y;
 
   float cyl = sampleCyl(xMm, yMm);
-  float tVis = pow(clamp(cyl / u_referenceCyl, 0.0, 1.0), u_gamma);
+  // Dead zone: cyl ≤ u_sharpThreshold → no blur (matches 2D heatmap + score).
+  float cylEff = max(0.0, cyl - u_sharpThreshold);
+  float tVis = pow(clamp(cylEff / (u_referenceCyl - u_sharpThreshold), 0.0, 1.0), u_gamma);
   float radiusPx = tVis * u_maxBlur;
 
   vec2 texel = 1.0 / u_resolution;
@@ -289,6 +295,7 @@ export function mountCameraAr(parent) {
       u_eyeSign:         gl.getUniformLocation(prog, 'u_eyeSign'),
       u_maxBlur:         gl.getUniformLocation(prog, 'u_maxBlur'),
       u_referenceCyl:    gl.getUniformLocation(prog, 'u_referenceCyl'),
+      u_sharpThreshold:  gl.getUniformLocation(prog, 'u_sharpThreshold'),
       u_gamma:           gl.getUniformLocation(prog, 'u_gamma'),
       u_lensExtentMm:    gl.getUniformLocation(prog, 'u_lensExtentMm'),
     };
@@ -354,6 +361,7 @@ export function mountCameraAr(parent) {
     gl.uniform1f(uloc.u_eyeSign,         +1);
     gl.uniform1f(uloc.u_maxBlur,         MAX_BLUR_PX);
     gl.uniform1f(uloc.u_referenceCyl,    REFERENCE_CYL);
+    gl.uniform1f(uloc.u_sharpThreshold,  CYL_CLEAR_THRESHOLD);
     gl.uniform1f(uloc.u_gamma,           GAMMA);
     gl.uniform2f(uloc.u_lensExtentMm,    LENS_W_MM, LENS_H_MM);
   }

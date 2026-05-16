@@ -57,7 +57,7 @@ function buildSceneBg(opts = {}) {
 //   visible blur tracks the visible color, eliminating the "color says
 //   blurred but image is sharp" mismatch.
 const BLUR_STOPS = [
-  { blur: 4,  lo: 0.18, hi: 0.55 },
+  { blur: 4,  lo: 0.25, hi: 0.55 },   // start at CYL_CLEAR_THRESHOLD — cyan ISO contour
   { blur: 8,  lo: 0.40, hi: 0.95 },
   { blur: 14, lo: 0.70, hi: 1.40 },
   { blur: 22, lo: 1.05, hi: 1.95 },

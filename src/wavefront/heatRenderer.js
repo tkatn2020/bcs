@@ -10,7 +10,7 @@
 //   4. The heat canvas paints the iso contours by sampling a TWEENED
 //      field (prev → next over 450ms) for animated morphing.
 
-import { sampleUnwantedCyl, ISO_LEVELS_D, paletteSample, REFERENCE_CYL, clamp } from './helpers.js';
+import { sampleUnwantedCyl, ISO_LEVELS_D, paletteSample, REFERENCE_CYL, CYL_CLEAR_THRESHOLD, clamp } from './helpers.js';
 
 // Lens coord helper — must match helpers.js (LENS_X_FRAC etc).
 const LENS_X_FRAC = 600 / 720;
@@ -95,7 +95,11 @@ export function paintHeatField(canvas, field, opts = {}) {
         buf[i + 3] = 0; continue;
       }
       const cyl = data[r * cols + c];
-      const t = clamp(cyl / REFERENCE_CYL, 0, 1);
+      // Dead zone: cyl ≤ CYL_CLEAR_THRESHOLD (0.25 D) renders fully transparent —
+      // the cyan ISO contour becomes the clear/blur boundary. Past 0.25 D, color
+      // alpha ramps from 0 up through the (REFERENCE_CYL - threshold) range.
+      const cylEff = Math.max(0, cyl - CYL_CLEAR_THRESHOLD);
+      const t = clamp(cylEff / (REFERENCE_CYL - CYL_CLEAR_THRESHOLD), 0, 1);
       // Gentler exponent (0.85 vs 0.65) — color rises more gradually
       // through the cyl range, avoiding an early saturation plateau that
       // makes the high-cyl region read as a solid block with a hard edge.

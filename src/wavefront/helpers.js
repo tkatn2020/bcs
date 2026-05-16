@@ -321,8 +321,12 @@ export function computeClearRatios(geom, threshold = CYL_CLEAR_THRESHOLD) {
       distClear += isClear * wDist;
       midClear  += isClear * wCorr;
       nearClear += isClear * wNear;
-      // Continuous clarity score per pixel: 1 at cyl=0, 0 at cyl ≥ REFERENCE_CYL.
-      const score = clamp(1 - cyl / REFERENCE_CYL, 0, 1);
+      // Continuous clarity score per pixel: 1 at cyl ≤ CYL_CLEAR_THRESHOLD,
+      // then linearly decays to 0 at cyl ≥ REFERENCE_CYL. The dead zone makes
+      // the cyan ISO contour (0.25 D) the clear/blur boundary — pixels inside
+      // it score perfect, matching the visual heatmap and AR blur convention.
+      const cylEff = Math.max(0, cyl - CYL_CLEAR_THRESHOLD);
+      const score = clamp(1 - cylEff / (REFERENCE_CYL - CYL_CLEAR_THRESHOLD), 0, 1);
       distScoreSum += score * wDist;
       midScoreSum  += score * wCorr;
       nearScoreSum += score * wNear;
