@@ -41,7 +41,7 @@ export const CYL_CLEAR_THRESHOLD = 0.50;
 
 // Absolute iso-cyl contour levels (D). Higher levels appear deeper in the
 // soft zone — they MOVE as ADD changes, visualizing the area expansion.
-export const ISO_LEVELS_D = [0.25, 0.50, 1.00, 2.00];
+export const ISO_LEVELS_D = [0.25, 0.50, 0.75, 1.00, 2.00];
 
 export const CORRIDOR_OPTIONS = [10, 12, 14];
 
@@ -91,7 +91,22 @@ export function getGeom({
   const addPenalty = Math.min(0.35, Math.max(0, (add - 1.0) * 0.12));
   const addScale = 1 - addPenalty;
 
-  const combinedScale = sphereScale * addScale;
+  // ── Non-linear compound penalty for extreme ADD × hyperopia combos ──
+  // Clinical reality: ADD > 2.5 D combined with sphere > +2 D compounds
+  // non-linearly — peripheral cyl + image jump + magnification stack badly.
+  // Single multiplicative addScale·sphereScale undershoots this regime.
+  const compoundExcess = Math.max(0, add - 2.5) * Math.max(0, sphere - 2.0);
+  const compoundPenalty = Math.min(0.20, compoundExcess * 0.15);
+
+  const combinedScale = sphereScale * addScale * (1 - compoundPenalty);
+
+  // ── Corridor peakCyl mapping ──
+  // Strict Minkwitz (cyl × corridor = const) yields a (12/corridor) linear
+  // ratio — but in practice the 10/14 mm gap appears overstated because the
+  // model ignores the cost side of long corridor (lower near-zone position,
+  // frame fit, reading posture). Sublinear exponent 0.6 dampens the gap
+  // by ~25% while preserving the physics direction.
+  const corridorPeakRatio = Math.pow(12 / corridorLength, 0.6);
 
   return {
     grade: g, gradeId: grade, add, corridor: corridorLength,
@@ -101,8 +116,8 @@ export function getGeom({
     corridorHalfMm: 3 * cs * combinedScale * (0.85 + 0.30 * softness),
     nearHalfMm:     9 * cs * combinedScale * (0.85 + 0.30 * softness),
     falloffMm: (4 * softness + 2) * (1 - sphereHit * 0.5) * (1 - addPenalty * 0.4),
-    peakCyl: add * (12 / corridorLength) * g.cylRed * magnificationFactor,
-    sphereHit, hyperopiaPenalty, myopiaPenalty, magnificationFactor, addPenalty,
+    peakCyl: add * corridorPeakRatio * g.cylRed * magnificationFactor,
+    sphereHit, hyperopiaPenalty, myopiaPenalty, magnificationFactor, addPenalty, compoundPenalty,
   };
 }
 
@@ -234,11 +249,13 @@ export function gapScoreFromDioptric(dGap) {
 const _ratiosCache = new Map();
 
 // Comfortable-clarity threshold for the per-zone plateau-width metric.
-// 0.40 D is between "diffraction-sharp" (0.25 D) and "still-readable" (0.50 D);
-// at this cutoff the central clear column at each zone-canonical gaze height
-// reflects the lens's actual usable width without being overly punitive at
-// high Rx. (See `clearPlateauWidth` below.)
-export const COMFORT_THRESHOLD_D = 0.40;
+// Aligned with CYL_CLEAR_THRESHOLD (0.50 D = emerald ISO contour boundary)
+// so plateau widths, binary clear ratios, score formula dead zone, and the
+// visible heatmap/blur all share the same notion of "clear vs blurred."
+// Previously 0.40 (between cyan and emerald) — created an inconsistency
+// where a pixel at cyl=0.45 scored 1.0 visually but landed outside the
+// plateau-width measurement.
+export const COMFORT_THRESHOLD_D = 0.50;
 
 // Reference plateau widths (mm) — per-zone normalization to 0–100 score.
 // Distance uses the full lens width (~44mm) so high-Rx wearers see meaningful

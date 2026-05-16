@@ -8,24 +8,49 @@ import { computeClearRatios, rxDioptricGap, gapScoreFromDioptric } from '../wave
 import { geomFor } from './geom.js?v=18';
 
 const MIN_ZONE_SUFFICIENT = 65;
+const MIN_BALANCE_SUFFICIENT = 60;     // mean(D,I,N) - 0.5*stddev floor — blocks high-spread tiers
 const SUFFICIENT_MIN_ID = 2;
 const SUFFICIENT_MAX_ID = 4;
 const FIT_RETHINK_RX = 50;
 const T1_TOP_GRADE = 65;
 const T2_COMPUTER_LENS = 60;
 const ASYMMETRY_THRESHOLD_D = 1.5;
+// Longer corridor pushes the near zone deeper (more downward gaze, less
+// neck-comfortable reading posture, frame fit constraints). Apply a
+// modest penalty to displayed near-zone score in recommendation logic
+// only — geometric heatmap stays pure optics.
+const CORRIDOR_NEAR_PENALTY_PER_MM = 0.025;  // 2.5% per mm over 12mm baseline
 
 function computeRecommendation(s) {
+  // Corridor penalty applied uniformly to all grades (depends on s.corridor,
+  // not grade) — captures the non-optical cost of longer corridor that the
+  // pure optical model misses.
+  const corridorNearPenalty = Math.max(
+    0.85,
+    1 - Math.max(0, s.corridor - 12) * CORRIDOR_NEAR_PENALTY_PER_MM
+  );
+
   const fits = GRADES.map(g => {
     const od = computeClearRatios(geomFor({ ...s, grade: g.id }, 'OD'));
     const os = computeClearRatios(geomFor({ ...s, grade: g.id }, 'OS'));
     const D = (od.distanceWidthPct     + os.distanceWidthPct)     / 2;
     const I = (od.intermediateWidthPct + os.intermediateWidthPct) / 2;
-    const N = (od.nearWidthPct         + os.nearWidthPct)         / 2;
-    return { gradeId: g.id, D, I, N, minZone: Math.min(D, I, N) };
+    const N = ((od.nearWidthPct        + os.nearWidthPct)         / 2) * corridorNearPenalty;
+    // Balance score — high mean, low spread. Penalizes "lopsided" tiers
+    // where one zone scores high but another is near the cutoff.
+    const mean = (D + I + N) / 3;
+    const variance = ((D - mean) ** 2 + (I - mean) ** 2 + (N - mean) ** 2) / 3;
+    const stddev = Math.sqrt(variance);
+    const balance = mean - 0.5 * stddev;
+    return { gradeId: g.id, D, I, N, minZone: Math.min(D, I, N), balance };
   });
   const best = fits.reduce((a, b) => b.minZone > a.minZone ? b : a);
-  const rawSufficient = fits.find(f => f.minZone >= MIN_ZONE_SUFFICIENT) ?? best;
+  // Sufficient = passes BOTH min-zone floor AND balance floor.
+  // Find the lowest grade that clears both; fall back to min-only, then to best.
+  const rawSufficient =
+    fits.find(f => f.minZone >= MIN_ZONE_SUFFICIENT && f.balance >= MIN_BALANCE_SUFFICIENT)
+    ?? fits.find(f => f.minZone >= MIN_ZONE_SUFFICIENT)
+    ?? best;
   const baseSufficientId = Math.max(SUFFICIENT_MIN_ID, Math.min(SUFFICIENT_MAX_ID, rawSufficient.gradeId));
   const dGap = rxDioptricGap(s.od, s.os);
   const isAsymmetric = dGap > ASYMMETRY_THRESHOLD_D;

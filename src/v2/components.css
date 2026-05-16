@@ -600,6 +600,52 @@
 .adapt-tier.mid  { background: rgba(245,158,11,0.12); color: oklch(0.46 0.13 70); }
 .adapt-tier.hard { background: rgba(239,68,68,0.10);  color: oklch(0.46 0.16 28); }
 
+/* First-time wearer toggle — compact pill switch */
+.adapt-firsttime {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 6px;
+  padding: 4px 9px 4px 5px;
+  background: var(--paper-2);
+  border: 1px solid var(--hair-2);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--t-fast) var(--ease);
+}
+.adapt-firsttime:hover { background: var(--paper); }
+.adapt-firsttime input { position: absolute; opacity: 0; pointer-events: none; }
+.adapt-firsttime-track {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  background: var(--hair);
+  border-radius: var(--r-pill);
+  transition: background var(--t-fast) var(--ease);
+  flex-shrink: 0;
+}
+.adapt-firsttime-track::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  left: 2px;
+  top: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform var(--t-mid) var(--ease);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+.adapt-firsttime input:checked ~ .adapt-firsttime-track { background: var(--brand); }
+.adapt-firsttime input:checked ~ .adapt-firsttime-track::after { transform: translateX(12px); }
+.adapt-firsttime-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: -0.005em;
+}
+
 /* Hero — the big number that answers "며칠?" */
 .adapt-hero {
   margin: 6px 0 12px;

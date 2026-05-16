@@ -39,6 +39,10 @@ const initial = {
   // in-house training overlay so staff learn what each engraving means.
   showMarkings: false,
   syncEyes: true,
+  // Adaptation modeling — first-time progressive wearers take significantly
+  // longer to adapt than experienced wearers. Defaults to true (safer assumption
+  // for cold leads — adjusts down when staff confirms prior wearer status).
+  firstTimeWearer: true,
   environment: 'driving',  // single env ('driving' id retained for compat — content is office scene)
 
   // iPad tab navigation

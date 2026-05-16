@@ -487,14 +487,16 @@ function drawSideCurves(ctx, cx, distY, corY, nearY,
 
 // Per-level iso contour style — color/width/dash communicate severity at
 // a glance. Customers can interpret without legends:
-//   cyan thin solid     → "선명 한계 (0.25 D)"
-//   emerald solid       → "편안 한계 (0.50 D)"
+//   cyan thin solid     → "선명 한계 (0.25 D)"  [suppressed — inside dead zone]
+//   emerald solid       → "선명시역 경계 (0.50 D)"
+//   amber thin dashed   → "약한 흐림 (0.75 D)"
 //   orange dashed       → "흐림 시작 (1.0 D)"
 //   coral thick + glow  → "심각 왜곡 (2.0 D)"
-// Keyed by the exact level value (matches ISO_LEVELS_D = [0.25, 0.5, 1, 2]).
+// Keyed by the exact level value (matches ISO_LEVELS_D).
 const ISO_STYLES = {
   0.25: { color: '#06b6d4', width: 1.2, dash: [],     glow: 0 },
   0.5:  { color: '#10b981', width: 1.4, dash: [],     glow: 0 },
+  0.75: { color: '#fbbf24', width: 1.0, dash: [3, 2], glow: 0 },
   1:    { color: '#f97316', width: 1.6, dash: [5, 3], glow: 0 },
   2:    { color: '#ef4444', width: 2.2, dash: [],     glow: 8 },
 };

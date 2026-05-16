@@ -11,11 +11,14 @@
 // short body). Difficulty-tier badge in the corner keeps the clinical
 // honest signal without dominating.
 
-import { state, subscribe } from '../wavefront/state.js';
+import { state, update, subscribe } from '../wavefront/state.js';
 import { getGrade } from '../optics/grades.js';
 import { tween } from '../wavefront/animations.js';
 
-// Composite difficulty 1 (easy) → ~14 (hard) — same model as before.
+// Composite difficulty 1 (easy) → ~16 (hard).
+// First-time progressive wearers take meaningfully longer to adapt than
+// experienced wearers — clinically observed as roughly 1 tier shift in the
+// adaptation window. Modeled as a +2 difficulty load when applicable.
 function adaptationDifficulty(grade, s) {
   const adaptBase = { '어려움': 4, '보통': 3, '쉬움': 2, '매우 쉬움': 1 }[grade.adaptation] ?? 3;
   const avgSph = (Math.abs(s.od.sphere) + Math.abs(s.os.sphere)) / 2;
@@ -32,7 +35,8 @@ function adaptationDifficulty(grade, s) {
   if (avgCyl > 1.5) cylLoad = 2;
   else if (avgCyl >= 0.5) cylLoad = 1;
   const corridorLoad = s.corridor === 10 ? 2 : s.corridor === 12 ? 1 : 0;
-  return adaptBase + sphereLoad + addLoad + cylLoad + corridorLoad;
+  const firstTimeLoad = s.firstTimeWearer ? 2 : 0;
+  return adaptBase + sphereLoad + addLoad + cylLoad + corridorLoad + firstTimeLoad;
 }
 
 // Map difficulty → expected adaptation days. Bands aligned with the
@@ -142,6 +146,11 @@ export function mountAdaptChart(root) {
       <div class="adapt-h-l">예상 적응 기간</div>
       <span class="adapt-tier" data-role="tier">보통</span>
     </div>
+    <label class="adapt-firsttime" title="누진렌즈 첫 착용은 경험자보다 약 한 단계 더 긴 적응 기간이 필요합니다">
+      <input type="checkbox" data-role="firsttime" ${state.firstTimeWearer ? 'checked' : ''}>
+      <span class="adapt-firsttime-track"></span>
+      <span class="adapt-firsttime-label">누진 첫 착용</span>
+    </label>
     <div class="adapt-hero">
       <div class="adapt-hero-num">
         <span class="adapt-hero-num-int" data-role="days">0</span>
@@ -174,6 +183,10 @@ export function mountAdaptChart(root) {
 
   const refs = {};
   el.querySelectorAll('[data-role]').forEach(n => { refs[n.dataset.role] = n; });
+
+  refs.firsttime.addEventListener('change', () => {
+    update({ firstTimeWearer: refs.firsttime.checked });
+  });
 
   let prevDays = null;
 
