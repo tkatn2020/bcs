@@ -35,7 +35,9 @@ export function gradeViz(id) {
 export const REFERENCE_CYL = 3.0;
 
 // Clear-vision threshold default. Pixels with cyl < threshold count as clear.
-export const CYL_CLEAR_THRESHOLD = 0.25;
+// Aligned with the emerald (0.5 D) ISO contour — that line is the visible
+// clear/blur boundary in the 2D heatmap, AR shader, and score formula.
+export const CYL_CLEAR_THRESHOLD = 0.50;
 
 // Absolute iso-cyl contour levels (D). Higher levels appear deeper in the
 // soft zone — they MOVE as ADD changes, visualizing the area expansion.

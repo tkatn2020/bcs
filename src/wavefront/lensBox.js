@@ -53,15 +53,17 @@ function buildSceneBg(opts = {}) {
 // Blur stops realigned to match heat color ramp:
 // - Heat starts tinting visibly around cyl ≈ 0.25 (first iso level).
 // - Heat is strongly orange/red around cyl ≈ 0.8-1.5.
-// - First blur layer now starts at 0.20 (matching heat onset) so
-//   visible blur tracks the visible color, eliminating the "color says
-//   blurred but image is sharp" mismatch.
+// - First blur layer starts at CYL_CLEAR_THRESHOLD (0.5 D, emerald ISO
+//   contour) so visible blur tracks the visible color. The entire cascade
+//   is shifted +0.25 D vs. the original ramp so every layer's onset stays
+//   at or beyond the dead-zone boundary — no faint cumulative blur leaks
+//   inside the emerald line.
 const BLUR_STOPS = [
-  { blur: 4,  lo: 0.25, hi: 0.55 },   // start at CYL_CLEAR_THRESHOLD — cyan ISO contour
-  { blur: 8,  lo: 0.40, hi: 0.95 },
-  { blur: 14, lo: 0.70, hi: 1.40 },
-  { blur: 22, lo: 1.05, hi: 1.95 },
-  { blur: 32, lo: 1.55, hi: 2.70 },
+  { blur: 4,  lo: 0.50, hi: 0.80 },   // start at CYL_CLEAR_THRESHOLD — emerald ISO contour
+  { blur: 8,  lo: 0.65, hi: 1.20 },
+  { blur: 14, lo: 0.95, hi: 1.65 },
+  { blur: 22, lo: 1.30, hi: 2.20 },
+  { blur: 32, lo: 1.80, hi: 2.95 },
 ];
 
 const MORPH_MS = 250;   // was 450 — halves morph rendering work on iPad
