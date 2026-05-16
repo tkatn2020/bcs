@@ -123,7 +123,11 @@ export function paintHeatField(canvas, field, opts = {}) {
   ctx.drawImage(tmp, 0, 0, W, H);
   ctx.filter = 'none';
 
-  if (drawIso) drawIsoLinesFromField(canvas, field, ISO_LEVELS_D);
+  // Skip the 0.25 D contour — it's now implicit (= clear/blur boundary, dead
+  // zone in heat+blur+score). Drawing it as a line would add visual noise on
+  // top of the already-transparent inside region. Keep 0.5/1.0/2.0 D as
+  // informational references for the distortion gradient outside.
+  if (drawIso) drawIsoLinesFromField(canvas, field, ISO_LEVELS_D.filter(l => l > CYL_CLEAR_THRESHOLD));
   if (drawBands) drawZoneArrowsFromField(canvas, field, { eye: opts.eye || 'OD' });
   if (opts.drawMarkings) drawProgressiveMarkings(canvas, opts.geom, { eye: opts.eye || 'OD' });
 }
