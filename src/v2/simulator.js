@@ -1,10 +1,10 @@
-// Simulator screen — orchestrates the lens stage, HUD, controls, eye
-// gutter panels, hero score, recommender, adapt chart, day-in-life.
+// Simulator screen — orchestrates the lens stage, HUD, controls, hero
+// score, recommender, adapt chart, day-in-life. (Per-eye gutter panels
+// removed — OU combined score lives in the right hero panel.)
 
 import { state, update, subscribe } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
 import { CORRIDOR_OPTIONS } from '../wavefront/helpers.js';
-import { mountEyePanel } from './eyePanel.js?v=18';
 import { mountLensStage } from './lensStage.js?v=18';
 import { mountHeroScore } from './heroScore.js?v=18';
 import { mountRecommender } from './recommender.js?v=18';
@@ -20,11 +20,6 @@ export function mountSimulator(root) {
   root.innerHTML = `
     <div class="sim-screen">
       <div class="sim-hud" id="sim-hud"></div>
-      <aside class="sim-eye-gutter">
-        <div data-role="gutter-od"></div>
-        <div class="gutter-divider"></div>
-        <div data-role="gutter-os"></div>
-      </aside>
       <section class="sim-stage-col">
         <div class="sim-lens-wrap" id="sim-lens-wrap"></div>
       </section>
@@ -34,10 +29,6 @@ export function mountSimulator(root) {
       <div class="sim-controls" id="sim-controls"></div>
     </div>
   `;
-
-  // Side eye panels
-  mountEyePanel(root.querySelector('[data-role="gutter-os"]'), 'OS');
-  mountEyePanel(root.querySelector('[data-role="gutter-od"]'), 'OD');
 
   // HUD bar
   const hud = root.querySelector('#sim-hud');

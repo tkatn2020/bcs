@@ -3,46 +3,33 @@
    Layout (iPad landscape ≥ 1194×834):
    ┌─────────────────────────────────────────────────────┐
    │  topbar                                              │
-   ├──────┬─────────────────────────────┬───────────────┤
-   │  OS  │    lens stage + HUD          │  hero score   │
-   │ slim │    (mode toggle)             │  recommend    │
-   │      │                              │  adapt curve  │
-   │  OD  │                              │               │
-   │ slim │    bottom controls           │               │
-   ├──────┴─────────────────────────────┴───────────────┤
-   │  Day-in-life storyboard (collapsible)               │
-   └─────────────────────────────────────────────────────┘
+   ├──────────────────────────────────┬──────────────────┤
+   │  HUD bar                         │                  │
+   ├──────────────────────────────────┤  hero score      │
+   │  lens stage (full-width)         │  recommend       │
+   │  (mode toggle)                   │  adapt curve     │
+   ├──────────────────────────────────┤                  │
+   │  bottom controls                 │                  │
+   └──────────────────────────────────┴──────────────────┘
+   (Per-eye gutter removed — OU combined score lives in hero panel.)
    ============================================================ */
 
 .sim-screen {
   display: grid;
-  grid-template-columns: 130px minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    "hud      hud   aside"
-    "gutter   stage aside"
-    "controls controls aside";
+    "hud      aside"
+    "stage    aside"
+    "controls aside";
   height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 .sim-screen > .sim-hud { grid-area: hud; }
-.sim-screen > .sim-eye-gutter { grid-area: gutter; }
 .sim-screen > .sim-stage-col { grid-area: stage; }
 .sim-screen > .sim-aside { grid-area: aside; }
 .sim-screen > .sim-controls { grid-area: controls; }
-
-/* ── Left eye gutter (OD top / OS bottom) ──────────── */
-.sim-eye-gutter {
-  background: var(--stage);
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) 1px minmax(0, 1fr);
-  min-height: 0;
-  overflow: hidden;
-}
-.sim-eye-gutter .gutter-divider {
-  background: var(--stage-line);
-}
 
 /* ── Stage column ──────────────────────────────────── */
 .sim-stage-col {

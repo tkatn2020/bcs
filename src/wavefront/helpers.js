@@ -73,9 +73,11 @@ export function getGeom({
   const softness = 1 / hardness;
 
   // ── Asymmetric sphere penalty ──
-  //   hyperopia (positive sphere): grows linearly from 0 D, ~0.30 at +6 D
+  //   hyperopia (positive sphere): grows linearly from 0 D, ~0.42 at +6 D
+  //     (slope 0.07 — clinical reality: hyperopes adapt notably worse than
+  //      myopes due to spectacle magnification, image jump, convergence demand)
   //   myopia    (negative sphere): only above 1.5 D, grows gently, ~0.11 at -6 D
-  const hyperopiaPenalty = Math.max(0, sphere) * 0.05;
+  const hyperopiaPenalty = Math.max(0, sphere) * 0.07;
   const myopiaPenalty    = Math.max(0, -sphere - 1.5) * 0.025;
   const sphereHit   = Math.min(0.45, hyperopiaPenalty + myopiaPenalty);
   const sphereScale = 1 - sphereHit;
@@ -88,12 +90,25 @@ export function getGeom({
                                 - Math.max(0, -sphere) * 0.005;
 
   // ADD penalty: higher ADD narrows clear zones (peripheral cyl ramps faster).
-  // Slope 0.20 (was 0.12) + cap 0.50 (was 0.35) to make grade differentiation
-  // more pronounced at high ADD — low grades visibly fail at ADD 3.0+ while
-  // high grades remain viable, matching the clinical reality that high-ADD
-  // wearers need premium designs.
-  const addPenalty = Math.min(0.50, Math.max(0, (add - 1.0) * 0.20));
+  // Slope 0.25, cap 0.55 — clinical reality: computer/intermediate discomfort
+  // starts around ADD +1.5 and intensifies past +2.0. The previous 0.20 slope
+  // kept BP30 intermediate above 65 at ADD +2.0, missing the T1 warning that
+  // should fire for typical sub-optimal cases.
+  const addPenalty = Math.min(0.55, Math.max(0, (add - 1.0) * 0.25));
   const addScale = 1 - addPenalty;
+
+  // ── Near-power crossover penalty (myope → plus at reading) ──
+  // When a myope's near power (sphere + add) crosses into positive territory,
+  // the lens transitions from minus distance to plus near — image jump and
+  // convergence-accommodation demand both intensify. Classic case:
+  // S-2.00 ADD+2.25 → near +0.25 D. Clinically known to slow adaptation
+  // and shrink perceived near zone vs same near power achieved with shorter ADD.
+  // Boost saturates at +1.0 D near power (≈ +10% peakCyl). Hyperopes
+  // (sphere > 0) excluded — already penalized via hyperopiaPenalty + magFactor.
+  const nearPower = sphere + add;
+  const isCrossover = sphere < 0 && nearPower > 0;
+  const crossoverMagnitude = isCrossover ? Math.min(1.0, nearPower) : 0;
+  const crossoverPeakBoost = 1 + crossoverMagnitude * 0.10;
 
   // ── Non-linear compound penalty for extreme ADD × hyperopia combos ──
   // Clinical reality: ADD > 2.5 D combined with sphere > +2 D compounds
@@ -122,8 +137,12 @@ export function getGeom({
     corridorHalfMm: 3 * cs * combinedScale * (0.85 + 0.30 * softness),
     nearHalfMm:     9 * cs * combinedScale * (0.85 + 0.30 * softness),
     falloffMm: (4 * softness + 2) * (1 - sphereHit * 0.5) * (1 - addPenalty * 0.4),
-    peakCyl: add * corridorPeakRatio * g.cylRed * magnificationFactor,
-    sphereHit, hyperopiaPenalty, myopiaPenalty, magnificationFactor, addPenalty, compoundPenalty,
+    // ADD^1.10 — slightly superlinear scaling captures the clinical reality
+    // that going from ADD 2.0 → 3.0 increases peripheral cyl by more than 50%.
+    // crossoverPeakBoost layers image-jump amplification on top for myopes
+    // whose reading power crosses into hyperopia.
+    peakCyl: Math.pow(add, 1.10) * corridorPeakRatio * g.cylRed * magnificationFactor * crossoverPeakBoost,
+    sphereHit, hyperopiaPenalty, myopiaPenalty, magnificationFactor, addPenalty, compoundPenalty, crossoverPeakBoost,
   };
 }
 
