@@ -354,15 +354,18 @@ export function drawZoneArrowsFromField(canvas, field, opts = {}) {
   ctx.fillStyle = 'rgba(245, 158, 11, 0.08)';   // amber (near)
   ctx.fillRect(0, divLowerY, W, lensBottom - divLowerY);
 
-  // Faint horizontal zone dividers — colored hairlines now (not white dash)
-  // so they read as zone boundaries that match the bands' colors.
-  ctx.lineWidth = 0.8;
-  ctx.setLineDash([4, 5]);
-  ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)';   // upper divider — green tint
+  // Horizontal zone dividers — NEUTRAL white hairlines (was green/amber tinted).
+  // Reason: green/amber colors collided visually with ISO contour colors
+  // (emerald 0.5 D, amber 0.75 D) — users perceived the FIXED-position
+  // dividers as cyl contours and expected blur to follow them. Switching to
+  // neutral UI-style hairlines makes clear that ISO contours are the only
+  // cyl-based boundaries; dividers are UI gaze-row markers.
+  ctx.lineWidth = 0.6;
+  ctx.setLineDash([2, 9]);   // sparse dot pattern reads as "UI grid"
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
   ctx.beginPath();
   ctx.moveTo(W * 0.04, divUpperY); ctx.lineTo(W * 0.96, divUpperY);
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';  // lower divider — amber tint
   ctx.beginPath();
   ctx.moveTo(W * 0.04, divLowerY); ctx.lineTo(W * 0.96, divLowerY);
   ctx.stroke();
