@@ -50,18 +50,22 @@ function buildSceneBg(opts = {}) {
   return buildEnvironmentScene(environment, { blur, distort, mirror });
 }
 
-// Blur stops aligned to ISO_LEVELS_D = [0.5, 0.75, 1.0, 2.0] grid so each
-// layer's lo/hi transition lands exactly on an ISO contour. Result: the
-// emerald (0.5), amber (0.75), orange (1.0), red (2.0) contours are not
-// just labels — they become visible boundaries where blur strength steps up.
-// Blur radii (4/8/14/22/32 px) unchanged — only the threshold grid moves
-// to align with ISO contours and clear-plateau measurement (ARROW_LEVEL).
+// Blur stops with SHARP smoothstep windows (0.05 D wide) anchored exactly
+// at ISO contour levels. Each blur layer activates abruptly at its ISO
+// boundary, so the visible blur region follows the contour shape (including
+// corridor pinch) instead of being softened by a 0.25 D ramp.
+//
+// Layer 1 onset at cyl=0.50 means blur starts the moment you cross the
+// emerald contour. Between consecutive ISO levels the active layer holds
+// its blur radius constant, creating distinct visual "bands" that match
+// what the contour lines delineate. Combined with reduced mask Gaussian
+// (heatRenderer.js), ISO and blur snap together pixel-for-pixel.
 const BLUR_STOPS = [
-  { blur: 4,  lo: 0.50, hi: 0.75 },   // emerald → amber
-  { blur: 8,  lo: 0.75, hi: 1.00 },   // amber → orange
-  { blur: 14, lo: 1.00, hi: 1.50 },   // orange (전반)
-  { blur: 22, lo: 1.50, hi: 2.00 },   // orange (후반) → red
-  { blur: 32, lo: 2.00, hi: 3.00 },   // red → extreme (REFERENCE_CYL)
+  { blur: 4,  lo: 0.50, hi: 0.55 },   // sharp onset at emerald 0.5 D
+  { blur: 8,  lo: 0.75, hi: 0.80 },   // sharp onset at amber 0.75 D
+  { blur: 14, lo: 1.00, hi: 1.05 },   // sharp onset at orange 1.0 D
+  { blur: 22, lo: 1.50, hi: 1.55 },   // sharp onset at mid 1.5 D
+  { blur: 32, lo: 2.00, hi: 2.05 },   // sharp onset at red 2.0 D
 ];
 
 const MORPH_MS = 250;   // was 450 — halves morph rendering work on iPad

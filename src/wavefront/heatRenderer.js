@@ -117,10 +117,11 @@ export function paintHeatField(canvas, field, opts = {}) {
   // Soft upscale matched to the mask blur radius (see buildBlurMaskDataURL).
   // Heat color edges and blur mask edges share the SAME effective blur,
   // so the visible color gradient and the visible blur gradient line up
-  // pixel-for-pixel. Tightened from (12, 4.0) → (4, 1.5) so the visible
-  // edge stays within ~1.5 cells of the ISO contour position instead of
-  // dilating ~5 cells outward — keeps ISO/blur/heat visually coincident.
-  const blurPx = Math.max(4, Math.round(W / cols * 1.5));
+  // pixel-for-pixel. Now (1, 0.5) — minimal anti-alias only. Bilinear
+  // upscale alone handles cell-to-cell smoothing at the 70%-resolution
+  // field (cells ≈ 1.4 px on 720 canvas). Any larger Gaussian dilates
+  // the corridor-pinch shape and visibly drifts blur off the ISO line.
+  const blurPx = Math.max(1, Math.round(W / cols * 0.5));
   ctx.filter = `blur(${blurPx}px)`;
   ctx.drawImage(tmp, 0, 0, W, H);
   ctx.filter = 'none';
@@ -610,9 +611,10 @@ export function buildBlurMaskDataURL(field, W, H, lo, hi) {
   // edges blend continuously across cells but stay tight enough to preserve
   // the cyl pattern's shape. MUST match the heat upscale blur in
   // paintHeatField — otherwise color and blur edges drift apart.
-  // Tightened from (12, 4.0) → (4, 1.5) so the visible blur boundary
-  // aligns with the crisp ISO contour at the same threshold.
-  const blurPx = Math.max(4, Math.round(W / field.cols * 1.5));
+  // Now (1, 0.5) — minimal anti-alias only. Larger values dilate the
+  // corridor pinch shape and break alignment with the crisp ISO contour
+  // at the same threshold.
+  const blurPx = Math.max(1, Math.round(W / field.cols * 0.5));
   ctx.filter = `blur(${blurPx}px)`;
   ctx.drawImage(tmp, 0, 0, W, H);
   ctx.filter = 'none';
