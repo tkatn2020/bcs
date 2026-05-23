@@ -50,22 +50,19 @@ function buildSceneBg(opts = {}) {
   return buildEnvironmentScene(environment, { blur, distort, mirror });
 }
 
-// Blur stops with SHARP smoothstep windows (0.05 D wide) anchored exactly
-// at ISO contour levels. Each blur layer activates abruptly at its ISO
-// boundary, so the visible blur region follows the contour shape (including
-// corridor pinch) instead of being softened by a 0.25 D ramp.
+// Simplified BINARY single-layer model — user explicit preference.
+// One blur layer with uniform 12 px blur, activated wherever cyl > 0.5 D
+// (emerald ISO contour boundary). The hi=0.51 provides 0.01 D smoothstep
+// purely for anti-aliasing; visually the transition is sharp at 0.5 D.
 //
-// Layer 1 onset at cyl=0.50 means blur starts the moment you cross the
-// emerald contour. Between consecutive ISO levels the active layer holds
-// its blur radius constant, creating distinct visual "bands" that match
-// what the contour lines delineate. Combined with reduced mask Gaussian
-// (heatRenderer.js), ISO and blur snap together pixel-for-pixel.
+// Trade-off: cyl 1.0/2.0 D regions get the same blur as cyl 0.6 D regions
+// (no intensity gradient). In exchange: 1:1 visual correspondence between
+// the emerald ISO contour and the blur boundary — "안쪽=clear, 바깥쪽=blur"
+// matches what customers intuitively understand from the contour line.
+// Score formula, recommendation, AR shader unchanged — gradient detail
+// preserved in those, just simplified in the heatmap blur visualization.
 const BLUR_STOPS = [
-  { blur: 4,  lo: 0.50, hi: 0.55 },   // sharp onset at emerald 0.5 D
-  { blur: 8,  lo: 0.75, hi: 0.80 },   // sharp onset at amber 0.75 D
-  { blur: 14, lo: 1.00, hi: 1.05 },   // sharp onset at orange 1.0 D
-  { blur: 22, lo: 1.50, hi: 1.55 },   // sharp onset at mid 1.5 D
-  { blur: 32, lo: 2.00, hi: 2.05 },   // sharp onset at red 2.0 D
+  { blur: 12, lo: 0.50, hi: 0.51 },
 ];
 
 const MORPH_MS = 250;   // was 450 — halves morph rendering work on iPad
