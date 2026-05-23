@@ -293,7 +293,10 @@ export function drawZoneArrowsFromField(canvas, field, opts = {}) {
   const W = canvas.width, H = canvas.height;
   const ctx = canvas.getContext('2d');
 
-  const ARROW_LEVEL = 0.25;
+  // Arrows measure plateau width at CYL_CLEAR_THRESHOLD (emerald ISO contour
+  // = visible clear/blur boundary), not the now-suppressed 0.25 D cyan line.
+  // Aligns arrow widths with what the customer perceives as the clear zone.
+  const ARROW_LEVEL = CYL_CLEAR_THRESHOLD;
   // Three canonical zones — match ZONE_GAZE_Y_MM in helpers.js
   const distYMm = -10;   // 원거리
   const midYMm  =   3;   // 중간거리

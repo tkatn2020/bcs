@@ -50,20 +50,18 @@ function buildSceneBg(opts = {}) {
   return buildEnvironmentScene(environment, { blur, distort, mirror });
 }
 
-// Blur stops realigned to match heat color ramp:
-// - Heat starts tinting visibly around cyl ≈ 0.25 (first iso level).
-// - Heat is strongly orange/red around cyl ≈ 0.8-1.5.
-// - First blur layer starts at CYL_CLEAR_THRESHOLD (0.5 D, emerald ISO
-//   contour) so visible blur tracks the visible color. The entire cascade
-//   is shifted +0.25 D vs. the original ramp so every layer's onset stays
-//   at or beyond the dead-zone boundary — no faint cumulative blur leaks
-//   inside the emerald line.
+// Blur stops aligned to ISO_LEVELS_D = [0.5, 0.75, 1.0, 2.0] grid so each
+// layer's lo/hi transition lands exactly on an ISO contour. Result: the
+// emerald (0.5), amber (0.75), orange (1.0), red (2.0) contours are not
+// just labels — they become visible boundaries where blur strength steps up.
+// Blur radii (4/8/14/22/32 px) unchanged — only the threshold grid moves
+// to align with ISO contours and clear-plateau measurement (ARROW_LEVEL).
 const BLUR_STOPS = [
-  { blur: 4,  lo: 0.50, hi: 0.80 },   // start at CYL_CLEAR_THRESHOLD — emerald ISO contour
-  { blur: 8,  lo: 0.65, hi: 1.20 },
-  { blur: 14, lo: 0.95, hi: 1.65 },
-  { blur: 22, lo: 1.30, hi: 2.20 },
-  { blur: 32, lo: 1.80, hi: 2.95 },
+  { blur: 4,  lo: 0.50, hi: 0.75 },   // emerald → amber
+  { blur: 8,  lo: 0.75, hi: 1.00 },   // amber → orange
+  { blur: 14, lo: 1.00, hi: 1.50 },   // orange (전반)
+  { blur: 22, lo: 1.50, hi: 2.00 },   // orange (후반) → red
+  { blur: 32, lo: 2.00, hi: 3.00 },   // red → extreme (REFERENCE_CYL)
 ];
 
 const MORPH_MS = 250;   // was 450 — halves morph rendering work on iPad
