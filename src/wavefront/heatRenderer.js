@@ -500,7 +500,12 @@ function drawSideCurves(ctx, cx, distY, corY, nearY,
 // Keyed by the exact level value (matches ISO_LEVELS_D).
 const ISO_STYLES = {
   0.25: { color: '#06b6d4', width: 1.2, dash: [],     glow: 0 },
-  0.5:  { color: '#10b981', width: 1.4, dash: [],     glow: 0 },
+  // 0.5 D = key clear/blur boundary — promoted to most prominent style.
+  // Previously width 1.4 + no glow was too subtle, especially at low ADD
+  // where the contour exists only in tight corner regions where blur
+  // begins. Now matches the 2.0 D severity weight so customers can always
+  // identify the emerald boundary that frames the clear zone.
+  0.5:  { color: '#10b981', width: 2.4, dash: [],     glow: 5 },
   0.75: { color: '#fbbf24', width: 1.0, dash: [3, 2], glow: 0 },
   1:    { color: '#f97316', width: 1.6, dash: [5, 3], glow: 0 },
   2:    { color: '#ef4444', width: 2.2, dash: [],     glow: 8 },
