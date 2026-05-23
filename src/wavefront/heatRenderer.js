@@ -334,20 +334,11 @@ export function drawZoneArrowsFromField(canvas, field, opts = {}) {
 
   ctx.save();
 
-  // ── Color zone bands (semi-transparent overlays) ──
-  // Subtle colored regions matching the right-panel score colors. Replaces
-  // the previous orange dashed corridor curves which competed visually with
-  // the colored arrows. Each band is rendered at very low opacity so the
-  // underlying heat / driving scene reads through clearly; the goal is just
-  // to give customers a color-keyed sense of which area is which.
-  const lensTop    = H * 0.06;
-  const lensBottom = H * 0.94;
-  ctx.fillStyle = 'rgba(59, 130, 246, 0.07)';   // blue (distance)
-  ctx.fillRect(0, lensTop, W, divUpperY - lensTop);
-  ctx.fillStyle = 'rgba(34, 197, 94, 0.07)';    // green (intermediate)
-  ctx.fillRect(0, divUpperY, W, divLowerY - divUpperY);
-  ctx.fillStyle = 'rgba(245, 158, 11, 0.08)';   // amber (near)
-  ctx.fillRect(0, divLowerY, W, lensBottom - divLowerY);
+  // Zone color bands REMOVED — they applied full-width horizontal color
+  // tints (0.07-0.08 α) that polluted the corridor center area where it
+  // should be 100% clear. The bands made the corridor look hazy, confusing
+  // users about where blur actually was. Zone identification now relies on
+  // the arrows + labels alone.
 
   // Horizontal zone dividers — NEUTRAL white hairlines (was green/amber tinted).
   // Reason: green/amber colors collided visually with ISO contour colors
@@ -499,12 +490,12 @@ function drawSideCurves(ctx, cx, distY, corY, nearY,
 // Keyed by the exact level value (matches ISO_LEVELS_D).
 const ISO_STYLES = {
   0.25: { color: '#06b6d4', width: 1.2, dash: [],     glow: 0 },
-  // 0.5 D = key clear/blur boundary — promoted to most prominent style.
-  // Previously width 1.4 + no glow was too subtle, especially at low ADD
-  // where the contour exists only in tight corner regions where blur
-  // begins. Now matches the 2.0 D severity weight so customers can always
-  // identify the emerald boundary that frames the clear zone.
-  0.5:  { color: '#10b981', width: 2.4, dash: [],     glow: 5 },
+  // 0.5 D = key clear/blur boundary — prominent but no glow.
+  // Glow created a 5 px halo around the contour curve which spilled into
+  // the corridor center area, visually polluting the clear zone with green
+  // tint. Crisp solid line at width 2.4 keeps prominence without the halo
+  // that confused blur perception.
+  0.5:  { color: '#10b981', width: 2.4, dash: [],     glow: 0 },
   0.75: { color: '#fbbf24', width: 1.0, dash: [3, 2], glow: 0 },
   1:    { color: '#f97316', width: 1.6, dash: [5, 3], glow: 0 },
   2:    { color: '#ef4444', width: 2.2, dash: [],     glow: 8 },

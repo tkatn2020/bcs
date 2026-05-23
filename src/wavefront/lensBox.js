@@ -62,7 +62,7 @@ function buildSceneBg(opts = {}) {
 // Score formula, recommendation, AR shader unchanged — gradient detail
 // preserved in those, just simplified in the heatmap blur visualization.
 const BLUR_STOPS = [
-  { blur: 12, lo: 0.50, hi: 0.51 },
+  { blur: 16, lo: 0.50, hi: 0.51 },
 ];
 
 const MORPH_MS = 250;   // was 450 — halves morph rendering work on iPad
