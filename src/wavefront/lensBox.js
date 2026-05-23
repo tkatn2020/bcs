@@ -76,12 +76,19 @@ const MASK_URL_CACHE_MAX = 120;
 function fieldChecksum(field) {
   // Lightweight hash — sample 8 well-distributed cells. Sufficient to
   // distinguish distinct fields without scanning the entire array.
-  if (!field || !field.length) return 'x';
-  const n = field.length;
+  // CRITICAL: field is { cols, rows, data: Float32Array }. Indexing
+  // field.length / field[idx] returns undefined → checksum was always
+  // 'x' → mask URL cache key was constant → blur mask was generated
+  // ONCE and never updated despite field changes. This was THE bug
+  // causing "ISO contour moves but blur stays" symptom across all
+  // recent visual fixes.
+  if (!field || !field.data || !field.data.length) return 'x';
+  const data = field.data;
+  const n = data.length;
   let h = 0;
   for (let i = 0; i < 8; i++) {
     const idx = Math.floor((i + 0.5) * n / 8);
-    h = ((h << 5) - h + Math.round(field[idx] * 1000)) | 0;
+    h = ((h << 5) - h + Math.round(data[idx] * 1000)) | 0;
   }
   return h.toString(36);
 }
