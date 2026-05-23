@@ -114,17 +114,12 @@ export function paintHeatField(canvas, field, opts = {}) {
   }
   tctx.putImageData(img, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  // Soft upscale matched to the mask blur radius (see buildBlurMaskDataURL).
-  // Heat color edges and blur mask edges share the SAME effective blur,
-  // so the visible color gradient and the visible blur gradient line up
-  // pixel-for-pixel. Now (1, 0.5) — minimal anti-alias only. Bilinear
-  // upscale alone handles cell-to-cell smoothing at the 70%-resolution
-  // field (cells ≈ 1.4 px on 720 canvas). Any larger Gaussian dilates
-  // the corridor-pinch shape and visibly drifts blur off the ISO line.
-  const blurPx = Math.max(1, Math.round(W / cols * 0.5));
-  ctx.filter = `blur(${blurPx}px)`;
+  // Gaussian eliminated — bilinear upscale alone provides sufficient
+  // anti-aliasing at 70% field resolution (cells ≈ 1.4 px on 720 canvas).
+  // Any non-zero Gaussian dilates the mask edge, causing blur to leak
+  // beyond the ISO contour boundary (especially visible at low ADD where
+  // the cyl > 0.5 band is only 3-5 px wide).
   ctx.drawImage(tmp, 0, 0, W, H);
-  ctx.filter = 'none';
 
   // Skip iso contours strictly inside the dead zone (< CYL_CLEAR_THRESHOLD),
   // keep contours from the threshold outward. With threshold = 0.5 D, the
@@ -521,7 +516,10 @@ export function drawIsoLinesFromField(canvas, field, levels) {
   const { cols, rows, data } = field;
   const ctx = canvas.getContext('2d');
   // Iterate at canvas-scale for crisp lines but sample bilinearly from low-res field.
-  const step = Math.max(2, Math.round(W / 220));
+  // Tightened from W/220 → W/600 so contour detection captures thin features
+  // (e.g., at low ADD where cyl > 0.5 region may be only 3-5 px wide). Cost:
+  // ~9× iterations but each is cheap (4 bilinear samples + 16-case switch).
+  const step = Math.max(1, Math.round(W / 600));
   const sx = (cols - 1) / W;
   const sy = (rows - 1) / H;
 
@@ -610,17 +608,12 @@ export function buildBlurMaskDataURL(field, W, H, lo, hi) {
   }
   tctx.putImageData(img, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  // Soften the mask: Gaussian blur sized to the cell so the upscaled mask
-  // edges blend continuously across cells but stay tight enough to preserve
-  // the cyl pattern's shape. MUST match the heat upscale blur in
-  // paintHeatField — otherwise color and blur edges drift apart.
-  // Now (1, 0.5) — minimal anti-alias only. Larger values dilate the
-  // corridor pinch shape and break alignment with the crisp ISO contour
-  // at the same threshold.
-  const blurPx = Math.max(1, Math.round(W / field.cols * 0.5));
-  ctx.filter = `blur(${blurPx}px)`;
+  // Gaussian eliminated — bilinear upscale alone is sufficient at 70%
+  // field resolution. Any non-zero Gaussian dilates the alpha boundary,
+  // causing blur to visibly leak beyond the ISO contour position. With
+  // pure bilinear upscale, the mask edge aligns pixel-for-pixel with
+  // the ISO contour drawn by marching squares on the same field.
   ctx.drawImage(tmp, 0, 0, W, H);
-  ctx.filter = 'none';
   return cv.toDataURL('image/png');
 }
 
