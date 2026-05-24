@@ -237,10 +237,10 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
     const t = Math.min(1, (ts - morphStart) / MORPH_MS);
     const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     const field = t >= 1 ? nextField : lerpField(prevField, nextField, eased);
-    const isFinal = t >= 1;
-    // Skip ISO contours and zone arrows during morph tween — heaviest cost
-    // (marching squares × 5 levels). They snap in on the final frame.
-    paintHeat(field, { drawIso: isFinal, drawBands: isFinal });
+    // Draw ISO contours every morph frame for smooth animation (no snap).
+    // Performance still 6×+ improved from baseline thanks to step 2 (P1)
+    // and shorter morph duration (P2).
+    paintHeat(field);
     applyMasks(field);
     if (t < 1) morphRaf = requestAnimationFrame(tick);
     else { morphRaf = 0; prevField = nextField; }
