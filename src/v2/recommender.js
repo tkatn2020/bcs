@@ -111,6 +111,13 @@ export function mountRecommender(root) {
   const clinicalEl = el.querySelector('[data-role="clinical"]');
 
   let lastSig = null;
+  // Recommendation cache — keyed on inputs that affect the recommendation
+  // calculation only (Rx, grade, add, corridor). Option toggles (tint,
+  // protection, signatureGens, baseColor) reuse the cached result and only
+  // recompute prices. Avoids 5×computeClearRatios + 2 eyes ≈ 17K cyl evals
+  // on every option click.
+  let lastRecKey = null;
+  let lastRec = null;
 
   rowEl.addEventListener('click', (e) => {
     const btn = e.target.closest('.recommend-apply');
@@ -119,7 +126,14 @@ export function mountRecommender(root) {
   });
 
   function refresh(s) {
-    const rec = computeRecommendation(s);
+    const recKey = `${s.grade}|${s.add}|${s.corridor}|`
+      + `${s.od.sphere},${s.od.cylinder},${s.od.axis}|`
+      + `${s.os.sphere},${s.os.cylinder},${s.os.axis}`;
+    if (recKey !== lastRecKey) {
+      lastRec = computeRecommendation(s);
+      lastRecKey = recKey;
+    }
+    const rec = lastRec;
     const recId = rec.sufficientId;
     const ri = refractiveIndexFor(s.od.sphere, s.os.sphere);
     const opts = { signatureGens: s.signatureGens };

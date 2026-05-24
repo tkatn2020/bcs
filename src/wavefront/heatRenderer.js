@@ -507,10 +507,12 @@ export function drawIsoLinesFromField(canvas, field, levels) {
   const { cols, rows, data } = field;
   const ctx = canvas.getContext('2d');
   // Iterate at canvas-scale for crisp lines but sample bilinearly from low-res field.
-  // Tightened from W/220 → W/600 so contour detection captures thin features
-  // (e.g., at low ADD where cyl > 0.5 region may be only 3-5 px wide). Cost:
-  // ~9× iterations but each is cheap (4 bilinear samples + 16-case switch).
-  const step = Math.max(1, Math.round(W / 600));
+  // Step 2 on 720 canvas (W/300) — still oversamples the 70%-resolution field
+  // (cell ≈ 1.4 px), so thin contours stay continuous. Reduced from step 1
+  // for 4× faster ISO drawing, the dominant cost in the morph hot path
+  // (called for each of 5 ISO levels × 2 lenses × 15 morph frames per Rx
+  // change).
+  const step = Math.max(2, Math.round(W / 300));
   const sx = (cols - 1) / W;
   const sy = (rows - 1) / H;
 

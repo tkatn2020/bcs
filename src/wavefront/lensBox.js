@@ -65,7 +65,7 @@ const BLUR_STOPS = [
   { blur: 16, lo: 0.50, hi: 0.51 },
 ];
 
-const MORPH_MS = 250;   // was 450 — halves morph rendering work on iPad
+const MORPH_MS = 150;   // 250→150 — snappier reaction, ~40% less morph frames
 
 // Mask URL cache — keyed on (width|height|fieldChecksum|lo|hi). Skipping
 // regeneration when the same field signature recurs is a big win during
@@ -211,12 +211,18 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
     });
   }
 
-  function paintHeat(field) {
+  // paintHeat now accepts opts to override per-call iso/band drawing.
+  // Used to suppress contour rendering (the dominant cost) during morph
+  // intermediate frames — only the final settled frame draws ISO contours
+  // and zone arrows. Heat color overlay still morphs smoothly.
+  function paintHeat(field, opts = {}) {
+    const drawIso   = opts.drawIso   ?? currentOpts.showIso;
+    const drawBands = opts.drawBands ?? currentOpts.showBands;
     heatCtx.clearRect(0, 0, width, height);
     tmpCtx.clearRect(0, 0, width, height);
     paintHeatField(tmp, field, {
-      drawIso: currentOpts.showIso,
-      drawBands: currentOpts.showBands,
+      drawIso,
+      drawBands,
       drawMarkings: currentOpts.showMarkings,
       geom: currentGeom,
       eye: currentOpts.mirror ? 'OS' : 'OD',
@@ -231,7 +237,10 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
     const t = Math.min(1, (ts - morphStart) / MORPH_MS);
     const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     const field = t >= 1 ? nextField : lerpField(prevField, nextField, eased);
-    paintHeat(field);
+    const isFinal = t >= 1;
+    // Skip ISO contours and zone arrows during morph tween — heaviest cost
+    // (marching squares × 5 levels). They snap in on the final frame.
+    paintHeat(field, { drawIso: isFinal, drawBands: isFinal });
     applyMasks(field);
     if (t < 1) morphRaf = requestAnimationFrame(tick);
     else { morphRaf = 0; prevField = nextField; }
