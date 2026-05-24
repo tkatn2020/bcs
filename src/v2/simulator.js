@@ -8,6 +8,7 @@ import { CORRIDOR_OPTIONS } from '../wavefront/helpers.js';
 import { mountLensStage } from './lensStage.js?v=18';
 import { mountHeroScore } from './heroScore.js?v=18';
 import { mountRecommender } from './recommender.js?v=18';
+import { mountOptionsPanel } from './optionsPanel.js?v=18';
 import { mountAdaptChart } from './adaptChart.js?v=18';
 
 const RX_LIMITS = {
@@ -169,6 +170,7 @@ export function mountSimulator(root) {
   const aside = root.querySelector('#sim-aside-inner');
   mountHeroScore(aside);
   mountRecommender(aside);
+  mountOptionsPanel(aside);
   mountAdaptChart(aside);
 
   // Subscriptions for HUD + control active states

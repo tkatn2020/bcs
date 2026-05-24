@@ -5,6 +5,7 @@
 import { state, update, subscribe } from '../wavefront/state.js';
 import { GRADES, getGrade } from '../optics/grades.js';
 import { computeClearRatios, rxDioptricGap, gapScoreFromDioptric } from '../wavefront/helpers.js';
+import { refractiveIndexFor, totalPriceFor, formatPrice } from '../optics/pricing.js';
 import { geomFor } from './geom.js?v=18';
 
 const MIN_ZONE_SUFFICIENT = 65;
@@ -120,6 +121,8 @@ export function mountRecommender(root) {
   function refresh(s) {
     const rec = computeRecommendation(s);
     const recId = rec.sufficientId;
+    const ri = refractiveIndexFor(s.od.sphere, s.os.sphere);
+    const opts = { signatureGens: s.signatureGens };
 
     const sig = `${recId}|${rec.tiers.map(t => Math.round(t.minZone)).join(',')}|${s.grade}|${rec.computerWarning?.headline ?? ''}`;
     const structureChanged = lastSig?.split('|').slice(0, 2).join('|') !== sig.split('|').slice(0, 2).join('|');
@@ -130,6 +133,7 @@ export function mountRecommender(root) {
         // is-best follows the SELECTED grade, not the recommended (충분) one.
         const isBest = t.gradeId === s.grade;
         const isCurrent = t.gradeId === s.grade;
+        const price = totalPriceFor(t.gradeId, ri, opts);
         return `
           <div class="recommend-tier ${isBest ? 'is-best' : ''}" style="transition-delay:${idx * 90}ms" data-tier="${t.gradeId}">
             <div class="recommend-tier-label">${t.label}</div>
@@ -138,6 +142,10 @@ export function mountRecommender(root) {
             <div class="recommend-tier-score">
               <span class="recommend-tier-score-num" data-role="score">${Math.round(t.minZone)}</span>
               <span class="recommend-tier-score-suffix">점</span>
+            </div>
+            <div class="recommend-tier-price">
+              <span class="recommend-tier-price-num" data-role="price">${formatPrice(price)}</span>
+              <span class="recommend-tier-price-suffix">원</span>
             </div>
             <button class="recommend-apply" data-grade-id="${g.id}" ${isCurrent ? 'disabled' : ''}>
               ${isCurrent ? '현재 등급' : '이 등급으로'}
@@ -150,7 +158,7 @@ export function mountRecommender(root) {
         rowEl.querySelectorAll('.recommend-tier').forEach(t => t.classList.add('is-revealed'));
       });
     } else {
-      // Just update buttons + scores + highlight on selected change
+      // Just update buttons + scores + prices + highlight on selected change
       rec.tiers.forEach(t => {
         const tierEl = rowEl.querySelector(`[data-tier="${t.gradeId}"]`);
         if (!tierEl) return;
@@ -160,6 +168,8 @@ export function mountRecommender(root) {
         btn.disabled = isCurrent;
         btn.textContent = isCurrent ? '현재 등급' : '이 등급으로';
         tierEl.querySelector('[data-role="score"]').textContent = Math.round(t.minZone);
+        const price = totalPriceFor(t.gradeId, ri, opts);
+        tierEl.querySelector('[data-role="price"]').textContent = formatPrice(price);
       });
     }
 

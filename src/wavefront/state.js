@@ -45,6 +45,13 @@ const initial = {
   firstTimeWearer: true,
   environment: 'driving',  // single env ('driving' id retained for compat — content is office scene)
 
+  // Lens purchase options — surfaced in the options panel, affect tier prices.
+  // Refractive index is derived from sphere (see optics/pricing.js), not stored.
+  tint: false,                  // 착색 toggle (+0, free)
+  protection: 'uv',             // 'uv' | 'blue' — radio, both free
+  signatureGens: false,         // 시그니처 GENS option (+150,000)
+  baseColor: 'BROWN',           // 'BROWN' | 'GRAY' | 'GREEN' — only when signatureGens=true
+
   // iPad tab navigation
   activeTab: 'simulator', // 'simulator' | 'compare'
   settingsOpen: false,
