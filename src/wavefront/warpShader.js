@@ -136,12 +136,18 @@ void main() {
   // effects below are concentrated where cyl is high — the periphery.
   float tDist = pow(clamp(cyl / u_referenceCyl, 0.0, 1.0), u_gamma);
 
-  // (1) Radial geometric swim — displacement grows with distortion, directed
-  // radially from the optical center. Straight peripheral lines bend; the
-  // central corridor (tDist≈0) is untouched. Asymmetric because cyl itself is
-  // asymmetric (high on the corridor sides + near periphery).
-  vec2 radial = mm / (length(mm) + 0.001);
-  vec2 dispMm = radial * (tDist * u_warpMm);
+  // (1) Tangential SWIRL swim (computed in eye-local space). A radial push
+  // funnels content toward the bottom-center (wrong — that's the clear near
+  // corridor). Instead, displace TANGENTIALLY (perpendicular to radius),
+  // magnitude ∝ distortion. This shears/curves the grid only in the soft-zone
+  // wings (lower-left & lower-right), leaving the central vertical corridor and
+  // near column straight — matching the Tokai grid reference.
+  float xLocal = u_eyeSign * mm.x;
+  vec2 mmLocal = vec2(xLocal, mm.y);
+  vec2 radialLocal = mmLocal / (length(mmLocal) + 0.001);
+  vec2 tangLocal = vec2(-radialLocal.y, radialLocal.x);   // 90° swirl
+  vec2 dispLocal = tangLocal * (tDist * u_warpMm);
+  vec2 dispMm = vec2(dispLocal.x * u_eyeSign, dispLocal.y);  // back to canvas x
   vec2 dispUV = vec2(dispMm.x / u_lensExtentMm.x, -dispMm.y / u_lensExtentMm.y);
   vec2 baseUV = clamp(v_uv + dispUV, 0.0, 1.0);
 
