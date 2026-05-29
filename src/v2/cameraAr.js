@@ -8,7 +8,7 @@
 import { state, subscribe } from '../wavefront/state.js';
 import { getGrade } from '../optics/grades.js';
 import { geomFor } from './geom.js?v=18';
-import { createWarpGL, LENS_AR, DEFAULT_WARP_GAIN } from '../wavefront/warpShader.js';
+import { createWarpGL, LENS_AR } from '../wavefront/warpShader.js';
 
 export function mountCameraAr(parent) {
   const stage = document.createElement('div');
@@ -72,7 +72,6 @@ export function mountCameraAr(parent) {
       return;
     }
     warp.setMapping(LENS_AR);          // centered ±25 × ±17.5 mm mapping
-    warp.setWarpGain(DEFAULT_WARP_GAIN);
     applyGeomUniforms(state);
   }
 

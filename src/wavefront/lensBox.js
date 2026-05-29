@@ -12,7 +12,7 @@
 // On config change, geom uniforms morph (lerp) over MORPH_MS for a smooth
 // transition — cheap, since only uniforms update (no CPU field/mask work).
 
-import { loadSceneTexture } from './environments.js';
+import { loadSceneTexture, invalidateSceneTexture } from './environments.js';
 import { createWarpGL, LENS_2D } from './warpShader.js';
 
 const LENS_PATH = 'M 60,184 C 60,69 187,23 360,23 C 533,23 660,69 660,193 C 660,313 562,414 360,414 C 158,414 60,313 60,184 Z';
@@ -144,7 +144,7 @@ export function createLensBox(width, height, initialGeom, opts = {}) {
     startMorph();
   }
 
-  const onPhotosChanged = () => { sceneReady = false; loadScene(); };
+  const onPhotosChanged = () => { invalidateSceneTexture(currentOpts.environment); sceneReady = false; loadScene(); };
   window.addEventListener('wf:photos-changed', onPhotosChanged);
 
   function dispose() {

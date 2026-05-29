@@ -74,12 +74,21 @@ function drawFallback(root, blur) {
   drawOfficeFallback(root);
 }
 
+// Module-level cache of resolved texture sources, keyed by env. Once a scene
+// image is loaded, subsequent lensBox rebuilds (resize, mode switch) reuse it
+// instantly — no network round-trip, so no black flash on rebuild.
+const _texCache = new Map();
+export function invalidateSceneTexture(env) {
+  if (env) _texCache.delete(env); else _texCache.clear();
+}
+
 // Load the scene as a WebGL-uploadable texture source (Image or Canvas).
 // Resolution priority mirrors buildEnvironmentScene:
 //   1. localStorage uploaded photo  2. scenes/{env}.{ext}  3. procedural canvas
 // Returns { source, width, height } — never rejects (always resolves to a
 // usable source, falling back to the procedural canvas).
 export function loadSceneTexture(env = 'driving') {
+  if (_texCache.has(env)) return Promise.resolve(_texCache.get(env));
   const tryImage = (src) => new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve({ source: img, width: img.naturalWidth, height: img.naturalHeight });
@@ -93,10 +102,11 @@ export function loadSceneTexture(env = 'driving') {
   for (const ext of PHOTO_EXTENSIONS) candidates.push(`scenes/${env}.${ext}?v=${Date.now()}`);
 
   return new Promise((resolve) => {
+    const done = (result) => { _texCache.set(env, result); resolve(result); };
     let i = 0;
     const next = () => {
-      if (i >= candidates.length) { resolve(officeFallbackTexture()); return; }
-      tryImage(candidates[i++]).then(resolve).catch(next);
+      if (i >= candidates.length) { done(officeFallbackTexture()); return; }
+      tryImage(candidates[i++]).then(done).catch(next);
     };
     next();
   });
