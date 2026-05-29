@@ -66,6 +66,7 @@ export function mountCompare(root) {
     let dual = null;
     const stage = col.querySelector('[data-role="stage"]');
     function buildLens() {
+      if (dual?.dispose) dual.dispose();   // release old WebGL contexts before rebuild
       if (stage.firstChild) stage.removeChild(stage.firstChild);
       const W = stage.clientWidth - 12, H = stage.clientHeight - 12;
       const ASPECT = 0.55;

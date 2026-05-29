@@ -74,6 +74,67 @@ function drawFallback(root, blur) {
   drawOfficeFallback(root);
 }
 
+// Load the scene as a WebGL-uploadable texture source (Image or Canvas).
+// Resolution priority mirrors buildEnvironmentScene:
+//   1. localStorage uploaded photo  2. scenes/{env}.{ext}  3. procedural canvas
+// Returns { source, width, height } — never rejects (always resolves to a
+// usable source, falling back to the procedural canvas).
+export function loadSceneTexture(env = 'driving') {
+  const tryImage = (src) => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ source: img, width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = reject;
+    img.src = src;
+  });
+
+  const stored = getStoredPhoto(env);
+  const candidates = [];
+  if (stored) candidates.push(stored);
+  for (const ext of PHOTO_EXTENSIONS) candidates.push(`scenes/${env}.${ext}?v=${Date.now()}`);
+
+  return new Promise((resolve) => {
+    let i = 0;
+    const next = () => {
+      if (i >= candidates.length) { resolve(officeFallbackTexture()); return; }
+      tryImage(candidates[i++]).then(resolve).catch(next);
+    };
+    next();
+  });
+}
+
+// Procedural office scene rendered to an offscreen canvas (WebGL texture
+// source). Mirrors drawOfficeFallback's 3-zone layout.
+function officeFallbackTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 640;
+  const ctx = c.getContext('2d');
+  // Distance (top) — projector wall
+  let g = ctx.createLinearGradient(0, 0, 0, c.height * 0.35);
+  g.addColorStop(0, '#d8d6d2'); g.addColorStop(1, '#b9b5ae');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, c.width, c.height * 0.35);
+  ctx.fillStyle = '#f5f5f3';
+  ctx.fillRect(c.width * 0.25, c.height * 0.05, c.width * 0.5, c.height * 0.22);
+  // Intermediate (middle) — desk + monitor
+  g = ctx.createLinearGradient(0, c.height * 0.35, 0, c.height * 0.70);
+  g.addColorStop(0, '#a89a85'); g.addColorStop(1, '#8a7d68');
+  ctx.fillStyle = g; ctx.fillRect(0, c.height * 0.35, c.width, c.height * 0.35);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(c.width * 0.30, c.height * 0.38, c.width * 0.4, c.height * 0.25);
+  ctx.fillStyle = '#f0f0ec';
+  ctx.fillRect(c.width * 0.32, c.height * 0.40, c.width * 0.36, c.height * 0.21);
+  // Near (bottom) — open book
+  g = ctx.createLinearGradient(0, c.height * 0.70, 0, c.height);
+  g.addColorStop(0, '#7a6850'); g.addColorStop(1, '#5a4838');
+  ctx.fillStyle = g; ctx.fillRect(0, c.height * 0.70, c.width, c.height * 0.30);
+  g = ctx.createLinearGradient(c.width * 0.15, 0, c.width * 0.85, 0);
+  g.addColorStop(0, '#f4ead8'); g.addColorStop(0.5, '#e8dcc6'); g.addColorStop(1, '#f4ead8');
+  ctx.fillStyle = g;
+  ctx.fillRect(c.width * 0.15, c.height * 0.74, c.width * 0.70, c.height * 0.24);
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(c.width * 0.5, c.height * 0.74, 1, c.height * 0.24);
+  return { source: c, width: c.width, height: c.height };
+}
+
 // Procedural fallback — simple office scene (3 vertical zones matching
 // distance/intermediate/near). Only triggers when scenes/driving.jpg is
 // missing — normally the real photo is shown.

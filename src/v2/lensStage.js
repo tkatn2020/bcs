@@ -88,6 +88,7 @@ export function mountLensStage(wrap) {
       const W = Math.min(wrap.clientWidth, parentW) - 20;
       const H = wrap.clientHeight - 20;
       if (W < 50 || H < 50) return;     // wrap not yet sized
+      if (dual?.dispose) dual.dispose();   // release old WebGL contexts before rebuild
       if (parent.firstChild) parent.removeChild(parent.firstChild);
       const ASPECT = 0.55;
       let w = Math.min(W, 820);
@@ -132,7 +133,7 @@ export function mountLensStage(wrap) {
         dual.update({ od, os, opts: { showIso: s.showIso, showBands: s.showBands, showMarkings: s.showMarkings, environment: 'driving' } });
       },
       rebuild,
-      dispose: () => { dual = null; ro.disconnect(); parent.innerHTML = ''; },
+      dispose: () => { if (dual?.dispose) dual.dispose(); dual = null; ro.disconnect(); parent.innerHTML = ''; },
     };
   }
 
