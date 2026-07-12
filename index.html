@@ -5,138 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>다초점 시뮬레이터 · breezm</title>
-
+  <title>3D 아바타 피팅 스튜디오 · breezm</title>
+  <!--
+    v3 — 3D 아바타 피팅 스튜디오 (PRD: docs/PRD-avatar-simulator.md)
+    기존 v2 도수 기반 시뮬레이터는 git 태그 `v2-final`에 박제되어 있음.
+    폰트는 CDN(오프라인 시 system-ui 폴백), three.js는 vendor/ self-host.
+  -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="src/v2/tokens.css?v=18">
-  <link rel="stylesheet" href="src/v2/base.css?v=18">
-  <link rel="stylesheet" href="src/v2/simulator.css?v=18">
-  <link rel="stylesheet" href="src/v2/components.css?v=18">
-  <link rel="stylesheet" href="src/v2/advanced.css?v=18">
-
+  <style>
+    html, body { margin: 0; height: 100%; background: #171a20; overflow: hidden; }
+    #v3-stage { position: fixed; inset: 0; touch-action: none; }
+  </style>
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/"
       }
     }
   </script>
 </head>
 <body>
-  <div class="fit-host" id="fit-host">
-    <div class="app">
-      <header id="topbar" class="topbar"></header>
-
-      <main class="screens" id="screens">
-        <section class="screen" data-tab="simulator" data-screen-label="01 Simulator" id="screen-simulator"></section>
-        <section class="screen" data-tab="compare"   data-screen-label="02 Compare"   id="screen-compare"></section>
-      </main>
-
-      <div id="settings-modal" class="modal-backdrop hidden"></div>
-
-      <div class="watermark" aria-hidden="true">
-        <span class="watermark-by">by</span>
-        <span class="watermark-name">Joel</span>
-      </div>
-    </div>
-  </div>
-
-  <style>
-    /* The design size is iPad landscape 1280×800. A wrapper scales it to
-       fit the actual viewport so the layout looks identical regardless of
-       window size. On a real iPad (1194×834) the scale is ~0.93. */
-    html, body { background: #0E1626; }
-    .fit-host {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      background: #0E1626;
-    }
-    .app {
-      width: 1280px;
-      height: 800px;
-      flex-shrink: 0;
-      transform-origin: center center;
-      box-shadow: 0 24px 80px rgba(0,0,0,0.40);
-      position: relative;
-    }
-    .screens {
-      position: relative;
-      overflow: hidden;
-      min-height: 0;
-    }
-    .screen {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity var(--t-mid) var(--ease);
-      overflow: hidden;
-    }
-    .screen.is-active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .watermark {
-      position: absolute;
-      bottom: 8px;
-      right: 14px;
-      display: inline-flex;
-      align-items: baseline;
-      gap: 6px;
-      padding: 4px 10px;
-      background: rgba(14, 22, 38, 0.42);
-      border: 1px solid rgba(212, 165, 75, 0.20);
-      border-radius: 999px;
-      font-family: 'JetBrains Mono', ui-monospace, monospace;
-      pointer-events: none;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      z-index: 50;
-    }
-    .watermark-by {
-      font-size: 8.5px;
-      font-weight: 600;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: rgba(237, 241, 246, 0.55);
-    }
-    .watermark-name {
-      font-size: 10.5px;
-      font-weight: 700;
-      letter-spacing: 0.10em;
-      color: oklch(0.78 0.11 80);   /* matches --gold */
-    }
-  </style>
-
-  <script>
-    // Non-uniform scale the fixed 1280×800 app to fill the viewport exactly
-    // — eliminates letterbox on both iPad and desktop. Slight aspect distortion
-    // (~11% on iPad 11", ~20% on iPad 12.9") is accepted in exchange for
-    // full-screen coverage with no content cropping.
-    (function fitToViewport() {
-      const app = () => document.querySelector('.app');
-      function apply() {
-        const el = app(); if (!el) return;
-        const sx = window.innerWidth / 1280;
-        const sy = window.innerHeight / 800;
-        el.style.transform = `scale(${sx}, ${sy})`;
-      }
-      window.addEventListener('resize', apply);
-      window.addEventListener('load', apply);
-      apply();
-      setTimeout(apply, 50);
-    })();
-  </script>
-
-  <script type="module" src="src/v2/app.js?v=18"></script>
+  <div id="v3-stage"></div>
+  <script type="module" src="src/v3/app.js"></script>
 </body>
 </html>
