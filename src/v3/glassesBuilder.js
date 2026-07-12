@@ -41,9 +41,10 @@ export const FRAME_DEFAULTS = {
   // ── 프레임 피팅 커스텀 (광학 무관, 순수 다리 지오메트리) ──
   templeAngle: 0,    // 다리 경사각 오프셋 (deg, + = 다리 끝이 아래로)
   templeLen: 0,      // 다리 길이 오프셋 (m, − = 귀 앞에서 끝)
-  templeGap: 0,      // 얼굴 옆면 간격 (m, + = 다리가 머리에서 벌어짐)
-  templeBend: 45,    // 귀 뒤 밴딩 각 (deg, 0 = 일자, 90 = 수직 드롭)
+  templeGap: 0,      // 얼굴 옆면 간격 (m, 0 = 측두부 피부 밀착, + = 벌어짐)
+  templeBend: 60,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
+  headSideX: null,   // (z)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
 };
 
 const GEO_KEYS = [
@@ -253,11 +254,12 @@ export function createGlasses(anchors, opts = {}) {
       built.push(zonePlane);
 
       // Temple (group child — unaffected by panto thanks to the hinge pivot).
-      // Real spectacle temple structure, driven by the 5 fitting params:
-      //   endpiece (hinge) → temple body (angle·gap) → ear bend → drop (bend·len)
+      // Structure: endpiece(hinge) → temple BODY(측두부 밀착·밴딩·경사·간격)
+      //            → ear top → drop(고정 이어피스, 길이만 templeLen).
       const hx = p.lensW / 2 + p.rimT;
       const groupOffsetY = anchorMid.y + p.oh;
       const groupOffsetZ = anchorMid.z + effZ();
+      const headX = p.headSideX || (() => 0.072);   // 측두부 옆면 x(z)
 
       // 1) Endpiece / hinge — height offset by `endpiece`
       const hinge = new THREE.Vector3(
@@ -266,39 +268,44 @@ export function createGlasses(anchors, opts = {}) {
         -hx * Math.sin(wrapRad),
       );
 
-      // 2) Ear bend point — measured ear, pushed out by `templeGap`, raised/
-      //    lowered by `templeAngle` (rotation about the hinge in the y-z plane).
-      const earBaseX = side * (p.earX + p.templeGap);
-      const earBaseY = p.earY - groupOffsetY;
-      const earBaseZ = p.earZ - groupOffsetZ;
-      const bodyRun = Math.abs(earBaseZ - hinge.z);           // hinge→ear reach
+      // 2) Ear-top (몸통 끝, 귀 뿌리 살짝 위)
+      const earTopY0 = (p.earY - groupOffsetY) + 0.004;
+      const earTopZ = p.earZ - groupOffsetZ;
+      const bodyRun = Math.abs(earTopZ - hinge.z);
       const angleRad = THREE.MathUtils.degToRad(p.templeAngle);
-      const bend = new THREE.Vector3(
-        earBaseX,
-        earBaseY - bodyRun * Math.tan(angleRad),               // 경사각 → 상하
-        earBaseZ,
-      );
+      const earTopY = earTopY0 - bodyRun * Math.tan(angleRad);   // 경사각
 
-      // 3) Drop end — behind the ear, angled down by `templeBend`, length by
-      //    `templeLen` (base drop 22mm ± offset).
-      const dropLen = Math.max(0.004, 0.022 + p.templeLen);
-      const bendRad = THREE.MathUtils.degToRad(p.templeBend);
+      // 3) 몸통 곡선 — 측두부 프로파일을 따라가는 정도 = 밴딩.
+      //    bend 0   → hinge~ear 직선 (머리 곡률 무시, 평평한 다리)
+      //    bend 90  → 매 지점이 머리 표면 x(+gap)에 밀착 (머리 곡률 완전 추종)
+      //    gap 0    → 표면 밀착, gap↑ → 그만큼 이격
+      const bendFrac = clamp(p.templeBend / 90, 0, 1);
+      const surfEarX = headX(earTopZ) + p.templeGap;
+      const bodyPts = [];
+      const N = 8;
+      for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        const z = hinge.z + (earTopZ - hinge.z) * t;
+        const surfX = headX(z) + p.templeGap;                    // 머리 표면 경로
+        const straightX = Math.abs(hinge.x) + (surfEarX - Math.abs(hinge.x)) * t; // 직선 경로
+        const x = side * (straightX + (surfX - straightX) * bendFrac);
+        const y = hinge.y + (earTopY - hinge.y) * t;
+        bodyPts.push(new THREE.Vector3(x, y, z));
+      }
+      const earTop = bodyPts[bodyPts.length - 1];
+
+      // 4) Drop — 귀 뒤로 내려가는 고정 이어피스 (길이만 templeLen).
+      const dropLen = Math.max(0.004, 0.020 + p.templeLen);
+      const dropRad = THREE.MathUtils.degToRad(62);
       const dropEnd = new THREE.Vector3(
-        bend.x,
-        bend.y - dropLen * Math.sin(bendRad),
-        bend.z - dropLen * Math.cos(bendRad),                  // 밴딩 → 뒤+아래
+        earTop.x,
+        earTop.y - dropLen * Math.sin(dropRad),
+        earTop.z - dropLen * Math.cos(dropRad),
       );
 
-      // Bow the body slightly outward around the skull between hinge and bend.
-      const bodyMid = new THREE.Vector3(
-        side * (Math.max(Math.abs(hinge.x), Math.abs(bend.x)) + 0.004),
-        (hinge.y + bend.y) * 0.5,
-        (hinge.z + bend.z) * 0.5,
-      );
-
-      const curve = new THREE.CatmullRomCurve3([hinge, bodyMid, bend, dropEnd]);
+      const curve = new THREE.CatmullRomCurve3([...bodyPts, dropEnd]);
       const temple = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 32, 0.0014, 8),
+        new THREE.TubeGeometry(curve, 40, 0.0014, 8),
         frameMat,
       );
       group.add(temple);

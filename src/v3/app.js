@@ -15,7 +15,7 @@ import { mountControls } from './controls.js';
 import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
-const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 45, endpiece: 0 };
+const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 60, endpiece: 0 };
 
 // Measure fitting landmarks from the head mesh itself — robust against
 // asset swaps, no hand-tuned magic numbers.
@@ -35,11 +35,19 @@ function measureHead(group) {
   const v = new THREE.Vector3();
   let ear = null;
   let noseZ = -Infinity;
+  // 머리 오른쪽 옆면(측두부) 프로파일: z bin(4mm) → 최대 x. 안경 다리가
+  // 이 표면을 따라가므로 gap=0이면 피부에 밀착. 귀 위 대역만 잡아(y>3mm)
+  // 귀 돌출을 배제한 매끈한 측두부를 얻는다.
+  const sideBins = new Map();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
     head.localToWorld(v);          // group sits at scene origin → world == group frame
     if (v.z < -0.01 && v.y > -0.015 && v.y < 0.03 && v.x > 0) {
       if (!ear || v.x > ear.x) ear = v.clone();
+    }
+    if (v.x > 0.02 && v.y > 0.003 && v.y < 0.045 && v.z > -0.10 && v.z < 0.015) {
+      const zb = Math.round(v.z / 0.004);
+      if (!sideBins.has(zb) || v.x > sideBins.get(zb)) sideBins.set(zb, v.x);
     }
     // Nose-collision band: rim inner edge (|x| ≥ 8mm) against the UPPER
     // nose-side slope only. |x| < 8mm (렌즈 사이 틈)과 y < -18mm (콧방울) 제외.
@@ -48,7 +56,15 @@ function measureHead(group) {
       if (v.z > noseZ) noseZ = v.z;
     }
   }
-  return { ear, noseZ, headMesh: head };
+  const headSideX = (z) => {
+    const zb = Math.round(z / 0.004);
+    for (let d = 0; d <= 10; d++) {
+      if (sideBins.has(zb + d)) return sideBins.get(zb + d);
+      if (sideBins.has(zb - d)) return sideBins.get(zb - d);
+    }
+    return 0.072;
+  };
+  return { ear, noseZ, headMesh: head, headSideX };
 }
 
 function mountCredit(root) {
@@ -87,6 +103,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
     const lensBackZ = anchors.left.position.z + 0.012;
     opts.noseClearance = Math.min(0.012, Math.max(0.006, m.noseZ - lensBackZ + 0.002));
   }
+  if (m?.headSideX) opts.headSideX = m.headSideX;   // 측두부 프로파일 (다리 밀착)
   const glasses = createGlasses(anchors, opts);
   group.add(glasses.group);
 
