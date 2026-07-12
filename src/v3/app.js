@@ -1,5 +1,6 @@
-// v3 entry — 3D 아바타 피팅 스튜디오 bootstrap (M2).
-// mannequin + glasses(전 파라미터) + vision zones + targets + drag handles.
+// v3 entry — 3D 아바타 피팅 스튜디오 bootstrap (M3 완성판).
+// mannequin + glasses + vision zones + targets + drag handles
+// + 시선 데모(D4) + 등급 고스트(D6) + 턴테이블(C4) + 홈뷰 더블탭(C5).
 
 import * as THREE from 'three';
 import { createStudioStage } from './studioStage.js';
@@ -7,10 +8,13 @@ import { loadMannequin } from './mannequin.js';
 import { createGlasses } from './glassesBuilder.js';
 import { createVisionZones } from './visionZones.js';
 import { createTargets } from './targets.js';
+import { createDemoDirector } from './demoDirector.js';
 import { computeZones, STANDARD_FIT } from './fittingModel.js';
 import { attachDragHandles } from './dragHandles.js';
 import { mountControls } from './controls.js';
 import { state, update, subscribe } from '../wavefront/state.js';
+
+const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
 
 // Measure fitting landmarks from the head mesh itself — robust against
 // asset swaps, no hand-tuned magic numbers.
@@ -46,18 +50,29 @@ function measureHead(group) {
   return { ear, noseZ, headMesh: head };
 }
 
+function mountCredit(root) {
+  const div = document.createElement('div');
+  div.textContent = '3D head: “Face Cap” sample via three.js examples (CC-BY) · fallback scan © Lee Perry-Smith / Infinite Realities';
+  Object.assign(div.style, {
+    position: 'fixed', left: '12px', bottom: '8px', zIndex: 9,
+    fontSize: '9.5px', color: 'rgba(255,255,255,0.34)',
+    fontFamily: "'Pretendard', system-ui, sans-serif",
+    pointerEvents: 'none', letterSpacing: '0.02em',
+  });
+  root.appendChild(div);
+}
+
 const container = document.getElementById('v3-stage');
 const stage = createStudioStage(container);
 
-// Default framing: head at left, cones extending forward-right.
-stage.camera.position.set(0.62, 0.18, 0.72);
-stage.controls.target.set(0.05, -0.02, 0.28);
+stage.camera.position.set(...HOME_VIEW.pos);
+stage.controls.target.set(...HOME_VIEW.tgt);
 stage.controls.maxDistance = 2.6;
 stage.controls.update();
 
 window.__v3 = { stage };
 
-loadMannequin().then(({ group, anchors, morphMesh }) => {
+loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
   stage.scene.add(group);
 
   const m = measureHead(group);
@@ -79,6 +94,14 @@ loadMannequin().then(({ group, anchors, morphMesh }) => {
 
   const targets = createTargets(stage.scene);
 
+  const demo = createDemoDirector({
+    stage, zones,
+    mannequin: { group, anchors },
+    eyes, morphMesh,
+    onFitChange: (patch) => update({ v3fit: patch }),
+    onTargetsOn: () => update({ v3view: { targets: true } }),
+  });
+
   // ── state → scene ──
   function glassesParams(f) {
     // 프레임 크기(bSize)는 상하좌우 전체 비례 스케일 (기준 31mm)
@@ -96,9 +119,20 @@ loadMannequin().then(({ group, anchors, morphMesh }) => {
     };
   }
 
+  let lastGrade = state.grade;
+  let lastSpec = null;
+
   function apply(s, animate) {
     const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
     const spec = computeZones(s);
+
+    // 등급 고스트 (D6): 등급이 바뀔 때 이전 존을 흰색 잔상으로 남긴다
+    if (animate && s.grade !== lastGrade && lastSpec) {
+      zones.showGhost(lastSpec);
+    }
+    lastGrade = s.grade;
+    lastSpec = spec;
+
     zones.update(spec, animate);
     glasses.setParams(glassesParams(f));
     glasses.updateZoneSpec(spec);
@@ -120,14 +154,16 @@ loadMannequin().then(({ group, anchors, morphMesh }) => {
     headMesh: m?.headMesh,
     getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
     onFitChange: (patch) => update({ v3fit: patch }),
+    homeView: HOME_VIEW,
   });
 
+  mountControls(document.body, { stage, getDemo: () => demo });
+  mountCredit(document.body);
+
   Object.assign(window.__v3, {
-    mannequin: { group, anchors, morphMesh },
-    glasses, zones, targets,
+    mannequin: { group, anchors, morphMesh, eyes },
+    glasses, zones, targets, demo,
   });
 }).catch((err) => {
   console.error('Mannequin load failed:', err);
 });
-
-mountControls(document.body, { stage });

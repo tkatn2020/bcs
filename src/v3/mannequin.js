@@ -80,6 +80,17 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
         const zPupil = eyeRadius * 0.9;
         anchorL.position.set(-TARGET_PD_M / 2, 0, zPupil);
         anchorR.position.set(TARGET_PD_M / 2, 0, zPupil);
+
+        // Re-center each eyeball geometry on its own origin so the demo can
+        // rotate the eyes in place (gaze down animation, D4). The mesh is
+        // offset by the same amount, so the world result is unchanged.
+        for (const e of [eyeL, eyeR]) {
+          const g = e.mesh.geometry;
+          g.computeBoundingBox();
+          const c = g.boundingBox.getCenter(new THREE.Vector3());
+          g.translate(-c.x, -c.y, -c.z);
+          e.mesh.position.add(c);
+        }
       } else {
         // ── Fallback: bbox-height normalization + hand-tuned anchors (LPS bust) ──
         const box = new THREE.Box3().setFromObject(root);
@@ -94,13 +105,18 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
 
       group.add(root, anchorL, anchorR);
 
-      // Blendshape mesh (facecap: 52 ARKit targets) — future gaze/blink.
+      // Blendshape mesh (facecap: 52 ARKit targets) — gaze/blink animation.
       let morphMesh = null;
       root.traverse((o) => {
         if (o.isMesh && o.morphTargetDictionary && !morphMesh) morphMesh = o;
       });
 
-      resolve({ group, anchors: { left: anchorL, right: anchorR }, morphMesh });
+      resolve({
+        group,
+        anchors: { left: anchorL, right: anchorR },
+        morphMesh,
+        eyes: (eyeL && eyeR) ? { left: eyeL.mesh, right: eyeR.mesh } : null,
+      });
     }, undefined, reject);
   });
 }

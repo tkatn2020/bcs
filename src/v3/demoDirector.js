@@ -1,0 +1,147 @@
+// v3 Demo director (PRD §7 D4) — "원거리 → 모니터 → 책" 시선 이동 자동 재생.
+//
+// 각 단계에서:
+//   · 아바타 고개(headPitch)와 눈알(eyeball rotation + eyeLookDown 블렌드셰입)이
+//     해당 거리로 자연스럽게 내려가고
+//   · 해당 시야 존 콘이 강조(setEmphasis)되며
+//   · 동공 중점 → 타깃으로 밝은 시선 라인이 이어진다
+// 재생 중에는 OrbitControls·턴테이블을 잠그고, 종료 시 원상 복귀.
+
+import * as THREE from 'three';
+import { TARGET_POSITIONS } from './targets.js';
+
+// 누진 사용법의 정석: "고개는 살짝만, 눈을 내려 렌즈 하부를 사용".
+// pitch는 존 축이 각 타깃의 실제 편각에 정렬되도록 캘리브레이션
+// (존 pitch + headPitch ≈ 타깃 편각 → 도달 판정 링이 초록으로 켜짐),
+// 시선 하강의 체감은 눈알 회전(eye)이 담당한다.
+const PHASES = [
+  { until: 2.3, zone: 'distance',     target: 'far',     pitch: 0,    eye: 0 },
+  { until: 4.7, zone: 'intermediate', target: 'monitor', pitch: -2,   eye: 0.18 },
+  { until: 7.2, zone: 'near',         target: 'book',    pitch: -4.5, eye: 0.35 },
+];
+const TOTAL_S = 8.0;
+const DEMO_CAM = { pos: new THREE.Vector3(0.78, 0.14, 0.62), tgt: new THREE.Vector3(0.02, -0.1, 0.35) };
+
+export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn }) {
+  // Gaze line — thin additive beam from pupil midpoint to the active target.
+  const gazeMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.55,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const gazeGeo = new THREE.CylinderGeometry(0.0012, 0.0012, 1, 8);
+  gazeGeo.translate(0, 0.5, 0);   // base at origin, extends +y
+  const gaze = new THREE.Mesh(gazeGeo, gazeMat);
+  gaze.visible = false;
+  gaze.renderOrder = 12;
+  stage.scene.add(gaze);
+
+  // eyeLookDown 블렌드셰입 인덱스 (있으면 눈꺼풀도 시선을 따라감)
+  const lookDownIdx = [];
+  if (morphMesh?.morphTargetDictionary) {
+    for (const [name, idx] of Object.entries(morphMesh.morphTargetDictionary)) {
+      if (/eyeLookDown/i.test(name)) lookDownIdx.push(idx);
+    }
+  }
+
+  const UP = new THREE.Vector3(0, 1, 0);
+  const anchorMid = new THREE.Vector3()
+    .addVectors(mannequin.anchors.left.position, mannequin.anchors.right.position)
+    .multiplyScalar(0.5);
+
+  let playing = false;
+  let raf = 0;
+  let cur = { pitch: 0, eye: 0 };
+  let savedCam = null;
+
+  function pointGaze(targetKey) {
+    const from = mannequin.group.localToWorld(anchorMid.clone());
+    const to = TARGET_POSITIONS[targetKey];
+    const dir = to.clone().sub(from);
+    const len = dir.length();
+    gaze.position.copy(from);
+    gaze.quaternion.setFromUnitVectors(UP, dir.normalize());
+    gaze.scale.set(1, len, 1);
+    gaze.visible = true;
+  }
+
+  function applyEyes(v) {
+    if (eyes) {
+      eyes.left.rotation.x = v;
+      eyes.right.rotation.x = v;
+    }
+    if (morphMesh) {
+      for (const idx of lookDownIdx) {
+        morphMesh.morphTargetInfluences[idx] = Math.min(1, v * 2.6);
+      }
+    }
+  }
+
+  function restore() {
+    playing = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    gaze.visible = false;
+    zones.setEmphasis(null);
+    applyEyes(0);
+    cur = { pitch: 0, eye: 0 };
+    onFitChange({ headPitch: 0 });
+    stage.controls.enabled = true;
+    if (savedCam) {
+      stage.camera.position.copy(savedCam.pos);
+      stage.controls.target.copy(savedCam.tgt);
+      stage.controls.update();
+      savedCam = null;
+    }
+  }
+
+  function play() {
+    if (playing) { restore(); return; }   // 재생 중 재클릭 = 중지
+    playing = true;
+    onTargetsOn();
+    savedCam = { pos: stage.camera.position.clone(), tgt: stage.controls.target.clone() };
+    const wasAutoRotate = stage.controls.autoRotate;
+    stage.controls.autoRotate = false;
+    stage.controls.enabled = false;
+
+    const camFrom = stage.camera.position.clone();
+    const tgtFrom = stage.controls.target.clone();
+    const t0 = performance.now();
+
+    function frame(ts) {
+      if (!playing) return;
+      const t = (ts - t0) / 1000;
+
+      // Camera glide-in (first 0.9s)
+      const ct = Math.min(1, t / 0.9);
+      const ce = ct * ct * (3 - 2 * ct);
+      stage.camera.position.lerpVectors(camFrom, DEMO_CAM.pos, ce);
+      stage.controls.target.lerpVectors(tgtFrom, DEMO_CAM.tgt, ce);
+      stage.controls.update();
+
+      const phase = PHASES.find((p) => t <= p.until) || PHASES[PHASES.length - 1];
+
+      // Critically-damped chase toward the phase pose
+      cur.pitch += (phase.pitch - cur.pitch) * 0.06;
+      cur.eye += (phase.eye - cur.eye) * 0.06;
+      onFitChange({ headPitch: Math.round(cur.pitch * 10) / 10 });
+      applyEyes(cur.eye);
+      zones.setEmphasis(phase.zone);
+      pointGaze(phase.target);
+
+      if (t >= TOTAL_S) {
+        restore();
+        stage.controls.autoRotate = wasAutoRotate;
+        return;
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  return {
+    play,
+    stop: restore,
+    get playing() { return playing; },
+    dispose() { restore(); gazeGeo.dispose(); gazeMat.dispose(); gaze.removeFromParent(); },
+  };
+}

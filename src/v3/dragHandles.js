@@ -13,7 +13,7 @@ import * as THREE from 'three';
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFitChange }) {
+export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFitChange, homeView }) {
   const el = stage.renderer.domElement;
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -52,6 +52,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
 
   let drag = null;   // { target:'glasses'|'head', axis:null|'v'|'h', x0,y0, fit0, pitch0 }
   let lastTapTime = 0;
+  let lastEmptyTapTime = 0;
 
   function hitTest(e) {
     const rect = el.getBoundingClientRect();
@@ -68,7 +69,19 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   function onDown(e) {
     if (!e.isPrimary) return;
     const target = hitTest(e);
-    if (!target) return;
+    if (!target) {
+      // Double-tap empty space → home ¾ view (C5)
+      const now = performance.now();
+      if (homeView && now - lastEmptyTapTime < 320) {
+        stage.camera.position.set(...homeView.pos);
+        stage.controls.target.set(...homeView.tgt);
+        stage.controls.update();
+        lastEmptyTapTime = 0;
+        return;
+      }
+      lastEmptyTapTime = now;
+      return;
+    }
 
     // Double-tap on glasses → reset OH/VD
     if (target === 'glasses') {

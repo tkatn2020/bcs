@@ -24,6 +24,11 @@ const DEFS = [
   },
 ];
 
+// 시선 데모(D4)가 시선 라인의 종점으로 사용하는 월드 좌표.
+export const TARGET_POSITIONS = Object.fromEntries(
+  DEFS.map((d) => [d.key, d.pos.clone()]),
+);
+
 export function createTargets(scene) {
   const group = new THREE.Group();
   group.name = 'targets';

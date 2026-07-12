@@ -66,7 +66,7 @@ const CAM_PRESETS = [
   { id: 'top', label: '상면', pos: [0.02, 0.55, 0.14], tgt: [0, 0, 0.03] },
 ];
 
-export function mountControls(root, { stage } = {}) {
+export function mountControls(root, { stage, getDemo } = {}) {
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
@@ -132,6 +132,12 @@ export function mountControls(root, { stage } = {}) {
     <div class="v3-mini">
       ${CAM_PRESETS.map((c) => `<button class="v3-btn" data-cam="${c.id}">${c.label}</button>`).join('')}
     </div>
+    <div class="v3-sec">데모</div>
+    <div class="v3-mini">
+      <button class="v3-btn" data-demo>▶ 시선 데모</button>
+      <button class="v3-btn" data-headdown>고개 숙임</button>
+      <button class="v3-btn" data-turntable>턴테이블</button>
+    </div>
   `;
   root.appendChild(panel);
 
@@ -160,6 +166,20 @@ export function mountControls(root, { stage } = {}) {
       stage.controls.target.set(...c.tgt);
       stage.controls.update();
     }
+    // ── 데모 ──
+    const demoBtn = e.target.closest('[data-demo]');
+    if (demoBtn) getDemo?.()?.play();
+    const headBtn = e.target.closest('[data-headdown]');
+    if (headBtn) {
+      const cur = state.v3fit?.headPitch ?? 0;
+      update({ v3fit: { headPitch: cur < -5 ? 0 : -18 } });   // 토글 (D5)
+    }
+    const turnBtn = e.target.closest('[data-turntable]');
+    if (turnBtn && stage) {
+      stage.controls.autoRotate = !stage.controls.autoRotate;
+      stage.controls.autoRotateSpeed = 1.1;
+      turnBtn.classList.toggle('on', stage.controls.autoRotate);
+    }
   });
 
   // ── Reactive refresh ──
@@ -184,6 +204,8 @@ export function mountControls(root, { stage } = {}) {
       b.classList.toggle('on', !!s.v3view?.zones?.[b.dataset.zone]));
     panel.querySelector('[data-toggle="targets"]')
       .classList.toggle('on', !!s.v3view?.targets);
+    panel.querySelector('[data-headdown]')
+      .classList.toggle('on', (s.v3fit?.headPitch ?? 0) < -5);
   }
   refresh(state);
   subscribe(refresh);
