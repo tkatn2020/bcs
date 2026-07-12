@@ -1,14 +1,19 @@
-// v3 Mannequin — sculpted head mesh (Lee Perry-Smith scan, three.js examples,
-// CC-BY — credit required in app footer) rendered as a glossy white retail
-// mannequin (PRD §6.1/6.2). Textures from the scan are discarded; a uniform
-// MeshPhysicalMaterial with clearcoat carries the mannequin look.
+// v3 Mannequin — glossy white head with OPEN eyes.
 //
-// Pupil anchors (PD/OH/vision-cone origins) are defined in normalized head
-// space and exposed as empty Object3D children — measured against this
-// specific mesh after normalization.
+// Primary asset: three.js facecap head (assets/mannequin/head-open.glb,
+// textures stripped — see scratch strip-gltf-textures.js). Separate eyeball
+// meshes + 52 ARKit blendshapes (future gaze/blink animation).
+// Fallback asset: Lee Perry-Smith scan bust (head.glb, closed eyes).
+// Both CC-BY-family — credit in app footer (PRD §6.1).
+//
+// Normalization strategy: scale so the eyeball-center separation equals a
+// real interpupillary distance (62mm), then place the PUPIL MIDPOINT at the
+// group origin, face forward = +z. All glasses/zone math keys off the pupil
+// anchors, so this frame makes downstream fitting math trivial.
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 export function mannequinMaterial() {
   return new THREE.MeshPhysicalMaterial({
@@ -20,46 +25,82 @@ export function mannequinMaterial() {
   });
 }
 
-// Real-world head height ≈ 0.24 m; normalize the mesh so downstream
-// glasses/zone math can work in metres.
-const HEAD_HEIGHT_M = 0.24;
+const TARGET_PD_M = 0.062;      // real-world IPD the head is normalized to
+const FALLBACK_HEAD_HEIGHT_M = 0.24;
 
-export function loadMannequin(url = 'assets/mannequin/head.glb') {
+export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
   return new Promise((resolve, reject) => {
-    new GLTFLoader().load(url, (gltf) => {
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);   // facecap uses EXT_meshopt_compression
+    loader.load(url, (gltf) => {
       const root = gltf.scene;
       const mat = mannequinMaterial();
+      const meshes = [];
       root.traverse((o) => {
         if (o.isMesh) {
-          // Drop scan textures — uniform mannequin material only.
-          // Keep the GLB's own smooth normals (do NOT recompute; UV-seam
-          // vertex splits would produce faceting).
-          o.material = mat;
+          o.material = mat;   // drop textures — uniform mannequin material
+          meshes.push(o);
         }
       });
+      root.updateMatrixWorld(true);
 
-      // Normalize: uniform scale to real head height, center at origin.
-      const box = new THREE.Box3().setFromObject(root);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      const s = HEAD_HEIGHT_M / size.y;
-      root.scale.setScalar(s);
-      root.position.set(-center.x * s, -center.y * s, -center.z * s);
+      // Detect the two eyeball meshes: the smallest-triangle pair mirrored
+      // across x. Their centers give us anatomically exact pupil anchors.
+      const infos = meshes.map((m) => {
+        const box = new THREE.Box3().setFromObject(m);
+        return {
+          mesh: m,
+          box,
+          center: box.getCenter(new THREE.Vector3()),
+          tris: m.geometry.index ? m.geometry.index.count / 3
+                                 : m.geometry.attributes.position.count / 3,
+        };
+      }).sort((a, b) => a.tris - b.tris);
+
+      let eyeL = null, eyeR = null;
+      for (const i of infos.slice(0, Math.min(3, infos.length))) {
+        if (!eyeR && i.center.x > 0) eyeR = i;
+        else if (!eyeL && i.center.x < 0) eyeL = i;
+      }
 
       const group = new THREE.Group();
-      group.add(root);
+      const anchorL = new THREE.Object3D(); anchorL.name = 'pupilL';
+      const anchorR = new THREE.Object3D(); anchorR.name = 'pupilR';
 
-      // Pupil anchors — tuned for this mesh (fronto-parallel, slightly above
-      // vertical center). Children of the group so head rotation carries them.
-      const anchorL = new THREE.Object3D();
-      const anchorR = new THREE.Object3D();
-      anchorL.name = 'pupilL';
-      anchorR.name = 'pupilR';
-      anchorL.position.set(-0.031, 0.022, 0.082);
-      anchorR.position.set(0.031, 0.022, 0.082);
-      group.add(anchorL, anchorR);
+      if (eyeL && eyeR) {
+        // ── PD-based normalization (facecap path) ──
+        const rawPD = eyeR.center.x - eyeL.center.x;
+        const s = TARGET_PD_M / rawPD;
+        const mid = eyeL.center.clone().add(eyeR.center).multiplyScalar(0.5);
+        root.scale.setScalar(s);
+        root.position.set(-mid.x * s, -mid.y * s, -mid.z * s);
 
-      resolve({ group, anchors: { left: anchorL, right: anchorR } });
+        // Pupil = eyeball center pushed to the front surface of the eyeball.
+        const eyeRadius = ((eyeR.box.max.z - eyeR.box.min.z) / 2) * s;
+        const zPupil = eyeRadius * 0.9;
+        anchorL.position.set(-TARGET_PD_M / 2, 0, zPupil);
+        anchorR.position.set(TARGET_PD_M / 2, 0, zPupil);
+      } else {
+        // ── Fallback: bbox-height normalization + hand-tuned anchors (LPS bust) ──
+        const box = new THREE.Box3().setFromObject(root);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const s = FALLBACK_HEAD_HEIGHT_M / size.y;
+        root.scale.setScalar(s);
+        root.position.set(-center.x * s, -center.y * s, -center.z * s);
+        anchorL.position.set(-0.031, 0.022, 0.082);
+        anchorR.position.set(0.031, 0.022, 0.082);
+      }
+
+      group.add(root, anchorL, anchorR);
+
+      // Blendshape mesh (facecap: 52 ARKit targets) — future gaze/blink.
+      let morphMesh = null;
+      root.traverse((o) => {
+        if (o.isMesh && o.morphTargetDictionary && !morphMesh) morphMesh = o;
+      });
+
+      resolve({ group, anchors: { left: anchorL, right: anchorR }, morphMesh });
     }, undefined, reject);
   });
 }

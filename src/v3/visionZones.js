@@ -1,0 +1,123 @@
+// v3 Vision zones — translucent per-eye cones from the pupil anchors.
+// Additive blending: where left/right cones overlap, brightness doubles —
+// the binocular overlap reads for free (PRD §6.3c). Zone spec morphs are
+// tweened (300ms) so grade/ADD changes breathe instead of snapping.
+//
+// Cone geometry: unit cone, apex at origin, axis along -y (then oriented by
+// quaternion). Per-axis scale = (tan(hHalf)·len, len, tan(vHalf)·len) gives
+// an elliptic cross-section — horizontal FOV ≠ vertical FOV.
+
+import * as THREE from 'three';
+
+export const ZONE_COLORS = {
+  distance: 0x3b82f6,
+  intermediate: 0x22c55e,
+  near: 0xf59e0b,
+};
+
+const ZONES = ['distance', 'intermediate', 'near'];
+const MORPH_MS = 300;
+const DOWN = new THREE.Vector3(0, -1, 0);
+
+function unitConeGeometry() {
+  const geo = new THREE.ConeGeometry(1, 1, 48, 1, true);
+  geo.translate(0, -0.5, 0);   // apex at origin, base at (0,-1,0)
+  return geo;
+}
+
+export function createVisionZones(anchors) {
+  const group = new THREE.Group();
+  group.name = 'visionZones';
+  const geo = unitConeGeometry();
+
+  // cones[zone] = [meshL, meshR]
+  const cones = {};
+  for (const zone of ZONES) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: ZONE_COLORS[zone],
+      transparent: true,
+      opacity: 0.11,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    cones[zone] = [anchors.left, anchors.right].map((anchor) => {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.userData.base = anchor.position.clone();   // pupil origin
+      mesh.renderOrder = 10;
+      group.add(mesh);
+      return mesh;
+    });
+  }
+
+  // displayed = what's on screen right now (tween interpolates displayed → target)
+  let displayed = null;
+  let from = null;
+  let target = null;
+  let tweenStart = 0;
+  let raf = 0;
+
+  function applySpec(spec) {
+    displayed = spec;
+    for (const zone of ZONES) {
+      const z = spec[zone];
+      const pitchRad = THREE.MathUtils.degToRad(z.pitch);
+      const dir = new THREE.Vector3(0, Math.sin(pitchRad), Math.cos(pitchRad)).normalize();
+      const q = new THREE.Quaternion().setFromUnitVectors(DOWN, dir);
+      const sx = Math.tan(THREE.MathUtils.degToRad(z.h)) * z.len;
+      const sz = Math.tan(THREE.MathUtils.degToRad(z.v)) * z.len;
+      for (const mesh of cones[zone]) {
+        mesh.quaternion.copy(q);
+        mesh.scale.set(sx, z.len, sz);
+        // Apex starts just past the lens plane — the "field through the lens"
+        // story, and keeps additive cones from washing out the face/chin.
+        mesh.position.copy(mesh.userData.base).addScaledVector(dir, 0.045);
+      }
+    }
+  }
+
+  function lerpSpec(a, b, t) {
+    const out = {};
+    for (const zone of ZONES) {
+      out[zone] = {
+        h: a[zone].h + (b[zone].h - a[zone].h) * t,
+        v: a[zone].v + (b[zone].v - a[zone].v) * t,
+        pitch: a[zone].pitch + (b[zone].pitch - a[zone].pitch) * t,
+        len: a[zone].len + (b[zone].len - a[zone].len) * t,
+      };
+    }
+    return out;
+  }
+
+  function tick(ts) {
+    const t = Math.min(1, (ts - tweenStart) / MORPH_MS);
+    const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    applySpec(lerpSpec(from, target, eased));
+    if (t < 1) raf = requestAnimationFrame(tick);
+    else raf = 0;
+  }
+
+  function update(spec, animate = true) {
+    if (!animate || !displayed) {
+      applySpec(spec);
+      return;
+    }
+    from = displayed;          // tween from whatever is currently on screen
+    target = spec;
+    tweenStart = performance.now();
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(tick);
+  }
+
+  function setVisible(zone, visible) {
+    for (const mesh of cones[zone]) mesh.visible = visible;
+  }
+
+  function dispose() {
+    if (raf) cancelAnimationFrame(raf);
+    geo.dispose();
+    for (const zone of ZONES) cones[zone][0].material.dispose();
+  }
+
+  return { group, update, setVisible, dispose };
+}
