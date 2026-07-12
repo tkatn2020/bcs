@@ -261,11 +261,22 @@ export function createGlasses(anchors, opts = {}) {
       const groupOffsetZ = anchorMid.z + effZ();
       const headX = p.headSideX || (() => 0.072);   // 측두부 옆면 x(z)
 
-      // 1) Endpiece / hinge — height offset by `endpiece`
+      // 1) Endpiece / hinge — the rim's outer-top corner in GROUP space.
+      // The rim lives under frontG(panto rot) > sideG(wrap rot), so the temple
+      // (a group child) must transform that corner through both rotations to
+      // stay welded to the frame. Endpiece offsets the connection height.
+      const pantoRad = THREE.MathUtils.degToRad(p.pantoDeg);
+      const sideW = side * wrapRad;
+      // sideG-local endpiece corner → frontG-local (apply wrap, z=0)
+      const Ex = side * hx, Ey = p.endpiece;   // (Ey relative to hinge line)
+      const fx = Ex * Math.cos(sideW) + side * (pdHalf + p.pdErr);
+      const fz = -Ex * Math.sin(sideW);
+      // frontG-local → group-local (apply panto about hinge line, +hingeY)
+      const cp = Math.cos(pantoRad), sp = Math.sin(pantoRad);
       const hinge = new THREE.Vector3(
-        side * (pdHalf + p.pdErr) + side * hx * Math.cos(wrapRad),
-        hingeY + p.endpiece,
-        -hx * Math.sin(wrapRad),
+        fx,
+        hingeY + (Ey * cp - fz * sp),
+        Ey * sp + fz * cp,
       );
 
       // 2) Ear-top (몸통 끝, 귀 뿌리 살짝 위)
@@ -288,7 +299,9 @@ export function createGlasses(anchors, opts = {}) {
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const surfX = headX(z) + p.templeGap;                    // 머리 표면 경로
         const straightX = Math.abs(hinge.x) + (surfEarX - Math.abs(hinge.x)) * t; // 직선 경로
-        const x = side * (straightX + (surfX - straightX) * bendFrac);
+        // 밴딩을 t로 램프 → 첫 점(t=0)은 정확히 hinge에서 출발, 관자놀이를
+        // 지나며 점진적으로 측두부 곡률에 합류 (프레임 연결부 간격 제거)
+        const x = side * (straightX + (surfX - straightX) * (bendFrac * t));
         const y = hinge.y + (earTopY - hinge.y) * t;
         bodyPts.push(new THREE.Vector3(x, y, z));
       }
