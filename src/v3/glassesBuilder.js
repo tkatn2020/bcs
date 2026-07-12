@@ -49,8 +49,10 @@ export function createGlasses(anchors, opts = {}) {
   const group = new THREE.Group();
   group.name = 'glasses';
 
+  // Tone-on-tone with the glossy white mannequin: light warm-gray acetate,
+  // slightly darker than the head so the silhouette still reads.
   const frameMat = new THREE.MeshPhysicalMaterial({
-    color: 0x23262c, metalness: 0.25, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.2,
+    color: 0xd6d8dc, metalness: 0.05, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.12,
   });
   const lensMat = new THREE.MeshPhysicalMaterial({
     color: 0xcfe2ee, transparent: true, opacity: 0.16,

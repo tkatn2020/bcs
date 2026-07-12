@@ -42,7 +42,7 @@ export function mountControls(root) {
   const top = document.createElement('div');
   top.className = 'v3-top';
   top.innerHTML = GRADES.map((g) => `
-    <button class="v3-grade" data-grade="${g.id}">${g.bpCode}<small>${g.name}</small></button>
+    <button class="v3-grade" data-grade="${g.id}">${g.id}단계<small>${g.name}</small></button>
   `).join('');
   root.appendChild(top);
 
