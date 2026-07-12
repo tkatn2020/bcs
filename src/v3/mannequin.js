@@ -67,6 +67,7 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
       const anchorL = new THREE.Object3D(); anchorL.name = 'pupilL';
       const anchorR = new THREE.Object3D(); anchorR.name = 'pupilR';
 
+      let eyePivots = null;
       if (eyeL && eyeR) {
         // ── PD-based normalization (facecap path) ──
         const rawPD = eyeR.center.x - eyeL.center.x;
@@ -74,6 +75,7 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
         const mid = eyeL.center.clone().add(eyeR.center).multiplyScalar(0.5);
         root.scale.setScalar(s);
         root.position.set(-mid.x * s, -mid.y * s, -mid.z * s);
+        root.updateMatrixWorld(true);   // reflect scale/position before wrapping
 
         // Pupil = eyeball center pushed to the front surface of the eyeball.
         const eyeRadius = ((eyeR.box.max.z - eyeR.box.min.z) / 2) * s;
@@ -81,16 +83,22 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
         anchorL.position.set(-TARGET_PD_M / 2, 0, zPupil);
         anchorR.position.set(TARGET_PD_M / 2, 0, zPupil);
 
-        // Re-center each eyeball geometry on its own origin so the demo can
-        // rotate the eyes in place (gaze down animation, D4). The mesh is
-        // offset by the same amount, so the world result is unchanged.
-        for (const e of [eyeL, eyeR]) {
-          const g = e.mesh.geometry;
-          g.computeBoundingBox();
-          const c = g.boundingBox.getCenter(new THREE.Vector3());
-          g.translate(-c.x, -c.y, -c.z);
-          e.mesh.position.add(c);
-        }
+        // Wrap each eyeball in a pivot Group centered on the eyeball, so the
+        // demo can rotate the eyes in place (D4). geometry is UNCHANGED and
+        // Object3D.attach preserves the world transform — the eyeball stays
+        // exactly where it was (M2 restored), just gains a rotation pivot.
+        const wrapEye = (mesh) => {
+          const wc = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+          const parent = mesh.parent;
+          const pivot = new THREE.Group();
+          parent.add(pivot);
+          parent.updateMatrixWorld(true);
+          pivot.position.copy(parent.worldToLocal(wc.clone()));
+          pivot.updateMatrixWorld(true);
+          pivot.attach(mesh);   // preserves mesh world transform
+          return pivot;
+        };
+        eyePivots = { left: wrapEye(eyeL.mesh), right: wrapEye(eyeR.mesh) };
       } else {
         // ── Fallback: bbox-height normalization + hand-tuned anchors (LPS bust) ──
         const box = new THREE.Box3().setFromObject(root);
@@ -115,7 +123,7 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
         group,
         anchors: { left: anchorL, right: anchorR },
         morphMesh,
-        eyes: (eyeL && eyeR) ? { left: eyeL.mesh, right: eyeR.mesh } : null,
+        eyes: eyePivots,   // pivot Groups (제자리 회전) — 없으면 null
       });
     }, undefined, reject);
   });
