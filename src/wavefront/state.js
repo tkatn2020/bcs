@@ -52,6 +52,24 @@ const initial = {
   signatureGens: false,         // 시그니처 GENS option (+150,000)
   baseColor: 'BROWN',           // 'BROWN' | 'GRAY' | 'GREEN' — only when signatureGens=true
 
+  // ── v3 아바타 피팅 스튜디오 ─────────────────────────────
+  // Fitting parameters (mm/deg, UI-friendly units — converted at use sites)
+  v3fit: {
+    vd: 12,          // 정점간거리 (8~16mm, 표준 12)
+    panto: 8,        // 경사각 (0~15°, 표준 8~12)
+    wrap: 5,         // 안면각 (0~15°, 표준 ~5)
+    pdErr: 0,        // PD 오차 (-4~+4mm)
+    oh: 0,           // 피팅 높이 오프셋 (-4~+4mm)
+    bSize: 31,       // 렌즈 B치수 (26~40mm)
+    shape: 'square', // 'square' | 'round' | 'boston' | 'aviator'
+    headPitch: 0,    // 고개 숙임 (deg, − = 숙임)
+  },
+  // View toggles
+  v3view: {
+    zones: { distance: true, intermediate: true, near: true },
+    targets: false,
+  },
+
   // iPad tab navigation
   activeTab: 'simulator', // 'simulator' | 'compare'
   settingsOpen: false,

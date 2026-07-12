@@ -57,27 +57,34 @@ export function createVisionZones(anchors) {
   let tweenStart = 0;
   let raf = 0;
 
+  const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
   function applySpec(spec) {
     displayed = spec;
+    const yawRad = THREE.MathUtils.degToRad(spec.eyeYawDeg || 0);
     for (const zone of ZONES) {
       const z = spec[zone];
       const pitchRad = THREE.MathUtils.degToRad(z.pitch);
-      const dir = new THREE.Vector3(0, Math.sin(pitchRad), Math.cos(pitchRad)).normalize();
-      const q = new THREE.Quaternion().setFromUnitVectors(DOWN, dir);
+      const baseDir = new THREE.Vector3(0, Math.sin(pitchRad), Math.cos(pitchRad)).normalize();
       const sx = Math.tan(THREE.MathUtils.degToRad(z.h)) * z.len;
       const sz = Math.tan(THREE.MathUtils.degToRad(z.v)) * z.len;
-      for (const mesh of cones[zone]) {
-        mesh.quaternion.copy(q);
+      cones[zone].forEach((mesh, i) => {
+        // PD error: eyes diverge outward (left −yaw, right +yaw) → the
+        // additive overlap between L/R cones visibly shrinks.
+        const dir = baseDir.clone().applyAxisAngle(Y_AXIS, i === 0 ? -yawRad : yawRad);
+        mesh.quaternion.setFromUnitVectors(DOWN, dir);
         mesh.scale.set(sx, z.len, sz);
         // Apex starts just past the lens plane — the "field through the lens"
         // story, and keeps additive cones from washing out the face/chin.
         mesh.position.copy(mesh.userData.base).addScaledVector(dir, 0.045);
-      }
+      });
     }
   }
 
   function lerpSpec(a, b, t) {
-    const out = {};
+    const out = {
+      eyeYawDeg: (a.eyeYawDeg || 0) + ((b.eyeYawDeg || 0) - (a.eyeYawDeg || 0)) * t,
+    };
     for (const zone of ZONES) {
       out[zone] = {
         h: a[zone].h + (b[zone].h - a[zone].h) * t,

@@ -1,20 +1,21 @@
-// v3 entry — 3D 아바타 피팅 스튜디오 bootstrap (M1).
-// mannequin (open eyes) + parametric glasses + vision-zone cones + controls.
+// v3 entry — 3D 아바타 피팅 스튜디오 bootstrap (M2).
+// mannequin + glasses(전 파라미터) + vision zones + targets + drag handles.
 
 import * as THREE from 'three';
 import { createStudioStage } from './studioStage.js';
 import { loadMannequin } from './mannequin.js';
 import { createGlasses } from './glassesBuilder.js';
 import { createVisionZones } from './visionZones.js';
-import { computeZones } from './fittingModel.js';
+import { createTargets } from './targets.js';
+import { computeZones, STANDARD_FIT } from './fittingModel.js';
+import { attachDragHandles } from './dragHandles.js';
 import { mountControls } from './controls.js';
-import { state, subscribe } from '../wavefront/state.js';
+import { state, update, subscribe } from '../wavefront/state.js';
 
 // Measure fitting landmarks from the head mesh itself — robust against
 // asset swaps, no hand-tuned magic numbers.
-//   ear : outermost-x vertex behind the eyes at eye height (temple rest)
-//   noseZ: max forward protrusion inside the rim's inner-edge band — the
-//          frame must float in front of this or the rims embed in the nose.
+//   ear  : outermost-x vertex behind the eyes at eye height (temple rest)
+//   noseZ: max forward protrusion where the rims can collide with the nose
 function measureHead(group) {
   let head = null, maxCount = 0;
   group.traverse((o) => {
@@ -36,15 +37,13 @@ function measureHead(group) {
       if (!ear || v.x > ear.x) ear = v.clone();
     }
     // Nose-collision band: rim inner edge (|x| ≥ 8mm) against the UPPER
-    // nose-side slope only (nasion region). Two deliberate exclusions:
-    //   |x| < 8mm  — the open gap between lenses; the nose passes through it
-    //   y < -18mm  — nostril wings; real frames rest ABOVE them on the slope
+    // nose-side slope only. |x| < 8mm (렌즈 사이 틈)과 y < -18mm (콧방울) 제외.
     const ax = Math.abs(v.x);
     if (ax > 0.008 && ax < 0.016 && v.y > -0.018 && v.y < 0.008) {
       if (v.z > noseZ) noseZ = v.z;
     }
   }
-  return { ear, noseZ };
+  return { ear, noseZ, headMesh: head };
 }
 
 const container = document.getElementById('v3-stage');
@@ -64,14 +63,12 @@ loadMannequin().then(({ group, anchors, morphMesh }) => {
   const m = measureHead(group);
   const opts = {};
   if (m?.ear) {
-    opts.earX = m.ear.x - 0.002;   // rest slightly inside the outermost shell point
-    opts.earY = m.ear.y + 0.006;   // on top of the ear root
+    opts.earX = m.ear.x - 0.002;
+    opts.earY = m.ear.y + 0.006;
     opts.earZ = m.ear.z;
   }
   if (m && m.noseZ > -Infinity) {
-    // Rest just off the upper nose slope (+2mm), hard-capped at 12mm so the
-    // frame stays visually ON the face — like real glasses perched on pads.
-    const lensBackZ = anchors.left.position.z + 0.012;   // pupil z + default VD
+    const lensBackZ = anchors.left.position.z + 0.012;
     opts.noseClearance = Math.min(0.012, Math.max(0.006, m.noseZ - lensBackZ + 0.002));
   }
   const glasses = createGlasses(anchors, opts);
@@ -79,16 +76,54 @@ loadMannequin().then(({ group, anchors, morphMesh }) => {
 
   const zones = createVisionZones(anchors);
   group.add(zones.group);
-  zones.update(computeZones(state), false);
-  subscribe((s) => zones.update(computeZones(s), true));
+
+  const targets = createTargets(stage.scene);
+
+  // ── state → scene ──
+  function glassesParams(f) {
+    return {
+      vd: f.vd / 1000,
+      pantoDeg: f.panto,
+      wrapDeg: f.wrap,
+      oh: f.oh / 1000 - 0.002,      // keep the default −2mm fitting bias
+      pdErr: f.pdErr / 1000,
+      lensH: f.bSize / 1000,
+      shape: f.shape,
+    };
+  }
+
+  function apply(s, animate) {
+    const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
+    const spec = computeZones(s);
+    zones.update(spec, animate);
+    glasses.setParams(glassesParams(f));
+    glasses.updateZoneSpec(spec);
+    group.rotation.x = THREE.MathUtils.degToRad(f.headPitch || 0);
+    for (const [zone, on] of Object.entries(s.v3view?.zones || {})) {
+      zones.setVisible(zone, on);
+    }
+    targets.setVisible(!!s.v3view?.targets);
+    targets.update(spec, group, anchors);
+  }
+
+  apply(state, false);
+  subscribe((s) => apply(s, true));
+
+  // ── Direct drag (1급 입력) ──
+  attachDragHandles({
+    stage,
+    glassesGroup: glasses.group,
+    headMesh: m?.headMesh,
+    getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
+    onFitChange: (patch) => update({ v3fit: patch }),
+  });
 
   Object.assign(window.__v3, {
     mannequin: { group, anchors, morphMesh },
-    glasses,
-    zones,
+    glasses, zones, targets,
   });
 }).catch((err) => {
   console.error('Mannequin load failed:', err);
 });
 
-mountControls(document.body);
+mountControls(document.body, { stage });

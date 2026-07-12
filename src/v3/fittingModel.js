@@ -1,20 +1,36 @@
 // v3 Fitting model — qualitative zone math (PRD §8.2).
-// Pure functions: state → per-zone cone spec { h, v, pitch, len }.
+// Pure functions: state → per-zone cone spec { h, v, pitch, len } + eyeYawDeg.
 //   h/v  : horizontal/vertical HALF-angles (deg) of the clear-vision cone
 //   pitch: gaze declination of the zone axis (deg, negative = downward)
 //   len  : visualization length (m) ≈ real working distance
+//   eyeYawDeg: per-eye outward yaw from PD error — shrinks binocular overlap
 //
-// Directionally clinical (research-anchored, PRD §8.1), magnitudes are for
-// education — calibration table to be reviewed by Joel before v1.0.
-//   · grade   → zone width via grades.js clearZoneScale (BP30 = 1.15 baseline)
-//   · ADD     → Minkwitz: corridor width ∝ corridorLen / ADD
-//   · corridor→ longer = wider mid zone, deeper near (pitch down)
+// Directionally clinical (research anchors, PRD §8.1), magnitudes are for
+// education — calibration reviewed by Joel before v1.0.
+//   · grade → zone width via grades.js clearZoneScale (BP30 = 1.15 baseline)
+//   · ADD   → Minkwitz: corridor width ∝ corridorLen / ADD
+//   · VD    → +1mm ≈ −4% angular field (all zones)
+//   · panto → below 8° hits near, above 12° hits distance
+//   · wrap  → deviation beyond ±2° of 5° shrinks lateral (dist/mid) field
+//   · PD err→ 1mm ≈ corridor 2mm loss + eye yaw divergence (overlap loss)
+//   · OH    → shifts the whole zone map vertically (gaze pitch offset);
+//             low OH (or small B) also clips the near zone
+//   · B치수 → small lens bottom clips the near zone
 
 import { getGrade } from '../optics/grades.js';
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-// Baseline half-angles at BP30 · ADD +2.00 · corridor 12mm
+export const STANDARD_FIT = {
+  vd: 12, panto: 8, wrap: 5, pdErr: 0, oh: 0, bSize: 31, shape: 'square', headPitch: 0,
+};
+
+// 교육 데모용 '잘못된 피팅' 프리셋 (B7) — 모든 파라미터가 표준 밖
+export const WRONG_FIT = {
+  vd: 16, panto: 2, wrap: 12, pdErr: 3, oh: -3,
+};
+
+// Baseline half-angles at BP30 · ADD +2.00 · corridor 12mm · standard fit
 const BASE = {
   distance:     { h: 38, v: 24, pitch: -2,  len: 1.5 },
   intermediate: { h: 11, v: 8,  pitch: -15, len: 0.68 },
@@ -23,35 +39,48 @@ const BASE = {
 
 export function computeZones(s) {
   const g = getGrade(s.grade);
+  const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
   const gradeScale = g.clearZoneScale / 1.15;
   const add = clamp(s.add ?? 2.0, 0.75, 3.5);
   const corr = s.corridor ?? 12;
 
-  // Minkwitz — corridor half-width ∝ corridorLen / ADD (research §8.1)
-  const mink = clamp((corr / 12) * (2.0 / add), 0.45, 1.7);
-  // Near zone shrinks with ADD, gentler than corridor
+  // ── 렌즈 구성 요인 ──
+  const mink = clamp((corr / 12) * (2.0 / add), 0.45, 1.7);       // Minkwitz
   const nearAdd = clamp(Math.sqrt(2.0 / add), 0.6, 1.35);
-  // Longer corridor pushes near zone deeper (more downgaze)
-  const nearPitchShift = (corr - 12) * 1.2;   // deg per mm
+  const nearPitchShift = (corr - 12) * 1.2;                        // deg/mm
+
+  // ── 피팅 요인 ──
+  const vdFactor = clamp(1 - (f.vd - 12) * 0.04, 0.72, 1.16);      // 4%/mm
+  const pantoLow = Math.max(0, 8 - f.panto);                       // 부족 → 근용 손실
+  const pantoHigh = Math.max(0, f.panto - 12);                     // 과다 → 원용 손실
+  const nearFit = clamp(1 - pantoLow * 0.05, 0.55, 1);
+  const distFit = clamp(1 - pantoHigh * 0.035, 0.7, 1);
+  const wrapDev = Math.max(0, Math.abs(f.wrap - 5) - 2);           // ±2° 허용
+  const wrapFactor = clamp(1 - wrapDev * 0.03, 0.72, 1);
+  const pdCorridor = clamp(1 - Math.abs(f.pdErr) * 0.13, 0.45, 1); // 1mm ≈ 폭 2mm 손실
+  const pitchShift = f.oh * 2.0;                                   // deg/mm — 존 지도 수직 이동
+  const nearRoom = clamp(1 + (f.oh + (f.bSize - 31) / 2) * 0.10, 0.3, 1.12); // 근용 잘림
 
   return {
     distance: {
-      h: BASE.distance.h * (0.45 + 0.55 * gradeScale),
-      v: BASE.distance.v,
-      pitch: BASE.distance.pitch,
+      h: BASE.distance.h * (0.45 + 0.55 * gradeScale) * vdFactor * distFit * wrapFactor,
+      v: BASE.distance.v * vdFactor * distFit,
+      pitch: BASE.distance.pitch + pitchShift * 0.35,
       len: BASE.distance.len,
     },
     intermediate: {
-      h: BASE.intermediate.h * gradeScale * mink,
-      v: BASE.intermediate.v * (0.7 + 0.3 * mink),
-      pitch: BASE.intermediate.pitch - nearPitchShift * 0.5,
+      h: BASE.intermediate.h * gradeScale * mink * vdFactor * wrapFactor * pdCorridor,
+      v: BASE.intermediate.v * (0.7 + 0.3 * mink) * vdFactor,
+      pitch: BASE.intermediate.pitch - nearPitchShift * 0.5 + pitchShift,
       len: BASE.intermediate.len,
     },
     near: {
-      h: BASE.near.h * gradeScale * nearAdd,
-      v: BASE.near.v * (0.75 + 0.25 * nearAdd),
-      pitch: BASE.near.pitch - nearPitchShift,
-      len: BASE.near.len,
+      h: BASE.near.h * gradeScale * nearAdd * vdFactor * nearFit * nearRoom * pdCorridor,
+      v: BASE.near.v * (0.75 + 0.25 * nearAdd) * nearRoom,
+      pitch: BASE.near.pitch - nearPitchShift + pitchShift,
+      len: BASE.near.len * clamp(nearRoom + 0.15, 0.5, 1),
     },
+    // PD 오차 → 좌우 콘이 바깥으로 벌어져 양안 겹침(additive 밝은 영역) 축소
+    eyeYawDeg: Math.abs(f.pdErr) * 1.4,
   };
 }
