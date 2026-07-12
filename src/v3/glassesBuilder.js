@@ -10,19 +10,19 @@ import * as THREE from 'three';
 
 export const FRAME_DEFAULTS = {
   lensW: 0.046,      // lens box width (m)
-  lensH: 0.038,      // lens box height (B치수)
-  cornerR: 0.009,    // lens corner radius
-  rimT: 0.0032,      // rim thickness (border width)
-  depth: 0.0032,     // rim extrusion depth
+  lensH: 0.031,      // lens box height (B치수) — slim profile, clears the nose slope
+  cornerR: 0.008,    // lens corner radius
+  rimT: 0.0018,      // rim thickness (border width) — thin wire-adjacent look
+  depth: 0.0018,     // rim extrusion depth
   vd: 0.012,         // vertex distance — pupil to lens back plane
   pantoDeg: 8,       // pantoscopic tilt
-  oh: -0.003,        // fitting-height offset — pupil sits slightly above lens center
+  oh: -0.002,        // fitting-height offset — pupil sits slightly above lens center
   pdErr: 0,          // per-lens horizontal offset error (m)
   // facecap mesh has a deep-set brow/nose: extra forward clearance so the
   // frame clears the nasion at VD 12mm. VD slider still maps Δz 1:1.
   noseClearance: 0.010,
   // temple tip target in MANNEQUIN frame — measured from the head mesh at
-  // runtime (app.js measureEar) and passed via opts; these are fallbacks.
+  // runtime (app.js measureHead) and passed via opts; these are fallbacks.
   earX: 0.082, earY: 0.010, earZ: -0.045,
 };
 
@@ -107,10 +107,10 @@ export function createGlasses(anchors, opts = {}) {
   // Bridge: connects inner rim edges near the top
   const innerGap = 2 * (pdHalf + p.pdErr) - p.lensW - p.rimT * 2;
   const bridge = new THREE.Mesh(
-    new THREE.BoxGeometry(Math.max(innerGap, 0.008), 0.0045, 0.0032),
+    new THREE.BoxGeometry(Math.max(innerGap, 0.008), 0.0028, 0.0018),
     frameMat,
   );
-  bridge.position.set(0, p.lensH * 0.22, 0);
+  bridge.position.set(0, p.lensH * 0.28, 0);
   group.add(bridge);
 
   // ── Fitting transform: group origin at pupil midpoint ──
