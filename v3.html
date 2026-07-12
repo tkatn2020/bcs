@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>3D 아바타 피팅 스튜디오 · breezm (v3 dev)</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #171a20; overflow: hidden; }
+    #v3-stage { position: fixed; inset: 0; touch-action: none; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="v3-stage"></div>
+  <script type="module" src="src/v3/app.js"></script>
+</body>
+</html>
