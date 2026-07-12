@@ -33,21 +33,23 @@ function measureHead(group) {
   group.updateMatrixWorld(true);
   const pos = head.geometry.attributes.position;
   const v = new THREE.Vector3();
-  let ear = null;
+  // 좌우 귀·측두부를 각각 실측 (facecap 스캔은 비대칭 — 미러링 금지).
+  //   earR/earL : 눈높이 뒤쪽 최외곽 (템플이 걸치는 귀 지점)
+  //   binsR/binsL: z bin(4mm)별 측두부 옆면 x (다리 몸통이 따라갈 표면)
+  let earR = null, earL = null;
   let noseZ = -Infinity;
-  // 머리 오른쪽 옆면(측두부) 프로파일: z bin(4mm) → 최대 x. 안경 다리가
-  // 이 표면을 따라가므로 gap=0이면 피부에 밀착. 귀 위 대역만 잡아(y>3mm)
-  // 귀 돌출을 배제한 매끈한 측두부를 얻는다.
-  const sideBins = new Map();
+  const binsR = new Map(), binsL = new Map();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
     head.localToWorld(v);          // group sits at scene origin → world == group frame
-    if (v.z < -0.01 && v.y > -0.015 && v.y < 0.03 && v.x > 0) {
-      if (!ear || v.x > ear.x) ear = v.clone();
+    if (v.z < -0.01 && v.y > -0.015 && v.y < 0.03) {
+      if (v.x > 0.02 && (!earR || v.x > earR.x)) earR = v.clone();
+      if (v.x < -0.02 && (!earL || v.x < earL.x)) earL = v.clone();
     }
-    if (v.x > 0.02 && v.y > 0.003 && v.y < 0.045 && v.z > -0.10 && v.z < 0.015) {
+    if (v.y > 0.003 && v.y < 0.045 && v.z > -0.10 && v.z < 0.015) {
       const zb = Math.round(v.z / 0.004);
-      if (!sideBins.has(zb) || v.x > sideBins.get(zb)) sideBins.set(zb, v.x);
+      if (v.x > 0.02 && (!binsR.has(zb) || v.x > binsR.get(zb))) binsR.set(zb, v.x);
+      if (v.x < -0.02 && (!binsL.has(zb) || v.x < binsL.get(zb))) binsL.set(zb, v.x);
     }
     // Nose-collision band: rim inner edge (|x| ≥ 8mm) against the UPPER
     // nose-side slope only. |x| < 8mm (렌즈 사이 틈)과 y < -18mm (콧방울) 제외.
@@ -56,15 +58,16 @@ function measureHead(group) {
       if (v.z > noseZ) noseZ = v.z;
     }
   }
-  const headSideX = (z) => {
+  const lookup = (bins, z) => {
     const zb = Math.round(z / 0.004);
     for (let d = 0; d <= 10; d++) {
-      if (sideBins.has(zb + d)) return sideBins.get(zb + d);
-      if (sideBins.has(zb - d)) return sideBins.get(zb - d);
+      if (bins.has(zb + d)) return Math.abs(bins.get(zb + d));
+      if (bins.has(zb - d)) return Math.abs(bins.get(zb - d));
     }
     return 0.072;
   };
-  return { ear, noseZ, headMesh: head, headSideX };
+  const headSideX = (z, side) => lookup(side > 0 ? binsR : binsL, z);
+  return { earR, earL, noseZ, headMesh: head, headSideX };
 }
 
 function mountCredit(root) {
@@ -94,16 +97,14 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
 
   const m = measureHead(group);
   const opts = {};
-  if (m?.ear) {
-    opts.earX = m.ear.x - 0.002;
-    opts.earY = m.ear.y + 0.006;
-    opts.earZ = m.ear.z;
-  }
+  // 좌우 귀를 각각 전달 (미러링 대신 실측 — 비대칭 두상 밀착)
+  if (m?.earR) opts.earR = { x: m.earR.x, y: m.earR.y + 0.006, z: m.earR.z };
+  if (m?.earL) opts.earL = { x: m.earL.x, y: m.earL.y + 0.006, z: m.earL.z };
   if (m && m.noseZ > -Infinity) {
     const lensBackZ = anchors.left.position.z + 0.012;
     opts.noseClearance = Math.min(0.012, Math.max(0.006, m.noseZ - lensBackZ + 0.002));
   }
-  if (m?.headSideX) opts.headSideX = m.headSideX;   // 측두부 프로파일 (다리 밀착)
+  if (m?.headSideX) opts.headSideX = m.headSideX;   // 측두부 프로파일 (z, side) → x
   const glasses = createGlasses(anchors, opts);
   group.add(glasses.group);
 

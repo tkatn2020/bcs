@@ -36,7 +36,9 @@ export const FRAME_DEFAULTS = {
   pdErr: 0,          // per-lens horizontal offset error (m)
   shape: 'square',   // 'square' | 'round' | 'boston' | 'aviator'
   noseClearance: 0.010,
-  earX: 0.082, earY: 0.010, earZ: -0.045,   // measured at runtime (app.js)
+  // 좌우 귀 지점 (실측, app.js). null이면 대칭 fallback 사용.
+  earR: null, earL: null,
+  earY: 0.010, earZ: -0.045,   // fallback (측정 실패 시 대칭 가정)
 
   // ── 프레임 피팅 커스텀 (광학 무관, 순수 다리 지오메트리) ──
   templeAngle: 0,    // 다리 경사각 오프셋 (deg, + = 다리 끝이 아래로)
@@ -44,12 +46,12 @@ export const FRAME_DEFAULTS = {
   templeGap: 0,      // 얼굴 옆면 간격 (m, 0 = 측두부 피부 밀착, + = 벌어짐)
   templeBend: 60,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
-  headSideX: null,   // (z)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
+  headSideX: null,   // (z, side)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
 };
 
 const GEO_KEYS = [
   'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
-  'vd', 'oh', 'earX', 'earY', 'earZ', 'noseClearance',
+  'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance',
   'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'endpiece',
 ];
 
@@ -259,7 +261,9 @@ export function createGlasses(anchors, opts = {}) {
       const hx = p.lensW / 2 + p.rimT;
       const groupOffsetY = anchorMid.y + p.oh;
       const groupOffsetZ = anchorMid.z + effZ();
-      const headX = p.headSideX || (() => 0.072);   // 측두부 옆면 x(z)
+      const headX = p.headSideX || (() => 0.072);   // 측두부 옆면 x(z, side)
+      // 이 쪽 귀 지점 (좌우 실측, 없으면 대칭 fallback)
+      const ear = (side > 0 ? p.earR : p.earL) || { y: p.earY, z: p.earZ };
 
       // 1) Endpiece / hinge — the rim's outer-top corner in GROUP space.
       // The rim lives under frontG(panto rot) > sideG(wrap rot), so the temple
@@ -279,9 +283,9 @@ export function createGlasses(anchors, opts = {}) {
         Ey * sp + fz * cp,
       );
 
-      // 2) Ear-top (몸통 끝, 귀 뿌리 살짝 위)
-      const earTopY0 = (p.earY - groupOffsetY) + 0.004;
-      const earTopZ = p.earZ - groupOffsetZ;
+      // 2) Ear-top (몸통 끝, 귀 뿌리 살짝 위) — 이 쪽 귀 실측값
+      const earTopY0 = (ear.y - groupOffsetY) + 0.004;
+      const earTopZ = ear.z - groupOffsetZ;
       const bodyRun = Math.abs(earTopZ - hinge.z);
       const angleRad = THREE.MathUtils.degToRad(p.templeAngle);
       const earTopY = earTopY0 - bodyRun * Math.tan(angleRad);   // 경사각
@@ -291,13 +295,13 @@ export function createGlasses(anchors, opts = {}) {
       //    bend 90  → 매 지점이 머리 표면 x(+gap)에 밀착 (머리 곡률 완전 추종)
       //    gap 0    → 표면 밀착, gap↑ → 그만큼 이격
       const bendFrac = clamp(p.templeBend / 90, 0, 1);
-      const surfEarX = headX(earTopZ) + p.templeGap;
+      const surfEarX = headX(earTopZ, side) + p.templeGap;
       const bodyPts = [];
       const N = 8;
       for (let i = 0; i <= N; i++) {
         const t = i / N;
         const z = hinge.z + (earTopZ - hinge.z) * t;
-        const surfX = headX(z) + p.templeGap;                    // 머리 표면 경로
+        const surfX = headX(z, side) + p.templeGap;              // 머리 표면 경로
         const straightX = Math.abs(hinge.x) + (surfEarX - Math.abs(hinge.x)) * t; // 직선 경로
         // 밴딩을 t로 램프 → 첫 점(t=0)은 정확히 hinge에서 출발, 관자놀이를
         // 지나며 점진적으로 측두부 곡률에 합류 (프레임 연결부 간격 제거)
