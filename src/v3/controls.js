@@ -4,7 +4,7 @@
 
 import { state, update, subscribe } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
-import { STANDARD_FIT, WRONG_FIT } from './fittingModel.js';
+import { STANDARD_FIT } from './fittingModel.js';
 
 const CSS = `
   .v3-top, .v3-bottom, .v3-panel {
@@ -46,12 +46,12 @@ const CSS = `
 `;
 
 const SLIDERS = [
-  { key: 'vd',    label: '정점간거리', min: 8,  max: 16, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd },
-  { key: 'panto', label: '경사각',     min: 0,  max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto },
-  { key: 'wrap',  label: '안면각',     min: 0,  max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap },
-  { key: 'pdErr', label: 'PD 오차',    min: -4, max: 4,  step: 0.5, unit: 'mm', std: 0 },
-  { key: 'oh',    label: 'OH 높이',    min: -4, max: 4,  step: 0.5, unit: 'mm', std: 0 },
-  { key: 'bSize', label: 'B치수',      min: 26, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize },
+  { key: 'vd',    label: '정점간거리', min: 0,   max: 16, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd },
+  { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto },
+  { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap },
+  { key: 'pdErr', label: 'PD 오차',    min: -4,  max: 4,  step: 0.5, unit: 'mm', std: 0 },
+  { key: 'oh',    label: 'OH 높이',    min: -4,  max: 4,  step: 0.5, unit: 'mm', std: 0 },
+  { key: 'bSize', label: '프레임 크기', min: 26, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize },
 ];
 
 const SHAPES = [
@@ -93,9 +93,6 @@ export function mountControls(root, { stage } = {}) {
     <button class="v3-step" data-add="0.25">＋</button>
     <span class="v3-label">누진대</span>
     ${[10, 12, 14].map((c) => `<button class="v3-btn" data-corr="${c}">${c}mm</button>`).join('')}
-    <span class="v3-label">데모</span>
-    <button class="v3-btn warn" data-preset="wrong">잘못된 피팅</button>
-    <button class="v3-btn" data-preset="standard">표준 피팅</button>
   `;
   root.appendChild(bottom);
   bottom.addEventListener('click', (e) => {
@@ -106,12 +103,6 @@ export function mountControls(root, { stage } = {}) {
     }
     const corr = e.target.closest('[data-corr]');
     if (corr) update({ corridor: Number(corr.dataset.corr) });
-    const preset = e.target.closest('[data-preset]');
-    if (preset) {
-      update({ v3fit: preset.dataset.preset === 'wrong'
-        ? { ...WRONG_FIT }
-        : { vd: 12, panto: 8, wrap: 5, pdErr: 0, oh: 0 } });
-    }
   });
 
   // ── Right: fitting panel ──

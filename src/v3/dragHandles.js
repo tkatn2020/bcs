@@ -114,7 +114,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
         showTip(e.clientX, e.clientY, `OH ${oh >= 0 ? '+' : ''}${oh.toFixed(1)}mm (표준 0)`);
       } else {
         const sign = drag.vdSign || 1;
-        const vd = clamp(drag.fit0.vd + sign * dx * 0.05, 8, 16);
+        const vd = clamp(drag.fit0.vd + sign * dx * 0.05, 0, 16);
         onFitChange({ vd: Math.round(vd * 10) / 10 });
         showTip(e.clientX, e.clientY, `정점간거리 ${vd.toFixed(1)}mm (표준 12)`);
       }

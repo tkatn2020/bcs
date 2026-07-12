@@ -81,13 +81,17 @@ loadMannequin().then(({ group, anchors, morphMesh }) => {
 
   // ── state → scene ──
   function glassesParams(f) {
+    // 프레임 크기(bSize)는 상하좌우 전체 비례 스케일 (기준 31mm)
+    const frameScale = f.bSize / 31;
     return {
       vd: f.vd / 1000,
       pantoDeg: f.panto,
       wrapDeg: f.wrap,
       oh: f.oh / 1000 - 0.002,      // keep the default −2mm fitting bias
       pdErr: f.pdErr / 1000,
-      lensH: f.bSize / 1000,
+      lensW: 0.046 * frameScale,
+      lensH: 0.031 * frameScale,
+      cornerR: 0.008 * frameScale,
       shape: f.shape,
     };
   }
