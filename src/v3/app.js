@@ -15,6 +15,7 @@ import { mountControls } from './controls.js';
 import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
+const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 45, endpiece: 0 };
 
 // Measure fitting landmarks from the head mesh itself — robust against
 // asset swaps, no hand-tuned magic numbers.
@@ -103,7 +104,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
   });
 
   // ── state → scene ──
-  function glassesParams(f) {
+  function glassesParams(f, fr) {
     // 프레임 크기(bSize)는 상하좌우 전체 비례 스케일 (기준 31mm)
     const frameScale = f.bSize / 31;
     return {
@@ -116,6 +117,12 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
       lensH: 0.031 * frameScale,
       cornerR: 0.008 * frameScale,
       shape: f.shape,
+      // 프레임 피팅 커스텀 (광학 무관 — mm/deg → m/deg)
+      templeAngle: fr.templeAngle,
+      templeLen: fr.templeLen / 1000,
+      templeGap: fr.templeGap / 1000,
+      templeBend: fr.templeBend,
+      endpiece: fr.endpiece / 1000,
     };
   }
 
@@ -124,6 +131,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
 
   function apply(s, animate) {
     const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
+    const fr = { ...STANDARD_FRAME, ...(s.v3frame || {}) };
     const spec = computeZones(s);
 
     // 등급 고스트 (D6): 등급이 바뀔 때 이전 존을 흰색 잔상으로 남긴다
@@ -134,7 +142,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
     lastSpec = spec;
 
     zones.update(spec, animate);
-    glasses.setParams(glassesParams(f));
+    glasses.setParams(glassesParams(f, fr));
     glasses.updateZoneSpec(spec);
     group.rotation.x = THREE.MathUtils.degToRad(f.headPitch || 0);
     for (const [zone, on] of Object.entries(s.v3view?.zones || {})) {

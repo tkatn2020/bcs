@@ -37,11 +37,19 @@ export const FRAME_DEFAULTS = {
   shape: 'square',   // 'square' | 'round' | 'boston' | 'aviator'
   noseClearance: 0.010,
   earX: 0.082, earY: 0.010, earZ: -0.045,   // measured at runtime (app.js)
+
+  // ── 프레임 피팅 커스텀 (광학 무관, 순수 다리 지오메트리) ──
+  templeAngle: 0,    // 다리 경사각 오프셋 (deg, + = 다리 끝이 아래로)
+  templeLen: 0,      // 다리 길이 오프셋 (m, − = 귀 앞에서 끝)
+  templeGap: 0,      // 얼굴 옆면 간격 (m, + = 다리가 머리에서 벌어짐)
+  templeBend: 45,    // 귀 뒤 밴딩 각 (deg, 0 = 일자, 90 = 수직 드롭)
+  endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
 };
 
 const GEO_KEYS = [
   'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
   'vd', 'oh', 'earX', 'earY', 'earZ', 'noseClearance',
+  'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'endpiece',
 ];
 
 // ── Lens outline shapes ────────────────────────────────────────────
@@ -245,24 +253,52 @@ export function createGlasses(anchors, opts = {}) {
       built.push(zonePlane);
 
       // Temple (group child — unaffected by panto thanks to the hinge pivot).
-      // Start = the hinge point in GROUP space, with wrap applied.
+      // Real spectacle temple structure, driven by the 5 fitting params:
+      //   endpiece (hinge) → temple body (angle·gap) → ear bend → drop (bend·len)
       const hx = p.lensW / 2 + p.rimT;
-      const hingeGroup = new THREE.Vector3(
-        side * (pdHalf + p.pdErr) + side * hx * Math.cos(wrapRad),
-        hingeY,
-        -hx * Math.sin(wrapRad),
-      );
       const groupOffsetY = anchorMid.y + p.oh;
       const groupOffsetZ = anchorMid.z + effZ();
-      const earLocal = new THREE.Vector3(
-        side * p.earX,
-        p.earY - groupOffsetY,
-        p.earZ - groupOffsetZ,
+
+      // 1) Endpiece / hinge — height offset by `endpiece`
+      const hinge = new THREE.Vector3(
+        side * (pdHalf + p.pdErr) + side * hx * Math.cos(wrapRad),
+        hingeY + p.endpiece,
+        -hx * Math.sin(wrapRad),
       );
-      const bowX = side * (Math.max(Math.abs(hingeGroup.x), Math.abs(earLocal.x)) + 0.005);
-      const mid = new THREE.Vector3(bowX, (hingeGroup.y + earLocal.y) * 0.5, (hingeGroup.z + earLocal.z) * 0.45);
+
+      // 2) Ear bend point — measured ear, pushed out by `templeGap`, raised/
+      //    lowered by `templeAngle` (rotation about the hinge in the y-z plane).
+      const earBaseX = side * (p.earX + p.templeGap);
+      const earBaseY = p.earY - groupOffsetY;
+      const earBaseZ = p.earZ - groupOffsetZ;
+      const bodyRun = Math.abs(earBaseZ - hinge.z);           // hinge→ear reach
+      const angleRad = THREE.MathUtils.degToRad(p.templeAngle);
+      const bend = new THREE.Vector3(
+        earBaseX,
+        earBaseY - bodyRun * Math.tan(angleRad),               // 경사각 → 상하
+        earBaseZ,
+      );
+
+      // 3) Drop end — behind the ear, angled down by `templeBend`, length by
+      //    `templeLen` (base drop 22mm ± offset).
+      const dropLen = Math.max(0.004, 0.022 + p.templeLen);
+      const bendRad = THREE.MathUtils.degToRad(p.templeBend);
+      const dropEnd = new THREE.Vector3(
+        bend.x,
+        bend.y - dropLen * Math.sin(bendRad),
+        bend.z - dropLen * Math.cos(bendRad),                  // 밴딩 → 뒤+아래
+      );
+
+      // Bow the body slightly outward around the skull between hinge and bend.
+      const bodyMid = new THREE.Vector3(
+        side * (Math.max(Math.abs(hinge.x), Math.abs(bend.x)) + 0.004),
+        (hinge.y + bend.y) * 0.5,
+        (hinge.z + bend.z) * 0.5,
+      );
+
+      const curve = new THREE.CatmullRomCurve3([hinge, bodyMid, bend, dropEnd]);
       const temple = new THREE.Mesh(
-        new THREE.TubeGeometry(new THREE.CatmullRomCurve3([hingeGroup, mid, earLocal]), 24, 0.0014, 8),
+        new THREE.TubeGeometry(curve, 32, 0.0014, 8),
         frameMat,
       );
       group.add(temple);

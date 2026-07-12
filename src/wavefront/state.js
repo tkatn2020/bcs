@@ -69,6 +69,15 @@ const initial = {
     zones: { distance: true, intermediate: true, near: true },
     targets: false,
   },
+  // 프레임 피팅 커스텀 (광학 요소와 무관 — 순수 물리 조정, 존에 영향 없음)
+  // 값은 측정된 기본 피팅 대비 오프셋 (안전한 베이스라인 유지)
+  v3frame: {
+    templeAngle: 0,   // 다리 경사각 오프셋 (-20~+20°, + = 끝이 아래로)
+    templeLen: 0,     // 다리 길이 오프셋 (-20~+20mm, − = 귀 앞에서 끝남)
+    templeGap: 0,     // 얼굴 옆면 간격 (0~+10mm, + = 다리가 벌어짐)
+    templeBend: 45,   // 귀 뒤 밴딩 각 (0~90°, 0 = 일자 다리)
+    endpiece: 0,      // 엔드피스(힌지) 높이 오프셋 (-6~+6mm)
+  },
 
   // iPad tab navigation
   activeTab: 'simulator', // 'simulator' | 'compare'

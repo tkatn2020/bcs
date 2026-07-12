@@ -54,6 +54,15 @@ const SLIDERS = [
   { key: 'bSize', label: '프레임 크기', min: 26, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize },
 ];
 
+// 프레임 피팅 커스텀 — 광학 무관, 순수 다리 지오메트리 (state.v3frame)
+const FRAME_SLIDERS = [
+  { key: 'templeAngle', label: '다리 경사각', min: -20, max: 20, step: 1,   unit: '°',  std: 0 },
+  { key: 'templeLen',   label: '다리 길이',   min: -20, max: 20, step: 1,   unit: 'mm', std: 0 },
+  { key: 'templeGap',   label: '옆면 간격',   min: 0,   max: 10, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 45 },
+  { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
+];
+
 const SHAPES = [
   { id: 'square', label: '사각' }, { id: 'round', label: '원형' },
   { id: 'boston', label: '보스턴' }, { id: 'aviator', label: '애비에이터' },
@@ -109,12 +118,20 @@ export function mountControls(root, { stage, getDemo } = {}) {
   const panel = document.createElement('div');
   panel.className = 'v3-panel';
   panel.innerHTML = `
-    <div class="v3-sec">피팅 (라벨 더블탭 = 표준 복귀)</div>
+    <div class="v3-sec">광학 피팅 (라벨 더블탭 = 표준 복귀)</div>
     ${SLIDERS.map((sl) => `
       <div class="v3-row">
         <label data-reset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
         <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-fit="${sl.key}">
         <span class="num" data-num="${sl.key}"></span>
+      </div>
+    `).join('')}
+    <div class="v3-sec">프레임 피팅 커스텀</div>
+    ${FRAME_SLIDERS.map((sl) => `
+      <div class="v3-row">
+        <label data-freset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-frame="${sl.key}">
+        <span class="num" data-fnum="${sl.key}"></span>
       </div>
     `).join('')}
     <div class="v3-sec">프레임 형상</div>
@@ -144,10 +161,14 @@ export function mountControls(root, { stage, getDemo } = {}) {
   panel.addEventListener('input', (e) => {
     const key = e.target.dataset?.fit;
     if (key) update({ v3fit: { [key]: Number(e.target.value) } });
+    const fkey = e.target.dataset?.frame;
+    if (fkey) update({ v3frame: { [fkey]: Number(e.target.value) } });
   });
   panel.addEventListener('dblclick', (e) => {
     const key = e.target.dataset?.reset;
     if (key) update({ v3fit: { [key]: SLIDERS.find((s) => s.key === key).std } });
+    const fkey = e.target.dataset?.freset;
+    if (fkey) update({ v3frame: { [fkey]: FRAME_SLIDERS.find((s) => s.key === fkey).std } });
   });
   panel.addEventListener('click', (e) => {
     const shape = e.target.closest('[data-shape]');
@@ -194,6 +215,15 @@ export function mountControls(root, { stage, getDemo } = {}) {
       const input = panel.querySelector(`[data-fit="${sl.key}"]`);
       const num = panel.querySelector(`[data-num="${sl.key}"]`);
       const val = f[sl.key] ?? sl.std;
+      if (document.activeElement !== input) input.value = val;
+      num.textContent = `${val}${sl.unit}`;
+      num.style.color = val === sl.std ? '#fff' : '#f5b64e';
+    }
+    const fr = s.v3frame || {};
+    for (const sl of FRAME_SLIDERS) {
+      const input = panel.querySelector(`[data-frame="${sl.key}"]`);
+      const num = panel.querySelector(`[data-fnum="${sl.key}"]`);
+      const val = fr[sl.key] ?? sl.std;
       if (document.activeElement !== input) input.value = val;
       num.textContent = `${val}${sl.unit}`;
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
