@@ -90,8 +90,20 @@ export function computeZones(s) {
     len: BASE.near.len * clamp(nearRoom + 0.15, 0.5, 1),
   };
 
+  // ── 주변부 왜곡(비점수차) 지표 — 프레임 크기 트레이드오프 (리서치 §14.1) ──
+  //   area    : 착용자 시야에 노출되는 왜곡 날개의 면적 (큰 프레임일수록↑,
+  //             작은 프레임은 잘려나가 ↓ — "작은 프레임이 왜곡을 줄인다")
+  //   density : 왜곡 구배의 급함/밀집도. Minkwitz(Add÷corridor) × 프레임 반비례
+  //             (작은 프레임 → short-corridor 강제 → 밀도↑, 남은 통로 좁아짐)
+  // 두 지표를 렌즈 존 맵(베이지 날개)의 크기·짙기·통로 간격에 매핑한다.
+  const minkGrad = (add / corr);                          // 도수변화율 (D/mm)
+  const distortion = {
+    area: clamp(frameScale * 1.0, 0.55, 1.4),             // 큰 프레임 = 더 노출
+    density: clamp((minkGrad / (2.0 / 12)) / frameScale, 0.5, 2.2), // 작은 프레임 = 더 밀집
+  };
+
   return {
-    distance, intermediate, near,
+    distance, intermediate, near, distortion,
     // PD 오차 → 좌우 콘이 바깥으로 벌어져 양안 겹침(additive 밝은 영역) 축소
     eyeYawDeg: Math.abs(f.pdErr) * 1.4,
   };

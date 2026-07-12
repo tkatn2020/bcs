@@ -21,6 +21,8 @@
 
 import * as THREE from 'three';
 
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
 export const FRAME_DEFAULTS = {
   lensW: 0.046,      // lens box width (m)
   lensH: 0.031,      // lens box height (m)
@@ -109,21 +111,31 @@ function drawZoneMap(ctx, spec) {
   if (!spec) return;
 
   const cx = MAP_W / 2;
-  // Wing top: better (wider) corridor pushes the wings lower & smaller
   const corrNorm = Math.min(1.5, spec.intermediate.h / 11);
   const nearNorm = Math.min(1.4, Math.max(0.2, spec.near.h / 15));
-  const wingTopY = MAP_H * Math.min(0.62, Math.max(0.30, 0.30 + 0.16 * corrNorm));
-  const gapHalf = Math.max(14, nearNorm * 0.20 * MAP_W);   // bottom corridor gap
-  const waistHalf = Math.max(8, corrNorm * 0.115 * MAP_W); // waist at mid height
+  // Distortion trade-off (fittingModel §14.1): frame size drives BOTH the
+  // exposed wing AREA and the gradient DENSITY.
+  const dist = spec.distortion || { area: 1, density: 1 };
+  const area = dist.area;         // 큰 프레임 → 날개가 렌즈 안쪽까지 크게
+  const density = dist.density;   // 작은 프레임 → 짙고 통로가 좁아짐
+
+  // Wing top: better corridor pushes wings lower; larger area pulls them up
+  // (more of the lens is distorted).
+  const wingTopY = MAP_H * clamp(0.30 + 0.16 * corrNorm - 0.10 * (area - 1), 0.20, 0.62);
+  // Waist width = clear corridor at mid height; density squeezes it inward.
+  const waistHalf = Math.max(6, (corrNorm * 0.115 * MAP_W) / density);
+  const gapHalf = Math.max(10, (nearNorm * 0.20 * MAP_W) / Math.sqrt(density));
+  // Larger frame → wing reaches further toward the lens center (more exposure).
+  const edgeReach = 0.52 - 0.06 * (area - 1);
 
   for (const side of [-1, 1]) {
-    const edgeX = cx + side * MAP_W * 0.52;                // beyond lens edge
+    const edgeX = cx + side * MAP_W * 0.52;
+    const innerX = cx + side * MAP_W * edgeReach;
     const waistX = cx + side * waistHalf;
     const gapX = cx + side * gapHalf;
 
-    // Inner dotted boundary path: lens edge (wing top) → waist → bottom gap
     const boundary = new Path2D();
-    boundary.moveTo(edgeX, wingTopY);
+    boundary.moveTo(innerX, wingTopY);
     boundary.bezierCurveTo(
       cx + side * MAP_W * 0.30, wingTopY + MAP_H * 0.02,
       waistX, wingTopY + MAP_H * 0.10,
@@ -135,14 +147,16 @@ function drawZoneMap(ctx, spec) {
       gapX + side * MAP_W * 0.02, MAP_H * 1.02,
     );
 
-    // Wing fill: boundary + around the lens edge
     const wing = new Path2D(boundary);
     wing.lineTo(edgeX, MAP_H * 1.04);
+    wing.lineTo(edgeX, wingTopY);
     wing.closePath();
-    ctx.fillStyle = 'rgba(222, 200, 158, 0.97)';   // 참조 이미지의 베이지 톤
+
+    // Density → beige opacity (denser distortion reads darker/stronger).
+    const alpha = clamp(0.62 + 0.22 * (density - 1), 0.5, 0.99);
+    ctx.fillStyle = `rgba(222, 200, 158, ${alpha.toFixed(3)})`;
     ctx.fill(wing);
 
-    // Dotted navy boundary line
     ctx.strokeStyle = 'rgba(52, 74, 122, 0.95)';
     ctx.lineWidth = 3;
     ctx.setLineDash([5, 5]);
