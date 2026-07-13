@@ -162,7 +162,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   let lastGrade = state.grade;
   let lastSpec = null;
   // 두상 변형 변경 감지 — 광학/프레임 슬라이더 변경 시 불필요한 재변형/리빌드 방지.
-  const earKeyOf = (h) => `${h?.earRightY || 0},${h?.earRightZ || 0},${h?.earLeftY || 0},${h?.earLeftZ || 0}`;
+  const earKeyOf = (h) => `${h?.earY || 0},${h?.earZ || 0}`;
   let lastHeadKey = JSON.stringify(state.v3head || {});
   let lastEarKey = earKeyOf(state.v3head);
 

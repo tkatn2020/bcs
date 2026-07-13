@@ -65,13 +65,11 @@ const FRAME_SLIDERS = [
   { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
 ];
 
-// 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관.
+// 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 대칭.
 const HEAD_SLIDERS = [
-  { key: 'earRightY', label: '오른쪽 귀 상하', min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'earRightZ', label: '오른쪽 귀 앞뒤', min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'earLeftY',  label: '왼쪽 귀 상하',   min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'earLeftZ',  label: '왼쪽 귀 앞뒤',   min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'noseBridge', label: '콧대',          min: -4, max: 8, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'earY', label: '양쪽 귀 상하', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'earZ', label: '양쪽 귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'noseBridge', label: '콧대',   min: -4,  max: 8,  step: 0.5, unit: 'mm', std: 0 },
 ];
 
 const SHAPES = [
