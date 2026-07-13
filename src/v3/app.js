@@ -197,7 +197,10 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
           const o = {};
           if (m2.earR) o.earR = { x: m2.earR.x, y: m2.earR.y + 0.006, z: m2.earR.z };
           if (m2.earL) o.earL = { x: m2.earL.x, y: m2.earL.y + 0.006, z: m2.earL.z };
-          if (m2.headSideX) o.headSideX = m2.headSideX;
+          // headSideX(측두부 프로파일)는 재전송하지 않는다 — 두개골 옆면은 귀가
+          // 움직여도 불변인데, 변형 메시에서 재측정하면 이동한 귀 돌출부가
+          // 프로파일 빈에 누출돼 다리 몸통이 그 지점만 튀어나와 찌그러진다.
+          // 로드 시 rest 측정값(glasses.params.headSideX)을 그대로 유지.
           glasses.setParams(o);
         }
       }
