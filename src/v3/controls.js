@@ -33,14 +33,15 @@ const CSS = `
   .v3-btn.on { background: #e8ecf4; color: #10131a; border-color: #e8ecf4; }
   .v3-btn.warn { border-color: rgba(239,68,68,0.55); color: #f0a0a0; }
 
-  .v3-panel { top: 78px; right: 14px; width: 218px; padding: 12px 14px;
-    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 170px); overflow-y: auto; }
+  .v3-panel { top: 78px; right: 14px; width: 250px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 170px);
+    overflow-y: auto; scrollbar-gutter: stable; }
   .v3-sec { font-size: 10px; letter-spacing: 0.12em; color: #8b93a7; font-weight: 800; margin-top: 4px; }
   .v3-row { display: flex; align-items: center; gap: 8px; }
   .v3-row label { flex: 0 0 64px; font-size: 11.5px; color: #cfd6e4; font-weight: 600; cursor: pointer; }
-  .v3-row input[type=range] { flex: 1; accent-color: #e8ecf4; }
-  .v3-row .num { flex: 0 0 46px; text-align: right; font-size: 11.5px; color: #fff;
-    font-weight: 700; font-variant-numeric: tabular-nums; }
+  .v3-row input[type=range] { flex: 1; min-width: 0; accent-color: #e8ecf4; }
+  .v3-row .num { flex: 0 0 56px; text-align: right; font-size: 11.5px; color: #fff;
+    font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .v3-mini { display: flex; gap: 6px; flex-wrap: wrap; }
   .v3-mini .v3-btn { flex: 1; padding: 7px 4px; font-size: 11.5px; text-align: center; }
 `;
