@@ -3,9 +3,10 @@
 // Reposition each ear (Y up/down, Z front/back) and reshape the nose bridge
 // (forward protrusion coupled with proportional thickening), so the fitting
 // studio can represent real facial asymmetry / varied ear positions / different
-// nose-bridge profiles (서양인 vs 동양인). Smooth radial (ears) and windowed
-// (bridge) falloffs blend surrounding skin naturally; the rest of the face —
-// nostrils, tip, philtrum, cheeks, and the opposite ear — stays fixed.
+// nose profiles (서양인 vs 동양인). Smooth radial (ears) and windowed (nose)
+// falloffs blend surrounding skin naturally. The nose moves AS A WHOLE (root →
+// dorsum → tip → nostrils together); only the junction with the face — cheeks,
+// philtrum/upper lip, brow — feathers so it blends instead of tearing.
 //
 // Coordinate frame (baked group space, metres): +x = avatar LEFT, +y = up,
 // +z = forward/face, pupil-midpoint at origin. See bakeHeadMesh in mannequin.js.
@@ -25,10 +26,10 @@ const bump = (x, c0, c1, f) => smooth(x, c0 - f, c0) * (1 - smooth(x, c1, c1 + f
 const R_EAR = 0.024;   // ear influence radius (m)
 const EAR_BAND = { zMax: 0.005, xMin: 0.030, yMin: -0.032, yMax: 0.052 };
 const NOSE = {
-  yCore0: -0.008, yCore1: 0.018, yFeather: 0.004,  // bridge vertical span (protects tip/nostrils/brow)
-  xEdge: 0.012, xFeather: 0.004,                    // bridge half-width (excludes cheeks)
-  zFeather: 0.020,                                  // front-ridge gate depth
-  k: 0.5,                                           // thickness↔protrusion coupling ratio
+  yCore0: -0.030, yCore1: 0.015, yFeather: 0.009,  // whole nose: 콧방울 아래 ~ 콧등 뿌리(미간); 위=미간/아래=인중 페더
+  xEdge: 0.015, xFeather: 0.011,                    // 코 폭(콧방울 포함), 볼로 페더
+  zGate0: 0.020, zGate1: 0.032,                     // 전방 코 표면만 (깊은 내부/얼굴면 제외)
+  k: 0.45,                                          // thickness↔protrusion coupling ratio
 };
 const EPS = 1e-3;
 
@@ -37,13 +38,6 @@ export function createHeadDeform({ headMesh, restPositions }) {
   const arr = pos.array;
   const rest = restPositions;
   const n = pos.count;
-
-  // Nose front-ridge reference: max z within the bridge column.
-  let noseZ = -Infinity;
-  for (let i = 0; i < n; i++) {
-    const x = rest[i * 3], y = rest[i * 3 + 1], z = rest[i * 3 + 2];
-    if (Math.abs(x) < NOSE.xEdge && y > NOSE.yCore0 && y < NOSE.yCore1 && z > noseZ) noseZ = z;
-  }
 
   // Per-side ear centroids within the broadened ear band.
   const cR = new THREE.Vector3(), cL = new THREE.Vector3();
@@ -60,7 +54,6 @@ export function createHeadDeform({ headMesh, restPositions }) {
 
   // Precompute masks: flat arrays [index, weight, ...] (ears) / [index, weight, sign].
   const earMaskR = [], earMaskL = [], noseMask = [];
-  const zGate0 = noseZ - NOSE.zFeather, zGate1 = noseZ - NOSE.zFeather * 0.4;
   for (let i = 0; i < n; i++) {
     const x = rest[i * 3], y = rest[i * 3 + 1], z = rest[i * 3 + 2];
     // Ears — radial falloff from same-side centroid, gated by x-sign (fully independent).
@@ -73,11 +66,12 @@ export function createHeadDeform({ headMesh, restPositions }) {
       const w = cosFall(clamp(d / R_EAR, 0, 1));
       if (w > EPS) earMaskL.push(i, w);
     }
-    // Nose bridge — separable smooth window (isolate the ridge only).
+    // Nose — separable smooth window over the WHOLE nose (root→tip→nostrils);
+    // feathers into cheeks / philtrum / brow so the nose moves as one natural unit.
     const wy = bump(y, NOSE.yCore0, NOSE.yCore1, NOSE.yFeather);
     if (wy > EPS) {
       const wx = bump(x, -NOSE.xEdge, NOSE.xEdge, NOSE.xFeather);
-      const wz = smooth(z, zGate0, zGate1);
+      const wz = smooth(z, NOSE.zGate0, NOSE.zGate1);
       const w = wx * wy * wz;
       if (w > EPS) noseMask.push(i, w, Math.sign(x));
     }
