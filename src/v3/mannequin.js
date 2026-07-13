@@ -28,6 +28,67 @@ export function mannequinMaterial() {
 const TARGET_PD_M = 0.062;      // real-world IPD the head is normalized to
 const FALLBACK_HEAD_HEIGHT_M = 0.24;
 
+// Bake a quantized morph mesh into a plain Float32 geometry in GROUP space and
+// reparent it directly under `group` with identity transform, so runtime vertex
+// deformation (headDeform.js) can write millimetre offsets straight into the
+// position attribute. The facecap asset ships KHR_mesh_quantization (Uint16
+// positions, Int16 relative morph deltas); the whole node chain is uniform-scale
+// + translation with NO rotation, so a single scalar rescales the morph deltas.
+// Requires group.updateMatrixWorld(true) to have run. Returns the mesh.
+function bakeHeadMesh(mesh, group) {
+  const geo = mesh.geometry;
+  mesh.updateWorldMatrix(true, false);
+  const M = mesh.matrixWorld.clone();               // root + node chain (no rotation)
+  const linear = new THREE.Matrix3().setFromMatrix4(M);   // for relative morph deltas
+
+  // Base positions → Float32 group-space metres.
+  const src = geo.attributes.position;
+  const n = src.count;
+  const baked = new Float32Array(n * 3);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    v.fromBufferAttribute(src, i).applyMatrix4(M);
+    baked[i * 3] = v.x; baked[i * 3 + 1] = v.y; baked[i * 3 + 2] = v.z;
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(baked, 3));
+
+  // Morph POSITION deltas → Float32, linear part only (relative vectors).
+  const mpos = geo.morphAttributes.position;
+  if (mpos) {
+    for (let t = 0; t < mpos.length; t++) {
+      const d = mpos[t];
+      const out = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        v.fromBufferAttribute(d, i).applyMatrix3(linear);
+        out[i * 3] = v.x; out[i * 3 + 1] = v.y; out[i * 3 + 2] = v.z;
+      }
+      mpos[t] = new THREE.Float32BufferAttribute(out, 3);
+    }
+  }
+  // Drop morph NORMAL deltas — base normals are recomputed below, and the raw
+  // quantized normal deltas would blow up the recomputed unit normals when a
+  // morph fires. Positions still morph; shading stays stable.
+  delete geo.morphAttributes.normal;
+  geo.morphTargetsRelative = true;
+
+  // Reparent under group with identity local transform (NOT .attach(), which
+  // would re-fold the matrix we just baked into the vertices).
+  group.add(mesh);
+  mesh.position.set(0, 0, 0);
+  mesh.quaternion.identity();
+  mesh.scale.set(1, 1, 1);
+
+  // Recompute normals fresh. The asset's normal attribute is quantized Int8
+  // (normalized); reusing it would truncate the tiny metre-scale face-normal
+  // accumulation to 0 (→ black shading). Delete it so computeVertexNormals
+  // allocates a Float32 attribute. headDeform's per-deform recompute then reuses
+  // this Float32 attribute correctly.
+  geo.deleteAttribute('normal');
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return mesh;
+}
+
 export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
@@ -112,6 +173,7 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
       }
 
       group.add(root, anchorL, anchorR);
+      group.updateMatrixWorld(true);
 
       // Blendshape mesh (facecap: 52 ARKit targets) — gaze/blink animation.
       let morphMesh = null;
@@ -119,11 +181,22 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
         if (o.isMesh && o.morphTargetDictionary && !morphMesh) morphMesh = o;
       });
 
+      // Bake the face mesh into a deformable Float32 group-space geometry
+      // (headDeform.js reads restPositions as the deform baseline). Facecap only;
+      // the fallback bust has no morphs → headMesh/restPositions stay null.
+      let headMesh = null, restPositions = null;
+      if (morphMesh) {
+        headMesh = bakeHeadMesh(morphMesh, group);
+        restPositions = headMesh.geometry.attributes.position.array.slice();
+      }
+
       resolve({
         group,
         anchors: { left: anchorL, right: anchorR },
         morphMesh,
         eyes: eyePivots,   // pivot Groups (제자리 회전) — 없으면 null
+        headMesh,          // baked Float32 face mesh (deformable) — 없으면 null
+        restPositions,     // Float32Array 변형 기준선 — 없으면 null
       });
     }, undefined, reject);
   });

@@ -38,7 +38,8 @@ const CSS = `
     overflow-y: auto; scrollbar-gutter: stable; }
   .v3-sec { font-size: 10px; letter-spacing: 0.12em; color: #8b93a7; font-weight: 800; margin-top: 4px; }
   .v3-row { display: flex; align-items: center; gap: 8px; }
-  .v3-row label { flex: 0 0 64px; font-size: 11.5px; color: #cfd6e4; font-weight: 600; cursor: pointer; }
+  .v3-row label { flex: 0 0 78px; font-size: 11.5px; color: #cfd6e4; font-weight: 600; cursor: pointer;
+    white-space: nowrap; }
   .v3-row input[type=range] { flex: 1; min-width: 0; accent-color: #e8ecf4; }
   .v3-row .num { flex: 0 0 56px; text-align: right; font-size: 11.5px; color: #fff;
     font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -62,6 +63,15 @@ const FRAME_SLIDERS = [
   { key: 'templeGap',   label: '옆면 간격',   min: 0,   max: 10, step: 0.5, unit: 'mm', std: 0 },
   { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 60 },
   { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
+];
+
+// 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관.
+const HEAD_SLIDERS = [
+  { key: 'earRightY', label: '오른쪽 귀 상하', min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'earRightZ', label: '오른쪽 귀 앞뒤', min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'earLeftY',  label: '왼쪽 귀 상하',   min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'earLeftZ',  label: '왼쪽 귀 앞뒤',   min: -6, max: 6, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'noseBridge', label: '콧대',          min: -4, max: 8, step: 0.5, unit: 'mm', std: 0 },
 ];
 
 const SHAPES = [
@@ -135,6 +145,14 @@ export function mountControls(root, { stage, getDemo } = {}) {
         <span class="num" data-fnum="${sl.key}"></span>
       </div>
     `).join('')}
+    <div class="v3-sec">두상 조정</div>
+    ${HEAD_SLIDERS.map((sl) => `
+      <div class="v3-row">
+        <label data-hreset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-head="${sl.key}">
+        <span class="num" data-hnum="${sl.key}"></span>
+      </div>
+    `).join('')}
     <div class="v3-sec">프레임 형상</div>
     <div class="v3-mini">
       ${SHAPES.map((s) => `<button class="v3-btn" data-shape="${s.id}">${s.label}</button>`).join('')}
@@ -164,12 +182,16 @@ export function mountControls(root, { stage, getDemo } = {}) {
     if (key) update({ v3fit: { [key]: Number(e.target.value) } });
     const fkey = e.target.dataset?.frame;
     if (fkey) update({ v3frame: { [fkey]: Number(e.target.value) } });
+    const hkey = e.target.dataset?.head;
+    if (hkey) update({ v3head: { [hkey]: Number(e.target.value) } });
   });
   panel.addEventListener('dblclick', (e) => {
     const key = e.target.dataset?.reset;
     if (key) update({ v3fit: { [key]: SLIDERS.find((s) => s.key === key).std } });
     const fkey = e.target.dataset?.freset;
     if (fkey) update({ v3frame: { [fkey]: FRAME_SLIDERS.find((s) => s.key === fkey).std } });
+    const hkey = e.target.dataset?.hreset;
+    if (hkey) update({ v3head: { [hkey]: HEAD_SLIDERS.find((s) => s.key === hkey).std } });
   });
   panel.addEventListener('click', (e) => {
     const shape = e.target.closest('[data-shape]');
@@ -225,6 +247,15 @@ export function mountControls(root, { stage, getDemo } = {}) {
       const input = panel.querySelector(`[data-frame="${sl.key}"]`);
       const num = panel.querySelector(`[data-fnum="${sl.key}"]`);
       const val = fr[sl.key] ?? sl.std;
+      if (document.activeElement !== input) input.value = val;
+      num.textContent = `${val}${sl.unit}`;
+      num.style.color = val === sl.std ? '#fff' : '#f5b64e';
+    }
+    const hd = s.v3head || {};
+    for (const sl of HEAD_SLIDERS) {
+      const input = panel.querySelector(`[data-head="${sl.key}"]`);
+      const num = panel.querySelector(`[data-hnum="${sl.key}"]`);
+      const val = hd[sl.key] ?? sl.std;
       if (document.activeElement !== input) input.value = val;
       num.textContent = `${val}${sl.unit}`;
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';

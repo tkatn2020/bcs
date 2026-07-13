@@ -51,7 +51,7 @@ export const FRAME_DEFAULTS = {
 
 const GEO_KEYS = [
   'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
-  'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance',
+  'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance', 'headSideX',
   'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'endpiece',
 ];
 

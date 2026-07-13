@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { createStudioStage } from './studioStage.js';
 import { loadMannequin } from './mannequin.js';
 import { createGlasses } from './glassesBuilder.js';
+import { createHeadDeform } from './headDeform.js';
 import { createVisionZones } from './visionZones.js';
 import { createTargets } from './targets.js';
 import { createDemoDirector } from './demoDirector.js';
@@ -18,19 +19,13 @@ const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
 const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 60, endpiece: 0 };
 
 // Measure fitting landmarks from the head mesh itself — robust against
-// asset swaps, no hand-tuned magic numbers.
+// asset swaps, no hand-tuned magic numbers. Re-callable after deformation.
 //   ear  : outermost-x vertex behind the eyes at eye height (temple rest)
 //   noseZ: max forward protrusion where the rims can collide with the nose
-function measureHead(group) {
-  let head = null, maxCount = 0;
-  group.traverse((o) => {
-    if (o.isMesh) {
-      const n = o.geometry.attributes.position.count;
-      if (n > maxCount) { maxCount = n; head = o; }
-    }
-  });
-  if (!head) return null;
-  group.updateMatrixWorld(true);
+// The facecap mesh is baked into group space (mannequin.js) → read the position
+// attribute directly (toWorld=false, pitch-independent). The fallback bust is
+// unbaked → toWorld=true converts via head.localToWorld.
+function measureLandmarks(head, toWorld) {
   const pos = head.geometry.attributes.position;
   const v = new THREE.Vector3();
   // 좌우 귀·측두부를 각각 실측 (facecap 스캔은 비대칭 — 미러링 금지).
@@ -41,7 +36,7 @@ function measureHead(group) {
   const binsR = new Map(), binsL = new Map();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
-    head.localToWorld(v);          // group sits at scene origin → world == group frame
+    if (toWorld) head.localToWorld(v);
     // 귀 최외곽점(x-최대) — 귀 중심 높이의 안정적 앵커. 템플 걸침 y는
     // glassesBuilder에서 이 y + 상단 오프셋으로 귀 상단 부착부에 얹힌다.
     if (v.z < -0.01 && v.y > -0.015 && v.y < 0.03) {
@@ -69,7 +64,20 @@ function measureHead(group) {
     return 0.072;
   };
   const headSideX = (z, side) => lookup(side > 0 ? binsR : binsL, z);
-  return { earR, earL, noseZ, headMesh: head, headSideX };
+  return { earR, earL, noseZ, headSideX };
+}
+
+// Build ear/nose opts (temple rest + nose clearance) from measured landmarks.
+function earNoseOpts(m, anchors) {
+  const o = {};
+  if (m?.earR) o.earR = { x: m.earR.x, y: m.earR.y + 0.006, z: m.earR.z };
+  if (m?.earL) o.earL = { x: m.earL.x, y: m.earL.y + 0.006, z: m.earL.z };
+  if (m && m.noseZ > -Infinity) {
+    const lensBackZ = anchors.left.position.z + 0.012;
+    o.noseClearance = Math.min(0.012, Math.max(0.006, m.noseZ - lensBackZ + 0.002));
+  }
+  if (m?.headSideX) o.headSideX = m.headSideX;
+  return o;
 }
 
 function mountCredit(root) {
@@ -94,21 +102,26 @@ stage.controls.update();
 
 window.__v3 = { stage };
 
-loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
+loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions }) => {
   stage.scene.add(group);
 
-  const m = measureHead(group);
-  const opts = {};
-  // 좌우 귀를 각각 전달 (미러링 대신 실측 — 비대칭 두상 밀착)
-  if (m?.earR) opts.earR = { x: m.earR.x, y: m.earR.y + 0.006, z: m.earR.z };
-  if (m?.earL) opts.earL = { x: m.earL.x, y: m.earL.y + 0.006, z: m.earL.z };
-  if (m && m.noseZ > -Infinity) {
-    const lensBackZ = anchors.left.position.z + 0.012;
-    opts.noseClearance = Math.min(0.012, Math.max(0.006, m.noseZ - lensBackZ + 0.002));
+  // 랜드마크 측정 대상 — baked facecap 메시(그룹 좌표, 직접 읽기) 또는
+  // fallback 최대정점 메시(월드 변환 필요).
+  let head = headMesh, toWorld = false;
+  if (!head) {
+    group.updateMatrixWorld(true);
+    group.traverse((o) => {
+      if (o.isMesh && (!head || o.geometry.attributes.position.count > head.geometry.attributes.position.count)) head = o;
+    });
+    toWorld = true;
   }
-  if (m?.headSideX) opts.headSideX = m.headSideX;   // 측두부 프로파일 (z, side) → x
-  const glasses = createGlasses(anchors, opts);
+  const m = head ? measureLandmarks(head, toWorld) : null;
+  const glasses = createGlasses(anchors, m ? earNoseOpts(m, anchors) : {});
   group.add(glasses.group);
+
+  // 두상 변형기 (facecap baked 메시에서만) — 귀 위치·콧대 조절
+  const deformer = (headMesh && restPositions)
+    ? createHeadDeform({ headMesh, restPositions }) : null;
 
   const zones = createVisionZones(anchors);
   group.add(zones.group);
@@ -148,6 +161,10 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
 
   let lastGrade = state.grade;
   let lastSpec = null;
+  // 두상 변형 변경 감지 — 광학/프레임 슬라이더 변경 시 불필요한 재변형/리빌드 방지.
+  const earKeyOf = (h) => `${h?.earRightY || 0},${h?.earRightZ || 0},${h?.earLeftY || 0},${h?.earLeftZ || 0}`;
+  let lastHeadKey = JSON.stringify(state.v3head || {});
+  let lastEarKey = earKeyOf(state.v3head);
 
   function apply(s, animate) {
     const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
@@ -164,6 +181,28 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
     zones.update(spec, animate);
     glasses.setParams(glassesParams(f, fr));
     glasses.updateZoneSpec(spec);
+
+    // 두상 변형 (귀 위치·콧대) — v3head 변경 시에만.
+    if (deformer) {
+      const headKey = JSON.stringify(s.v3head || {});
+      if (headKey !== lastHeadKey) {
+        lastHeadKey = headKey;
+        deformer.deform(s.v3head || {});
+        // 귀가 움직인 경우에만 재측정 + 템플 리핏. noseClearance는 재전송하지
+        // 않음 — 콧대는 시각 전용이라 안경 위치(프레임)에 영향 없음.
+        const earKey = earKeyOf(s.v3head);
+        if (earKey !== lastEarKey) {
+          lastEarKey = earKey;
+          const m2 = measureLandmarks(headMesh, false);
+          const o = {};
+          if (m2.earR) o.earR = { x: m2.earR.x, y: m2.earR.y + 0.006, z: m2.earR.z };
+          if (m2.earL) o.earL = { x: m2.earL.x, y: m2.earL.y + 0.006, z: m2.earL.z };
+          if (m2.headSideX) o.headSideX = m2.headSideX;
+          glasses.setParams(o);
+        }
+      }
+    }
+
     group.rotation.x = THREE.MathUtils.degToRad(f.headPitch || 0);
     for (const [zone, on] of Object.entries(s.v3view?.zones || {})) {
       zones.setVisible(zone, on);
@@ -189,8 +228,8 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes }) => {
   mountCredit(document.body);
 
   Object.assign(window.__v3, {
-    mannequin: { group, anchors, morphMesh, eyes },
-    glasses, zones, targets, demo,
+    mannequin: { group, anchors, morphMesh, eyes, headMesh },
+    glasses, zones, targets, demo, deformer,
   });
 }).catch((err) => {
   console.error('Mannequin load failed:', err);
