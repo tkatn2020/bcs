@@ -16,7 +16,7 @@ import { mountControls } from './controls.js';
 import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
-const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 60, endpiece: 0 };
+const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 20, endpiece: 0 };
 
 // Measure fitting landmarks from the head mesh itself — robust against
 // asset swaps, no hand-tuned magic numbers. Re-callable after deformation.

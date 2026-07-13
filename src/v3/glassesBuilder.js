@@ -44,7 +44,7 @@ export const FRAME_DEFAULTS = {
   templeAngle: 0,    // 다리 경사각 오프셋 (deg, + = 다리 끝이 아래로)
   templeLen: 0,      // 다리 길이 오프셋 (m, − = 귀 앞에서 끝)
   templeGap: 0,      // 얼굴 옆면 간격 (m, 0 = 측두부 피부 밀착, + = 벌어짐)
-  templeBend: 60,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
+  templeBend: 20,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
   headSideX: null,   // (z, side)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
 };
