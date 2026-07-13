@@ -283,29 +283,31 @@ export function createGlasses(anchors, opts = {}) {
         Ey * sp + fz * cp,
       );
 
-      // 2) Ear-top (몸통 끝, 귀 뿌리 살짝 위) — 이 쪽 귀 실측값
-      const earTopY0 = (ear.y - groupOffsetY) + 0.004;
+      // 2) Ear-rest (몸통 끝 = 귀가 머리에 붙는 상단 홈) — 실측 위치에 안착.
+      // ear는 귀 최외곽점(app.js). 끝점 x는 귀 최외곽이 아니라 측두부 표면
+      // (귀-머리 접합부)이라야 템플이 귀 위 홈에 얹히고 귀 뒤로 드롭한다.
       const earTopZ = ear.z - groupOffsetZ;
+      const earRestX = headX(earTopZ, side) + p.templeGap;   // 측두부 표면 (+ 옆면 간격)
       const bodyRun = Math.abs(earTopZ - hinge.z);
-      const angleRad = THREE.MathUtils.degToRad(p.templeAngle);
-      const earTopY = earTopY0 - bodyRun * Math.tan(angleRad);   // 경사각
+      // 오른쪽 귀가 더 파묻히는 비대칭 두상 보정 — 오른쪽 템플만 −2° 상향
+      // (baseline). 프레임 커스텀 templeAngle 위에 더해진다. + = 끝이 아래로.
+      const angleBias = side > 0 ? -2 : 0;
+      const angleRad = THREE.MathUtils.degToRad(p.templeAngle + angleBias);
+      const earTopY = (ear.y - groupOffsetY) - bodyRun * Math.tan(angleRad);  // 경사각
 
-      // 3) 몸통 곡선 — 측두부 프로파일을 따라가는 정도 = 밴딩.
-      //    bend 0   → hinge~ear 직선 (머리 곡률 무시, 평평한 다리)
-      //    bend 90  → 매 지점이 머리 표면 x(+gap)에 밀착 (머리 곡률 완전 추종)
-      //    gap 0    → 표면 밀착, gap↑ → 그만큼 이격
+      // 3) 몸통 곡선 — hinge → 귀 상단. 양끝(hinge·귀)은 고정, 중간만 측두부
+      //    곡률로 밴딩(bow=0 at 양끝, 최대 at 중앙). 밴딩 0=직선, 90=관자놀이
+      //    밀착. gap은 다리 전체를 머리에서 이격.
       const bendFrac = clamp(p.templeBend / 90, 0, 1);
-      const surfEarX = headX(earTopZ, side) + p.templeGap;
       const bodyPts = [];
       const N = 8;
       for (let i = 0; i <= N; i++) {
         const t = i / N;
         const z = hinge.z + (earTopZ - hinge.z) * t;
-        const surfX = headX(z, side) + p.templeGap;              // 머리 표면 경로
-        const straightX = Math.abs(hinge.x) + (surfEarX - Math.abs(hinge.x)) * t; // 직선 경로
-        // 밴딩을 t로 램프 → 첫 점(t=0)은 정확히 hinge에서 출발, 관자놀이를
-        // 지나며 점진적으로 측두부 곡률에 합류 (프레임 연결부 간격 제거)
-        const x = side * (straightX + (surfX - straightX) * (bendFrac * t));
+        const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
+        const surfX = headX(z, side) + p.templeGap;             // 측두부 표면
+        const bow = bendFrac * t * (1 - t) * 4;                 // 양끝 0, 중앙 1
+        const x = side * (straightX + (surfX - straightX) * bow);
         const y = hinge.y + (earTopY - hinge.y) * t;
         bodyPts.push(new THREE.Vector3(x, y, z));
       }

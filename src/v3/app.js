@@ -42,6 +42,8 @@ function measureHead(group) {
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
     head.localToWorld(v);          // group sits at scene origin → world == group frame
+    // 귀 최외곽점(x-최대) — 귀 중심 높이의 안정적 앵커. 템플 걸침 y는
+    // glassesBuilder에서 이 y + 상단 오프셋으로 귀 상단 부착부에 얹힌다.
     if (v.z < -0.01 && v.y > -0.015 && v.y < 0.03) {
       if (v.x > 0.02 && (!earR || v.x > earR.x)) earR = v.clone();
       if (v.x < -0.02 && (!earL || v.x < earL.x)) earL = v.clone();
