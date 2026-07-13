@@ -65,6 +65,13 @@ const FRAME_SLIDERS = [
   { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
 ];
 
+// 코받침(코패드) — state.v3frame, data-frame 네임스페이스 재사용
+const PAD_SLIDERS = [
+  { key: 'padSpacing',  label: '좌우 간격', min: -4, max: 4, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'padVertical', label: '상하 위치', min: -5, max: 5, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'padArm',      label: '길이',      min: -3, max: 8, step: 0.5, unit: 'mm', std: 0 },
+];
+
 // 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 대칭.
 const HEAD_SLIDERS = [
   { key: 'earY', label: '양쪽 귀 상하', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
@@ -143,6 +150,17 @@ export function mountControls(root, { stage, getDemo } = {}) {
         <span class="num" data-fnum="${sl.key}"></span>
       </div>
     `).join('')}
+    <div class="v3-sec">코받침</div>
+    <div class="v3-mini">
+      <button class="v3-btn" data-padon>코받침 표시</button>
+    </div>
+    ${PAD_SLIDERS.map((sl) => `
+      <div class="v3-row">
+        <label data-freset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-frame="${sl.key}">
+        <span class="num" data-fnum="${sl.key}"></span>
+      </div>
+    `).join('')}
     <div class="v3-sec">두상 조정</div>
     ${HEAD_SLIDERS.map((sl) => `
       <div class="v3-row">
@@ -187,7 +205,7 @@ export function mountControls(root, { stage, getDemo } = {}) {
     const key = e.target.dataset?.reset;
     if (key) update({ v3fit: { [key]: SLIDERS.find((s) => s.key === key).std } });
     const fkey = e.target.dataset?.freset;
-    if (fkey) update({ v3frame: { [fkey]: FRAME_SLIDERS.find((s) => s.key === fkey).std } });
+    if (fkey) update({ v3frame: { [fkey]: [...FRAME_SLIDERS, ...PAD_SLIDERS].find((s) => s.key === fkey).std } });
     const hkey = e.target.dataset?.hreset;
     if (hkey) update({ v3head: { [hkey]: HEAD_SLIDERS.find((s) => s.key === hkey).std } });
   });
@@ -201,6 +219,8 @@ export function mountControls(root, { stage, getDemo } = {}) {
     }
     const tgl = e.target.closest('[data-toggle="targets"]');
     if (tgl) update({ v3view: { targets: !state.v3view.targets } });
+    const padBtn = e.target.closest('[data-padon]');
+    if (padBtn) update({ v3frame: { padOn: state.v3frame.padOn ? 0 : 1 } });
     const cam = e.target.closest('[data-cam]');
     if (cam && stage) {
       const c = CAM_PRESETS.find((x) => x.id === cam.dataset.cam);
@@ -241,7 +261,7 @@ export function mountControls(root, { stage, getDemo } = {}) {
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
     }
     const fr = s.v3frame || {};
-    for (const sl of FRAME_SLIDERS) {
+    for (const sl of [...FRAME_SLIDERS, ...PAD_SLIDERS]) {
       const input = panel.querySelector(`[data-frame="${sl.key}"]`);
       const num = panel.querySelector(`[data-fnum="${sl.key}"]`);
       const val = fr[sl.key] ?? sl.std;
@@ -249,6 +269,7 @@ export function mountControls(root, { stage, getDemo } = {}) {
       num.textContent = `${val}${sl.unit}`;
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
     }
+    panel.querySelector('[data-padon]').classList.toggle('on', !!fr.padOn);
     const hd = s.v3head || {};
     for (const sl of HEAD_SLIDERS) {
       const input = panel.querySelector(`[data-head="${sl.key}"]`);

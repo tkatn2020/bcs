@@ -47,12 +47,19 @@ export const FRAME_DEFAULTS = {
   templeBend: 20,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
   headSideX: null,   // (z, side)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
+
+  // ── 코받침(코패드) — 광학 무관 ──
+  padOn: true,       // 코받침 표시
+  padSpacing: 0,     // 좌우 간격 오프셋 (m, + = 넓게)
+  padVertical: 0,    // 상하 위치 오프셋 (m, + = 위)
+  padArm: 0,         // 암 길이 오프셋 (m, + = 코 아래로 길게)
 };
 
 const GEO_KEYS = [
   'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
   'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance', 'headSideX',
   'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'endpiece',
+  'padOn', 'padSpacing', 'padVertical', 'padArm',
 ];
 
 // ── Lens outline shapes ────────────────────────────────────────────
@@ -254,6 +261,42 @@ export function createGlasses(anchors, opts = {}) {
       remapUVs(zonePlane.geometry, p.lensW, p.lensH);
       sideG.add(zonePlane);
       built.push(zonePlane);
+
+      // Nose pad (코받침) — thin metal arm from the lower-inner rim border to a
+      // small pad resting on the nose side. Parented to sideG → inherits wrap/
+      // panto/VD/oh, so it stays welded to the frame with no manual transform.
+      // The arm ROOT is buried in the rim border and never moves with the
+      // sliders (weld always intact); only the pad ANCHOR A is driven.
+      if (p.padOn) {
+        const rootY = -p.lensH * 0.15;
+        const rootX = -side * (p.lensW / 2 + p.rimT * 0.4);   // inside rim border
+        const R = new THREE.Vector3(rootX, rootY, 0);
+        // 콧대 옆면은 이 높이에서 프레임 평면 부근(z≈−2mm)·측면(group x≈7mm)에 있다.
+        // 패드를 거기 얹고, 길이(padArm)는 아래로 내리며 코쪽(+z)으로 약간 전진.
+        const A = new THREE.Vector3(
+          rootX + side * 0.0006 + side * p.padSpacing,          // 좌우 간격(콧대 옆면 노출 위해 약간 측면)
+          rootY - 0.0085 - p.padArm * 0.90 + p.padVertical,     // 상하 + 길이(하강)
+          0.0015 + p.padArm * 0.30,                             // 프레임 앞쪽(wrap 보정), 길이시 코쪽 전진
+        );
+        const mid = new THREE.Vector3(
+          (R.x + A.x) / 2, (R.y + A.y) / 2, (R.z + A.z) / 2 - 0.0012,   // 살짝 bow
+        );
+        const arm = new THREE.Mesh(
+          new THREE.TubeGeometry(new THREE.CatmullRomCurve3([R, mid, A]), 24, 0.0007, 8),
+          frameMat,
+        );
+        sideG.add(arm);
+        built.push(arm);
+
+        const padGeo = new THREE.SphereGeometry(1, 20, 16);
+        padGeo.scale(0.0022, 0.0045, 0.0011);   // 4.4 × 9 × 2.2 mm ellipsoid
+        const pad = new THREE.Mesh(padGeo, frameMat);
+        pad.position.set(A.x - side * 0.0004, A.y, A.z);   // embed arm tip (no gap)
+        pad.rotation.z = side * THREE.MathUtils.degToRad(12);
+        pad.rotation.y = side * THREE.MathUtils.degToRad(20);   // face onto nose side
+        sideG.add(pad);
+        built.push(pad);
+      }
 
       // Temple (group child — unaffected by panto thanks to the hinge pivot).
       // Structure: endpiece(hinge) → temple BODY(측두부 밀착·밴딩·경사·간격)
