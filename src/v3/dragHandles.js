@@ -53,6 +53,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   let drag = null;   // { target:'glasses'|'head', axis:null|'v'|'h', x0,y0, fit0, pitch0 }
   let lastTapTime = 0;
   let lastEmptyTapTime = 0;
+  const active = new Set();   // 활성 포인터 — 2개 이상이면 카메라 팬/줌 제스처
 
   function hitTest(e) {
     const rect = el.getBoundingClientRect();
@@ -67,7 +68,16 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   }
 
   function onDown(e) {
+    active.add(e.pointerId);
+    // 두 손가락 이상 = 카메라 팬/줌 → 핸들 조작을 양보하고 OrbitControls가 전담.
+    if (active.size >= 2) {
+      drag = null;
+      stage.controls.enabled = true;
+      return;
+    }
     if (!e.isPrimary) return;
+    // 우/중 마우스 버튼은 팬 전용(OrbitControls) — 핸들이 가로채지 않음.
+    if (e.button !== 0) return;
     const target = hitTest(e);
     if (!target) {
       // Double-tap empty space → home ¾ view (C5)
@@ -106,7 +116,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   }
 
   function onMove(e) {
-    if (!drag || !e.isPrimary) return;
+    if (!drag || !e.isPrimary || active.size >= 2) return;
     const dx = e.clientX - drag.x0;
     const dy = e.clientY - drag.y0;
 
@@ -138,11 +148,11 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
     }
   }
 
-  function onUp() {
-    if (!drag) return;
-    drag = null;
+  function onUp(e) {
+    active.delete(e.pointerId);
+    if (active.size > 0) return;   // 손가락이 남아 있으면(멀티터치) 유지
+    if (drag) { drag = null; hideTipSoon(); }
     stage.controls.enabled = true;
-    hideTipSoon();
   }
 
   el.addEventListener('pointerdown', onDown);

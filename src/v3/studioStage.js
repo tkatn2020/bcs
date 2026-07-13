@@ -39,11 +39,15 @@ export function createStudioStage(container) {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.enablePan = false;
+  // 자유 시점 이동(pan) 허용 — 데스크톱: 마우스 우클릭 드래그, 터치: 두 손가락 드래그.
+  // 제스처 분리로 겹침 방지: 한 손가락=회전(시점 각도), 두 손가락=이동+줌.
+  controls.enablePan = true;
+  controls.screenSpacePanning = true;   // 화면 평면 기준 이동(직관적 자유 이동)
   controls.minDistance = 0.3;
   controls.maxDistance = 1.6;
   controls.minPolarAngle = Math.PI * 0.18;
   controls.maxPolarAngle = Math.PI * 0.74;
+  controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
   controls.target.set(0, 0, 0);
 
