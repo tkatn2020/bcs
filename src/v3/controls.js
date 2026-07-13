@@ -68,7 +68,7 @@ const FRAME_SLIDERS = [
 // 코받침(코패드) — state.v3frame, data-frame 네임스페이스 재사용
 const PAD_SLIDERS = [
   { key: 'padSpacing',  label: '좌우 간격', min: -4, max: 4, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'padVertical', label: '상하 위치', min: -5, max: 5, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'padVertical', label: '상하 위치', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
   { key: 'padArm',      label: '길이',      min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
 ];
 
