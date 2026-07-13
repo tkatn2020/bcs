@@ -291,9 +291,9 @@ export function createGlasses(anchors, opts = {}) {
       const bodyRun = Math.abs(earTopZ - hinge.z);
       // 비대칭 두상 보정 — 좌우 귀 접합부에 정확히 맞닿도록 실측 조정.
       // 좌표계: 아바타가 +z를 바라봐 side>0(+x)=아바타 왼쪽, side<0(−x)=아바타
-      // 오른쪽. 아바타 오른쪽 −4°(끝 상향), 왼쪽 +2°(끝 하향). 프레임 커스텀
+      // 오른쪽. 아바타 오른쪽 −1°, 왼쪽 +2°(끝 하향). 프레임 커스텀
       // templeAngle 위에 더해진다. + = 끝이 아래로.
-      const angleBias = side > 0 ? 2 : -4;
+      const angleBias = side > 0 ? 2 : -1;
       const angleRad = THREE.MathUtils.degToRad(p.templeAngle + angleBias);
       const earTopY = (ear.y - groupOffsetY) - bodyRun * Math.tan(angleRad);  // 경사각
 
