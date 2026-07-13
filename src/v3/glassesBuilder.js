@@ -287,7 +287,10 @@ export function createGlasses(anchors, opts = {}) {
       // ear는 귀 최외곽점(app.js). 끝점 x는 귀 최외곽이 아니라 측두부 표면
       // (귀-머리 접합부)이라야 템플이 귀 위 홈에 얹히고 귀 뒤로 드롭한다.
       const earTopZ = ear.z - groupOffsetZ;
-      const earRestX = headX(earTopZ, side) + p.templeGap;   // 측두부 표면 (+ 옆면 간격)
+      // 옆면 간격 비대칭 보정(초기 세팅 기준) — 아바타 오른쪽 +5mm, 왼쪽 +2.5mm.
+      // 프레임 커스텀 templeGap 위에 더해진다. side>0=아바타 왼쪽, side<0=오른쪽.
+      const gapBias = side > 0 ? 0.0025 : 0.005;
+      const earRestX = headX(earTopZ, side) + p.templeGap + gapBias;   // 측두부 표면 (+ 옆면 간격)
       const bodyRun = Math.abs(earTopZ - hinge.z);
       // 비대칭 두상 보정 — 좌우 귀 접합부에 정확히 맞닿도록 실측 조정.
       // 좌표계: 아바타가 +z를 바라봐 side>0(+x)=아바타 왼쪽, side<0(−x)=아바타
@@ -307,7 +310,7 @@ export function createGlasses(anchors, opts = {}) {
         const t = i / N;
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
-        const surfX = headX(z, side) + p.templeGap;             // 측두부 표면
+        const surfX = headX(z, side) + p.templeGap + gapBias;   // 측두부 표면
         const bow = bendFrac * t * (1 - t) * 4;                 // 양끝 0, 중앙 1
         const x = side * (straightX + (surfX - straightX) * bow);
         const y = hinge.y + (earTopY - hinge.y) * t;
