@@ -69,7 +69,7 @@ const FRAME_SLIDERS = [
 const PAD_SLIDERS = [
   { key: 'padSpacing',  label: '좌우 간격', min: -4, max: 4, step: 0.5, unit: 'mm', std: 0 },
   { key: 'padVertical', label: '상하 위치', min: -5, max: 5, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'padArm',      label: '길이',      min: -3, max: 8, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'padArm',      label: '길이',      min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
 ];
 
 // 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 대칭.

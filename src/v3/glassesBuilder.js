@@ -268,18 +268,20 @@ export function createGlasses(anchors, opts = {}) {
       // The arm ROOT is buried in the rim border and never moves with the
       // sliders (weld always intact); only the pad ANCHOR A is driven.
       if (p.padOn) {
+        // 뿌리 R = 렌즈 안쪽 가장자리(리무 테두리 안, 코 방향) — 슬라이더 무관 고정.
         const rootY = -p.lensH * 0.15;
-        const rootX = -side * (p.lensW / 2 + p.rimT * 0.4);   // inside rim border
+        const rootX = -side * (p.lensW / 2 + p.rimT * 0.4);
         const R = new THREE.Vector3(rootX, rootY, 0);
-        // 콧대 옆면은 이 높이에서 프레임 평면 부근(z≈−2mm)·측면(group x≈7mm)에 있다.
-        // 패드를 거기 얹고, 길이(padArm)는 아래로 내리며 코쪽(+z)으로 약간 전진.
+        // 패드 A는 뿌리에서 코쪽(안쪽)·아래·뒤로 뻗는다. 길이(padArm)는 코 방향
+        // 연장/축소 — 파묻히면 음수로 빼낸다(범위 ±10mm).
+        const dropRad = THREE.MathUtils.degToRad(58);
         const A = new THREE.Vector3(
-          rootX + side * 0.0006 + side * p.padSpacing,          // 좌우 간격(콧대 옆면 노출 위해 약간 측면)
-          rootY - 0.0085 - p.padArm * 0.90 + p.padVertical,     // 상하 + 길이(하강)
-          0.0015 + p.padArm * 0.30,                             // 프레임 앞쪽(wrap 보정), 길이시 코쪽 전진
+          rootX - side * 0.0015 + side * p.padSpacing,          // 좌우 간격(안쪽=코)
+          rootY - 0.0070 - p.padArm * Math.sin(dropRad) + p.padVertical,  // 상하 + 길이
+          -(0.0085 + p.padArm * Math.cos(dropRad)),             // 코쪽(뒤·아래)으로
         );
         const mid = new THREE.Vector3(
-          (R.x + A.x) / 2, (R.y + A.y) / 2, (R.z + A.z) / 2 - 0.0012,   // 살짝 bow
+          (R.x + A.x) / 2, (R.y + A.y) / 2, (R.z + A.z) / 2 - 0.0015,   // 살짝 bow
         );
         const arm = new THREE.Mesh(
           new THREE.TubeGeometry(new THREE.CatmullRomCurve3([R, mid, A]), 24, 0.0007, 8),
