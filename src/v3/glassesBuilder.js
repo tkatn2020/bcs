@@ -268,16 +268,18 @@ export function createGlasses(anchors, opts = {}) {
       // The arm ROOT is buried in the rim border and never moves with the
       // sliders (weld always intact); only the pad ANCHOR A is driven.
       if (p.padOn) {
-        // 뿌리 R = 렌즈 안쪽 가장자리(리무 테두리 안, 코 방향) — 슬라이더 무관 고정.
-        const rootY = -p.lensH * 0.15;
+        // 뿌리 R = 렌즈 안쪽 가장자리 '상단'(리무 테두리 안, 코 방향) — 여기서
+        // 아래로 뻗어 내려간다(위→아래 형식). 슬라이더 무관 고정 → 용접 유지.
+        const rootY = p.lensH * 0.22;
         const rootX = -side * (p.lensW / 2 + p.rimT * 0.4);
         const R = new THREE.Vector3(rootX, rootY, 0);
-        // 패드 A는 뿌리에서 코쪽(안쪽)·아래·뒤로 뻗는다. 길이(padArm)는 코 방향
-        // 연장/축소 — 파묻히면 음수로 빼낸다(범위 ±10mm).
+        // 패드 A는 뿌리보다 낮은 콧대 옆면 위치에 얹힌다(뿌리와 높이 분리 → 긴 암).
+        // 길이(padArm)는 코 방향 연장/축소 — 파묻히면 음수로 빼낸다(범위 ±10mm).
         const dropRad = THREE.MathUtils.degToRad(58);
+        const padY = -p.lensH * 0.15 - 0.0070;                 // 패드 기본 높이
         const A = new THREE.Vector3(
           rootX - side * 0.0015 + side * p.padSpacing,          // 좌우 간격(안쪽=코)
-          rootY - 0.0070 - p.padArm * Math.sin(dropRad) + p.padVertical,  // 상하 + 길이
+          padY - p.padArm * Math.sin(dropRad) + p.padVertical,  // 상하 + 길이
           -(0.0085 + p.padArm * Math.cos(dropRad)),             // 코쪽(뒤·아래)으로
         );
         const mid = new THREE.Vector3(
