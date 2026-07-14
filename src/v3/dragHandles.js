@@ -19,7 +19,7 @@ const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const GRAB_R = 34;   // 잡기 반경(px)
 const HOVER_R = 52;  // 데스크톱 hover 강조 반경(px)
 
-export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFitChange, homeView }) {
+export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFitChange }) {
   const el = stage.renderer.domElement;
   const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _p = new THREE.Vector3();
   const _c = new THREE.Vector3(), _n = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -82,6 +82,28 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
     return _n.set(x, y, z).applyQuaternion(_q).normalize();
   }
 
+  // 안경 +z(정면)의 화면상 단위 방향(px, y는 아래+). VD 드래그를 시점과
+  // 무관하게 정면축에 투영하기 위함 — 좌/우 어느 쪽에서 봐도 "앞으로 당기면
+  // 멀어짐(VD↑)"이 일관되게 느껴진다(가로 고정 dx는 반대쪽에서 뒤집힘).
+  function forwardScreen2D() {
+    glassesGroup.getWorldPosition(_a);
+    glassesGroup.getWorldQuaternion(_q);
+    _p.copy(_a).project(stage.camera);
+    _v.copy(_a).add(_c.set(0, 0, 0.06).applyQuaternion(_q)).project(stage.camera);
+    const sx = (_v.x - _p.x);
+    const sy = -(_v.y - _p.y);
+    const m = Math.hypot(sx, sy) || 1;
+    return { x: sx / m, y: sy / m };
+  }
+  // VD 공통 드래그 — 정면축 투영량으로 조정(앞으로 당김 = 멀어짐, +).
+  function vdDrag(f0, dx, dy, ctx) {
+    const proj = ctx.fwd ? dx * ctx.fwd.x + dy * ctx.fwd.y : dx;
+    const vd = clamp(f0.vd + proj * 0.05, 0, 20);
+    onFitChange({ vd: Math.round(vd * 10) / 10 });
+    return `정점간거리 ${vd.toFixed(1)}mm (표준 12)`;
+  }
+  const vdReset = () => { onFitChange({ vd: 12 }); return '정점간거리 표준 복귀'; };
+
   // ── Handle definitions ──
   // anchor(): 3D 앵커점(월드, _v에 기록). normal(): 정면 향함 판정용 바깥 방향.
   // drag(f0, dx, dy): 파라미터 적용 + 표시 문자열 반환. reset(): 표준 복귀.
@@ -97,16 +119,19 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
       },
       reset: () => { onFitChange({ headPitch: 0 }); return '고개 표준 복귀'; },
     },
+    // VD는 양쪽 관자놀이(다리 위)에 각각 — 좌/우 어느 쪽을 봐도 잡을 수 있게.
+    // 둘 다 같은 vd 파라미터를 조정. 다리 중간에 얹어 측면에서 렌즈와 안 겹침.
     {
-      id: 'vd', el: mkHandle('정점간거리 ↔'),
-      anchor: () => glassesGroup.localToWorld(_v.set(0.052, 0.004, -0.008)),
-      normal: () => dirWorld(glassesGroup, 0.35, 0, 1),
-      drag: (f0, dx, dy) => {
-        const vd = clamp(f0.vd + dx * 0.05, 0, 20);
-        onFitChange({ vd: Math.round(vd * 10) / 10 });
-        return `정점간거리 ${vd.toFixed(1)}mm (표준 12)`;
-      },
-      reset: () => { onFitChange({ vd: 12 }); return '정점간거리 표준 복귀'; },
+      id: 'vdL', el: mkHandle('정점간거리'),
+      anchor: () => glassesGroup.localToWorld(_v.set(0.066, 0.006, -0.040)),
+      normal: () => dirWorld(glassesGroup, 0.55, 0, 1),
+      drag: vdDrag, reset: vdReset,
+    },
+    {
+      id: 'vdR', el: mkHandle('정점간거리'),
+      anchor: () => glassesGroup.localToWorld(_v.set(-0.066, 0.006, -0.040)),
+      normal: () => dirWorld(glassesGroup, -0.55, 0, 1),
+      drag: vdDrag, reset: vdReset,
     },
     {
       id: 'oh', el: mkHandle('OH ↕'),
@@ -122,9 +147,8 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   ];
 
   const screen = new Map();   // id -> { x, y, visible }
-  let drag = null;            // { H, f0, x0, y0 }
+  let drag = null;            // { H, f0, x0, y0, fwd? }
   let dragId = null, hoverId = null;
-  let lastEmptyTap = 0;
   const lastTap = new Map();
   const active = new Set();
 
@@ -177,17 +201,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
     if (!e.isPrimary || e.button !== 0) return;   // 우/중클릭은 팬 전용
 
     const H = nearest(e.clientX, e.clientY, GRAB_R);
-    if (!H) {
-      // 빈 공간 더블탭 → 홈 정면 뷰
-      const now = performance.now();
-      if (homeView && now - lastEmptyTap < 320) {
-        stage.camera.position.set(...homeView.pos);
-        stage.controls.target.set(...homeView.tgt);
-        stage.controls.update();
-        lastEmptyTap = 0;
-      } else { lastEmptyTap = now; }
-      return;   // 회전은 OrbitControls가 처리
-    }
+    if (!H) return;   // 핸들 밖 = OrbitControls 회전/팬 (더블탭 홈 복귀 없음)
 
     // 핸들 더블탭 → 해당 항목 표준 복귀
     const now = performance.now();
@@ -203,13 +217,14 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
 
     stage.controls.enabled = false;   // 핸들 잡으면 카메라 정지
     drag = { H, f0: { ...getFit() }, x0: e.clientX, y0: e.clientY };
+    if (H.id === 'vdL' || H.id === 'vdR') drag.fwd = forwardScreen2D();
     dragId = H.id; setEmphasis();
   }
 
   function onMove(e) {
     if (active.size >= 2) return;
     if (drag && e.isPrimary) {
-      const msg = drag.H.drag(drag.f0, e.clientX - drag.x0, e.clientY - drag.y0);
+      const msg = drag.H.drag(drag.f0, e.clientX - drag.x0, e.clientY - drag.y0, drag);
       showTip(e.clientX, e.clientY, msg);   // 값은 커서 옆에(핸들이 틸트로 밀려도 안정)
       return;
     }
