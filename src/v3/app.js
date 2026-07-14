@@ -58,15 +58,33 @@ function measureLandmarks(head, toWorld) {
       if (v.z > noseZ) noseZ = v.z;
     }
   }
-  const lookup = (bins, z) => {
-    const zb = Math.round(z / 0.004);
-    for (let d = 0; d <= 10; d++) {
-      if (bins.has(zb + d)) return Math.abs(bins.get(zb + d));
-      if (bins.has(zb - d)) return Math.abs(bins.get(zb - d));
-    }
-    return 0.072;
+  // 측두부 프로파일 스무딩 — bin(4mm)별 최댓값을 그대로 쓰면 저폴리 불규칙
+  // 메시 때문에 계단·스파이크(귀 상단 정점이 밴드에 누출 → 84mm 튐)가 생겨,
+  // 다리 몸통(surfX)이 그 프로파일을 따라가며 꼬불꼬불해진다. ① 이웃 median+3mm
+  // 로 아웃라이어(귀 스파이크) 클립 → ② 3점 이동평균 → ③ z 선형보간으로 단조
+  // 매끈한 프로파일을 만든다. 로드 시 1회 계산(closure)하므로 런타임 비용 없음.
+  const buildProfile = (bins) => {
+    const zbs = [...bins.keys()].sort((a, b) => a - b);
+    if (!zbs.length) return () => 0.072;
+    const raw = zbs.map(k => Math.abs(bins.get(k)));
+    const clip = raw.map((val, i) => {
+      const a = raw[Math.max(0, i - 1)], b = raw[Math.min(raw.length - 1, i + 1)];
+      const med = [a, val, b].sort((x, y) => x - y)[1];
+      return Math.min(val, med + 0.003);   // 귀 상단 스파이크 억제
+    });
+    const sm = clip.map((_, i) =>
+      (clip[Math.max(0, i - 1)] + clip[i] + clip[Math.min(clip.length - 1, i + 1)]) / 3);
+    const zs = zbs.map(k => k * 0.004);
+    return (z) => {
+      if (z <= zs[0]) return sm[0];
+      if (z >= zs[zs.length - 1]) return sm[sm.length - 1];
+      let i = 0; while (i < zs.length - 1 && zs[i + 1] < z) i++;
+      const t = (z - zs[i]) / (zs[i + 1] - zs[i]);
+      return sm[i] + (sm[i + 1] - sm[i]) * t;
+    };
   };
-  const headSideX = (z, side) => lookup(side > 0 ? binsR : binsL, z);
+  const profR = buildProfile(binsR), profL = buildProfile(binsL);
+  const headSideX = (z, side) => (side > 0 ? profR : profL)(z);
   return { earR, earL, noseZ, headSideX };
 }
 
