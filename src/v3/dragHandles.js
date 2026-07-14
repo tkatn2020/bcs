@@ -31,15 +31,15 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
     .v3hnd { position: fixed; transform: translate(-50%, -50%);
       display: flex; align-items: center; gap: 7px; transition: opacity .15s ease; }
     .v3hnd-dot { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
-      background: rgba(245,182,78,0.85);
-      box-shadow: 0 0 0 3px rgba(245,182,78,0.22), 0 1px 5px rgba(0,0,0,0.55);
+      background: rgba(126,140,166,0.82);
+      box-shadow: 0 0 0 3px rgba(126,140,166,0.16), 0 1px 5px rgba(0,0,0,0.5);
       transition: width .12s ease, height .12s ease, background .12s ease, box-shadow .12s ease; }
     .v3hnd-lab { font: 700 11.5px 'Pretendard', system-ui, sans-serif; color: #fff;
       background: rgba(16,19,26,0.82); backdrop-filter: blur(6px);
       padding: 3px 8px; border-radius: 7px; white-space: nowrap;
       opacity: 0; transform: translateX(-5px); transition: opacity .12s ease, transform .12s ease; }
-    .v3hnd.on .v3hnd-dot { width: 18px; height: 18px; background: #f5b64e;
-      box-shadow: 0 0 0 5px rgba(245,182,78,0.28), 0 2px 9px rgba(0,0,0,0.6); }
+    .v3hnd.on .v3hnd-dot { width: 18px; height: 18px; background: #c2ccde;
+      box-shadow: 0 0 0 5px rgba(150,164,190,0.26), 0 2px 9px rgba(0,0,0,0.6); }
     .v3hnd.on .v3hnd-lab { opacity: 1; transform: none; }
     .v3hnd.hide { opacity: 0; }
     .v3hnd-tip { position: fixed; z-index: 30; pointer-events: none; display: none;
