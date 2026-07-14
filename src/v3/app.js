@@ -177,7 +177,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   let lastSpec = null;
   // 두상 변형 변경 감지 — 광학/프레임 슬라이더 변경 시 불필요한 재변형/리빌드 방지.
   const earKeyOf = (h) => `${h?.earY || 0},${h?.earZ || 0},${h?.earY_R || 0},${h?.earZ_R || 0},${h?.earYAsym || 0},${h?.earZAsym || 0}`;
-  let lastHeadKey = JSON.stringify(state.v3head || {});
+  let lastHeadKey = null;   // null → 최초 apply에서 deform 실행(기본 콧대 오프셋 반영). 귀는 earKey 불변이라 리핏은 안 됨.
   let lastEarKey = earKeyOf(state.v3head);
 
   function apply(s, animate) {
