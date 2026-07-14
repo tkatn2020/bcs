@@ -22,6 +22,8 @@
 import * as THREE from 'three';
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 export const FRAME_DEFAULTS = {
   lensW: 0.046,      // lens box width (m)
@@ -66,6 +68,12 @@ const GEO_KEYS = [
   'templeAngle_R', 'templeGap_R', 'templeBend_R', 'earTipAngle_R', 'faceWidth', 'faceWidth_R',
   'padOn', 'padSpacing', 'padVertical', 'padArm',
 ];
+
+// 다리(템플) 강체 회전 기준 각도 — 이 경사각/안면각에서 다리가 귀에 안착하고,
+// 여기서 벗어나면 프런트(엔드피스+렌즈)와 한 몸으로 회전한다(경사각↑=다리 위,
+// 안면각↑=다리 오므려짐). 표준 피팅값과 일치시킨다.
+const TEMPLE_REF_PANTO = FRAME_DEFAULTS.pantoDeg;
+const TEMPLE_REF_WRAP = FRAME_DEFAULTS.wrapDeg;
 
 // ── Lens outline shapes ────────────────────────────────────────────
 function roundedRectPts(w, h, r, segments = 6) {
@@ -307,7 +315,10 @@ export function createGlasses(anchors, opts = {}) {
         built.push(pad);
       }
 
-      // Temple (group child — unaffected by panto thanks to the hinge pivot).
+      // Temple — sideG(안면각)·frontG(경사각)의 자식으로 붙여 프런트와 한 몸으로
+      // 회전한다: 경사각↑ = 다리 위로, 안면각↑ = 다리·엔드피스가 커브 따라 오므려짐.
+      // 다리 형상(밴딩·경사·간격·엔드피스)은 sideG-로컬(표준 각도 기준)에서 만들고,
+      // 실제 panto/wrap은 부모 회전이 얹으므로 서로 독립(템플 조정≠경사/안면각).
       // Structure: endpiece(hinge) → temple BODY(측두부 밀착·밴딩·경사·간격)
       //            → ear top → drop(고정 이어피스, 길이만 templeLen).
       const hx = p.lensW / 2 + p.rimT;
@@ -325,18 +336,16 @@ export function createGlasses(anchors, opts = {}) {
       const earTipAngle = side > 0 ? p.earTipAngle : p.earTipAngle_R;
       const faceWidth   = side > 0 ? p.faceWidth   : p.faceWidth_R;   // 옆통수 폭(측두 splay)
 
-      // 1) Endpiece / hinge — the rim's outer-top corner in GROUP space.
-      // The rim lives under frontG(panto rot) > sideG(wrap rot), so the temple
-      // (a group child) must transform that corner through both rotations to
-      // stay welded to the frame. Endpiece offsets the connection height.
-      const pantoRad = THREE.MathUtils.degToRad(p.pantoDeg);
-      const sideW = side * wrapRad;
-      // sideG-local endpiece corner → frontG-local (apply wrap, z=0)
+      // 1) Endpiece / hinge — 표준(REF) 경사각·안면각에서의 힌지 위치를 GROUP
+      // 공간에 잡는다(실제 회전은 뒤에서 부모 sideG/frontG가 담당). 몸통·귀·드롭도
+      // 이 REF 기준으로 만든 뒤, 마지막에 sideG-로컬로 역변환해 sideG에 붙인다.
+      const refPantoRad = THREE.MathUtils.degToRad(TEMPLE_REF_PANTO);
+      const refWrapRad = side * THREE.MathUtils.degToRad(TEMPLE_REF_WRAP);
+      const sideW = refWrapRad;
       const Ex = side * hx, Ey = p.endpiece;   // (Ey relative to hinge line)
       const fx = Ex * Math.cos(sideW) + side * (pdHalf + p.pdErr);
       const fz = -Ex * Math.sin(sideW);
-      // frontG-local → group-local (apply panto about hinge line, +hingeY)
-      const cp = Math.cos(pantoRad), sp = Math.sin(pantoRad);
+      const cp = Math.cos(refPantoRad), sp = Math.sin(refPantoRad);
       const hinge = new THREE.Vector3(
         fx,
         hingeY + (Ey * cp - fz * sp),
@@ -388,12 +397,21 @@ export function createGlasses(anchors, opts = {}) {
         earTop.z - dropLen * Math.cos(dropRad),
       );
 
-      const curve = new THREE.CatmullRomCurve3([...bodyPts, dropEnd]);
+      // REF 기준 GROUP 좌표를 sideG-로컬로 역변환 — 부모 sideG(안면각)·frontG(경사각)
+      // 회전을 다시 얹으면, 실제 각도 = 표준일 때 귀에 안착하고 벗어나면 함께 회전.
+      const qUnPanto = new THREE.Quaternion().setFromAxisAngle(X_AXIS, refPantoRad).invert();
+      const qUnWrap = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, refWrapRad).invert();
+      const frontGp = new THREE.Vector3(0, hingeY, 0);
+      const sideGp = new THREE.Vector3(side * (pdHalf + p.pdErr), -hingeY, 0);
+      const toSideLocal = (pg) =>
+        pg.sub(frontGp).applyQuaternion(qUnPanto).sub(sideGp).applyQuaternion(qUnWrap);
+
+      const curve = new THREE.CatmullRomCurve3([...bodyPts, dropEnd].map(toSideLocal));
       const temple = new THREE.Mesh(
         new THREE.TubeGeometry(curve, 40, 0.0014, 8),
         frameMat,
       );
-      group.add(temple);
+      sideG.add(temple);   // 프런트와 한 몸 → panto/wrap 함께 회전
       built.push(temple);
     }
 
