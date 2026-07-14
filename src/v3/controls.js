@@ -76,14 +76,14 @@ const FRAME_SLIDERS = [
 const PAD_SLIDERS = [
   { key: 'padSpacing',  label: '좌우 간격', min: -4, max: 10, step: 0.5, unit: 'mm', std: 0 },
   { key: 'padVertical', label: '상하 위치', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'padArm',      label: '전후',      min: -10, max: 10, step: 0.5, unit: 'mm', std: -10 },
+  { key: 'padArm',      label: '전후',      min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
 ];
 
 // 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 개별 조정 가능.
 const HEAD_SLIDERS = [
   { key: 'earY', label: '귀 상하', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'earZ', label: '귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
-  { key: 'noseBridge', label: '콧대', min: -8, max: 8, step: 0.5, unit: 'mm', std: -4 },
+  { key: 'noseBridge', label: '콧대', min: -8, max: 8, step: 0.5, unit: 'mm', std: 0 },
 ];
 const HEAD_ASYM_KEYS = new Set(['earY', 'earZ']);   // change 핸들러 네임스페이스 판별
 

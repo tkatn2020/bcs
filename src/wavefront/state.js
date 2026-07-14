@@ -55,7 +55,7 @@ const initial = {
   // ── v3 아바타 피팅 스튜디오 ─────────────────────────────
   // Fitting parameters (mm/deg, UI-friendly units — converted at use sites)
   v3fit: {
-    vd: 7,           // 정점간거리 (0~20mm, 표준 7)
+    vd: 12,          // 정점간거리 표시값 (물리 = 표시 − 5; 표준 표시 12 = 물리 7)
     panto: 8,        // 경사각 (0~15°, 표준 8~12)
     wrap: 5,         // 안면각 (0~15°, 표준 ~5)
     pdErr: 0,        // PD 오차 (-4~+4mm)
@@ -87,7 +87,7 @@ const initial = {
     padOn: 1,         // 표시 (1/0)
     padSpacing: 0,    // 좌우 간격 (mm, + = 넓게)
     padVertical: 0,   // 상하 위치 (mm, + = 위)
-    padArm: -10,      // 코받침 전후 (mm, 표준 -10)
+    padArm: 0,        // 코받침 전후 표시값 (물리 = 표시 − 10; 표준 표시 0 = 물리 -10)
   },
   // 두상 조정 (얼굴 메시 변형 — 광학 무관, 시각/피팅 물리). 귀는 좌우 대칭.
   v3head: {
@@ -95,7 +95,7 @@ const initial = {
     earZ: 0,       // 양쪽 귀 앞뒤 (mm, + = 앞/눈쪽, − = 뒤/뒤통수) — base=왼쪽
     earY_R: 0, earYAsym: 0,   // 좌우 비대칭 (_R = 오른쪽)
     earZ_R: 0, earZAsym: 0,
-    noseBridge: -4, // 콧대 (mm, + = 돌출·두꺼움 / − = 낮음·얇음, 표준 -4)
+    noseBridge: 0, // 콧대 표시값 (물리 = 표시 − 4; 표준 표시 0 = 물리 -4)
   },
 
   // iPad tab navigation

@@ -17,7 +17,7 @@ import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
 const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 20, earTipAngle: 118, endpiece: 0,
-  padOn: 1, padSpacing: 0, padVertical: 0, padArm: -10,
+  padOn: 1, padSpacing: 0, padVertical: 0, padArm: 0,
   templeAngle_R: 0, templeGap_R: 0, templeBend_R: 20, earTipAngle_R: 118,
   templeAngleAsym: 0, templeGapAsym: 0, templeBendAsym: 0, earTipAngleAsym: 0 };
 
@@ -144,7 +144,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     // 프레임 크기(bSize)는 상하좌우 전체 비례 스케일 (기준 31mm)
     const frameScale = f.bSize / 31;
     return {
-      vd: f.vd / 1000,
+      vd: (f.vd - 5) / 1000,        // 표시값 − 5 = 물리 VD (표시 12 = 물리 7mm)
       pantoDeg: f.panto,
       wrapDeg: f.wrap,
       oh: f.oh / 1000 - 0.002,      // keep the default −2mm fitting bias
@@ -169,7 +169,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       padOn: !!fr.padOn,
       padSpacing: fr.padSpacing / 1000,
       padVertical: fr.padVertical / 1000,
-      padArm: fr.padArm / 1000,
+      padArm: (fr.padArm - 10) / 1000,   // 표시값 − 10 = 물리 (표시 0 = 물리 -10)
     };
   }
 
@@ -201,7 +201,9 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       const headKey = JSON.stringify(s.v3head || {});
       if (headKey !== lastHeadKey) {
         lastHeadKey = headKey;
-        deformer.deform(s.v3head || {});
+        // 콧대 표시값 − 4 = 물리 (표시 0 = 물리 -4). 나머지 키는 그대로.
+        const hd = s.v3head || {};
+        deformer.deform({ ...hd, noseBridge: (hd.noseBridge ?? 0) - 4 });
         // 귀가 움직인 경우에만 재측정 + 템플 리핏. noseClearance는 재전송하지
         // 않음 — 콧대는 시각 전용이라 안경 위치(프레임)에 영향 없음.
         const earKey = earKeyOf(s.v3head);
