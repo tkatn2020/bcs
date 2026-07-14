@@ -45,6 +45,7 @@ export const FRAME_DEFAULTS = {
   templeLen: 0,      // 다리 길이 오프셋 (m, − = 귀 앞에서 끝)
   templeGap: 0,      // 얼굴 옆면 간격 (m, 0 = 측두부 피부 밀착, + = 벌어짐)
   templeBend: 20,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
+  earTipAngle: 118,  // 귀팁각(귀 꺾임부) — deg, 180 = 직선, 90 = 수직 하향
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
   headSideX: null,   // (z, side)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
 
@@ -58,7 +59,7 @@ export const FRAME_DEFAULTS = {
 const GEO_KEYS = [
   'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
   'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance', 'headSideX',
-  'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'endpiece',
+  'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'earTipAngle', 'endpiece',
   'padOn', 'padSpacing', 'padVertical', 'padArm',
 ];
 
@@ -365,9 +366,10 @@ export function createGlasses(anchors, opts = {}) {
       }
       const earTop = bodyPts[bodyPts.length - 1];
 
-      // 4) Drop — 귀 뒤로 내려가는 고정 이어피스 (길이만 templeLen).
+      // 4) Drop — 귀 뒤로 내려가는 이어피스. 귀팁각(꺾임부): 180=직선(수평 뒤),
+      //    90=수직 하향. 수평 기준 하강각 = 180 − earTipAngle (118 → 62 = 현행).
       const dropLen = Math.max(0.004, 0.020 + p.templeLen);
-      const dropRad = THREE.MathUtils.degToRad(62);
+      const dropRad = THREE.MathUtils.degToRad(clamp(180 - p.earTipAngle, 0, 90));
       const dropEnd = new THREE.Vector3(
         earTop.x,
         earTop.y - dropLen * Math.sin(dropRad),

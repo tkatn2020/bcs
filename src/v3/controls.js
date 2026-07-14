@@ -62,6 +62,7 @@ const FRAME_SLIDERS = [
   { key: 'templeLen',   label: '다리 길이',   min: -20, max: 20, step: 1,   unit: 'mm', std: 0 },
   { key: 'templeGap',   label: '옆면 간격',   min: 0,   max: 10, step: 0.5, unit: 'mm', std: 0 },
   { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 20 },
+  { key: 'earTipAngle', label: '귀팁각',      min: 90,  max: 180, step: 2,  unit: '°',  std: 118 },
   { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
 ];
 

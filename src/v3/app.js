@@ -16,7 +16,7 @@ import { mountControls } from './controls.js';
 import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
-const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 20, endpiece: 0,
+const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 20, earTipAngle: 118, endpiece: 0,
   padOn: 1, padSpacing: 0, padVertical: 0, padArm: 0 };
 
 // Measure fitting landmarks from the head mesh itself — robust against
@@ -156,6 +156,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       templeLen: fr.templeLen / 1000,
       templeGap: fr.templeGap / 1000,
       templeBend: fr.templeBend,
+      earTipAngle: fr.earTipAngle,
       endpiece: fr.endpiece / 1000,
       // 코받침 (mm → m, 토글 bool)
       padOn: !!fr.padOn,
