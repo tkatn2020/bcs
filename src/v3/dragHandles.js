@@ -3,7 +3,7 @@
 // 아바타 위의 명시적 "포인트 네비게이터" 3개로 조정한다(예전의 방향-모호
 // 드래그를 전면 대체 — 어디를 잡아야 뭐가 되는지 명확, 카메라 조작과 겹치지
 // 않음):
-//   · 이마(고개)      → 세로 드래그 = 고개 들기/숙임 (headPitch, −28°~+12°)
+//   · 이마(고개)      → 세로 드래그(아래=숙임) = 고개 숙임/들기 (headPitch −12°~+28°, +=숙임)
 //   · 양쪽 다리(VD)   → 머리 정면축 드래그 = 정점간거리 (0~20mm, 좌·우 2개)
 //   · 브릿지(OH)      → 세로 드래그 = 피팅 높이 (OH, ±4mm)
 //   · 핸들 더블탭     → 그 항목만 표준 복귀 (빈 공간은 순수 카메라 회전/팬)
@@ -18,6 +18,7 @@ import * as THREE from 'three';
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const GRAB_R = 34;   // 잡기 반경(px)
 const HOVER_R = 52;  // 데스크톱 hover 강조 반경(px)
+const HND_REF_DIST = 0.5;   // 이 카메라~앵커 거리(m)에서 스케일 1 (기본 정면뷰 근사)
 
 export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFitChange }) {
   const el = stage.renderer.domElement;
@@ -28,7 +29,8 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   const style = document.createElement('style');
   style.textContent = `
     .v3hnd-layer { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
-    .v3hnd { position: fixed; transform: translate(-50%, -50%);
+    .v3hnd { position: fixed; transform: translate(-50%, -50%) scale(var(--k, 1));
+      transform-origin: center;
       display: flex; align-items: center; gap: 7px; transition: opacity .15s ease; }
     .v3hnd-dot { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
       background: rgba(126,140,166,0.82);
@@ -113,9 +115,12 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
       anchor: () => headMesh.localToWorld(_v.set(0, 0.082, 0.030)),
       normal: () => dirWorld(headMesh, 0, 0.5, 1),
       drag: (f0, dx, dy) => {
-        const p = clamp(f0.headPitch - dy * 0.28, -28, 12);
+        // 아래로 드래그 = 고개 숙임. 실제 렌더(app.js group.rotation.x=headPitch)에서
+        // 양수 headPitch가 코를 내리는(숙임) 방향이라 부호를 맞춘다. 숙임(아래) 28°,
+        // 들기(위) 12°까지.
+        const p = clamp(f0.headPitch + dy * 0.28, -12, 28);
         onFitChange({ headPitch: Math.round(p) });
-        return `고개 ${p <= 0 ? '숙임 ' : '들기 +'}${Math.abs(p).toFixed(0)}°`;
+        return `고개 ${p >= 0 ? '숙임' : '들기'} ${Math.abs(p).toFixed(0)}°`;
       },
       reset: () => { onFitChange({ headPitch: 0 }); return '고개 표준 복귀'; },
     },
@@ -175,7 +180,12 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
       // 드래그 중인 핸들은 앵커가 이동해도(고개 틸트) 계속 보이게 유지
       const show = visible || H.id === dragId;
       H.el.classList.toggle('hide', !show);
-      if (show) { H.el.style.left = x + 'px'; H.el.style.top = y + 'px'; }
+      if (show) {
+        H.el.style.left = x + 'px'; H.el.style.top = y + 'px';
+        // 원근감: 카메라가 멀수록 포인트도 작게(씬 오브젝트처럼). 거리 0.5m에서 1배.
+        const k = clamp(HND_REF_DIST / stage.camera.position.distanceTo(a), 0.5, 1.8);
+        H.el.style.setProperty('--k', k.toFixed(3));
+      }
       screen.set(H.id, { x, y, visible: show });
     }
     requestAnimationFrame(frame);

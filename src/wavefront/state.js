@@ -62,7 +62,7 @@ const initial = {
     oh: 0,           // 피팅 높이 오프셋 (-4~+4mm)
     bSize: 26,       // 렌즈 B치수 (10~40mm, 표준 26)
     shape: 'square', // 'square' | 'round' | 'boston' | 'aviator'
-    headPitch: 0,    // 고개 숙임 (deg, − = 숙임)
+    headPitch: 0,    // 고개 끄덕임 (deg, + = 숙임/아래 — group.rotation.x 기준. 데모/타깃은 별도 캘리브레이션)
   },
   // View toggles
   v3view: {
