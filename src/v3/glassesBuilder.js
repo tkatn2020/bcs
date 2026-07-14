@@ -281,9 +281,10 @@ export function createGlasses(anchors, opts = {}) {
       // The arm ROOT is buried in the rim border and never moves with the
       // sliders (weld always intact); only the pad ANCHOR A is driven.
       if (p.padOn) {
-        // 뿌리 R = 렌즈 안쪽 가장자리 '상단'(리무 테두리 안, 코 방향) — 여기서
-        // 아래로 뻗어 내려간다(위→아래 형식). 슬라이더 무관 고정 → 용접 유지.
-        const rootY = p.lensH * 0.22;
+        // 뿌리 R = 렌즈 안쪽 가장자리(리무 테두리 안, 코 방향) — 여기서 아래로
+        // 뻗어 내려간다. 상단이 아니라 렌즈 하단-안쪽에 가깝게 낮춰 뿌리를 코받침
+        // 쪽으로 내림. 슬라이더 무관 고정 → 용접 유지.
+        const rootY = -p.lensH * 0.18;
         const rootX = -side * (p.lensW / 2 + p.rimT * 0.4);
         const R = new THREE.Vector3(rootX, rootY, 0);
         // 패드 A는 뿌리보다 낮은 콧대 옆면 위치에 얹힌다(뿌리와 높이 분리 → 긴 암).
