@@ -227,7 +227,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   attachDragHandles({
     stage,
     glassesGroup: glasses.group,
-    headMesh: m?.headMesh,
+    headMesh: head,
     getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
     onFitChange: (patch) => update({ v3fit: patch }),
     homeView: HOME_VIEW,
