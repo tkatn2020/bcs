@@ -47,6 +47,8 @@ export const FRAME_DEFAULTS = {
   templeBend: 20,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
   earTipAngle: 118,  // 귀팁각(귀 꺾임부) — deg, 180 = 직선, 90 = 수직 하향
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
+  // 좌우 비대칭 오른쪽값(_R) — app.js가 대칭 시 base로 해석해 넘김
+  templeAngle_R: 0, templeGap_R: 0, templeBend_R: 20, earTipAngle_R: 118,
   headSideX: null,   // (z, side)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
 
   // ── 코받침(코패드) — 광학 무관 ──
@@ -60,6 +62,7 @@ const GEO_KEYS = [
   'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
   'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance', 'headSideX',
   'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'earTipAngle', 'endpiece',
+  'templeAngle_R', 'templeGap_R', 'templeBend_R', 'earTipAngle_R',
   'padOn', 'padSpacing', 'padVertical', 'padArm',
 ];
 
@@ -313,6 +316,13 @@ export function createGlasses(anchors, opts = {}) {
       // 이 쪽 귀 지점 (좌우 실측, 없으면 대칭 fallback)
       const ear = (side > 0 ? p.earR : p.earL) || { y: p.earY, z: p.earZ };
 
+      // 좌우 비대칭: side>0(+x)=아바타 왼쪽=base, side<0(−x)=오른쪽=_R.
+      // app.js가 대칭 시 _R=base로 넘기므로 여기선 플래그 없이 side만으로 분기.
+      const templeAngle = side > 0 ? p.templeAngle : p.templeAngle_R;
+      const templeGap   = side > 0 ? p.templeGap   : p.templeGap_R;
+      const templeBend  = side > 0 ? p.templeBend   : p.templeBend_R;
+      const earTipAngle = side > 0 ? p.earTipAngle : p.earTipAngle_R;
+
       // 1) Endpiece / hinge — the rim's outer-top corner in GROUP space.
       // The rim lives under frontG(panto rot) > sideG(wrap rot), so the temple
       // (a group child) must transform that corner through both rotations to
@@ -338,27 +348,27 @@ export function createGlasses(anchors, opts = {}) {
       // 옆면 간격 비대칭 보정(초기 세팅 기준) — 아바타 오른쪽 +5mm, 왼쪽 +2.5mm.
       // 프레임 커스텀 templeGap 위에 더해진다. side>0=아바타 왼쪽, side<0=오른쪽.
       const gapBias = side > 0 ? 0.0025 : 0.005;
-      const earRestX = headX(earTopZ, side) + p.templeGap + gapBias;   // 측두부 표면 (+ 옆면 간격)
+      const earRestX = headX(earTopZ, side) + templeGap + gapBias;   // 측두부 표면 (+ 옆면 간격)
       const bodyRun = Math.abs(earTopZ - hinge.z);
       // 비대칭 두상 보정 — 좌우 귀 접합부에 정확히 맞닿도록 실측 조정.
       // 좌표계: 아바타가 +z를 바라봐 side>0(+x)=아바타 왼쪽, side<0(−x)=아바타
       // 오른쪽. 아바타 오른쪽 −1°, 왼쪽 +2°(끝 하향). 프레임 커스텀
       // templeAngle 위에 더해진다. + = 끝이 아래로.
       const angleBias = side > 0 ? 2 : -1;
-      const angleRad = THREE.MathUtils.degToRad(p.templeAngle + angleBias);
+      const angleRad = THREE.MathUtils.degToRad(templeAngle + angleBias);
       const earTopY = (ear.y - groupOffsetY) - bodyRun * Math.tan(angleRad);  // 경사각
 
       // 3) 몸통 곡선 — hinge → 귀 상단. 양끝(hinge·귀)은 고정, 중간만 측두부
       //    곡률로 밴딩(bow=0 at 양끝, 최대 at 중앙). 밴딩 0=직선, 90=관자놀이
       //    밀착. gap은 다리 전체를 머리에서 이격.
-      const bendFrac = clamp(p.templeBend / 90, 0, 1);
+      const bendFrac = clamp(templeBend / 90, 0, 1);
       const bodyPts = [];
       const N = 8;
       for (let i = 0; i <= N; i++) {
         const t = i / N;
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
-        const surfX = headX(z, side) + p.templeGap + gapBias;   // 측두부 표면
+        const surfX = headX(z, side) + templeGap + gapBias;   // 측두부 표면
         const bow = bendFrac * t * (1 - t) * 4;                 // 양끝 0, 중앙 1
         const x = side * (straightX + (surfX - straightX) * bow);
         const y = hinge.y + (earTopY - hinge.y) * t;
@@ -369,7 +379,7 @@ export function createGlasses(anchors, opts = {}) {
       // 4) Drop — 귀 뒤로 내려가는 이어피스. 귀팁각(꺾임부): 180=직선(수평 뒤),
       //    90=수직 하향. 수평 기준 하강각 = 180 − earTipAngle (118 → 62 = 현행).
       const dropLen = Math.max(0.004, 0.020 + p.templeLen);
-      const dropRad = THREE.MathUtils.degToRad(clamp(180 - p.earTipAngle, 0, 90));
+      const dropRad = THREE.MathUtils.degToRad(clamp(180 - earTipAngle, 0, 90));
       const dropEnd = new THREE.Vector3(
         earTop.x,
         earTop.y - dropLen * Math.sin(dropRad),

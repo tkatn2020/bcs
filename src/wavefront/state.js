@@ -78,6 +78,11 @@ const initial = {
     templeBend: 20,   // 다리 몸통 밴딩 (0~90°, 0 = 직선, 90 = 머리 곡률 밀착)
     earTipAngle: 118, // 귀팁각(귀 꺾임부) (90~180°, 180 = 직선, 90 = 수직)
     endpiece: 0,      // 엔드피스(힌지) 높이 오프셋 (-6~+6mm)
+    // 좌우 비대칭 (base = 왼쪽, _R = 오른쪽, Asym = 개별 조정 토글 0/1)
+    templeAngle_R: 0,   templeAngleAsym: 0,
+    templeGap_R: 0,     templeGapAsym: 0,
+    templeBend_R: 20,   templeBendAsym: 0,
+    earTipAngle_R: 118, earTipAngleAsym: 0,
     // 코받침(코패드)
     padOn: 1,         // 표시 (1/0)
     padSpacing: 0,    // 좌우 간격 (mm, + = 넓게)
@@ -86,8 +91,10 @@ const initial = {
   },
   // 두상 조정 (얼굴 메시 변형 — 광학 무관, 시각/피팅 물리). 귀는 좌우 대칭.
   v3head: {
-    earY: 0,       // 양쪽 귀 상하 (mm, + = 위) — 좌우 동기
-    earZ: 0,       // 양쪽 귀 앞뒤 (mm, + = 앞/눈쪽, − = 뒤/뒤통수) — 좌우 동기
+    earY: 0,       // 양쪽 귀 상하 (mm, + = 위) — base=왼쪽
+    earZ: 0,       // 양쪽 귀 앞뒤 (mm, + = 앞/눈쪽, − = 뒤/뒤통수) — base=왼쪽
+    earY_R: 0, earYAsym: 0,   // 좌우 비대칭 (_R = 오른쪽)
+    earZ_R: 0, earZAsym: 0,
     noseBridge: 0, // 콧대 (mm, + = 돌출·두꺼움 / − = 낮음·얇음)
   },
 

@@ -17,7 +17,9 @@ import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
 const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 20, earTipAngle: 118, endpiece: 0,
-  padOn: 1, padSpacing: 0, padVertical: 0, padArm: 0 };
+  padOn: 1, padSpacing: 0, padVertical: 0, padArm: 0,
+  templeAngle_R: 0, templeGap_R: 0, templeBend_R: 20, earTipAngle_R: 118,
+  templeAngleAsym: 0, templeGapAsym: 0, templeBendAsym: 0, earTipAngleAsym: 0 };
 
 // Measure fitting landmarks from the head mesh itself — robust against
 // asset swaps, no hand-tuned magic numbers. Re-callable after deformation.
@@ -158,6 +160,11 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       templeBend: fr.templeBend,
       earTipAngle: fr.earTipAngle,
       endpiece: fr.endpiece / 1000,
+      // 좌우 비대칭 오른쪽값 — 대칭(Asym off)이면 base로 해석해 양쪽 동일
+      templeAngle_R: fr.templeAngleAsym ? fr.templeAngle_R : fr.templeAngle,
+      templeGap_R: (fr.templeGapAsym ? fr.templeGap_R : fr.templeGap) / 1000,
+      templeBend_R: fr.templeBendAsym ? fr.templeBend_R : fr.templeBend,
+      earTipAngle_R: fr.earTipAngleAsym ? fr.earTipAngle_R : fr.earTipAngle,
       // 코받침 (mm → m, 토글 bool)
       padOn: !!fr.padOn,
       padSpacing: fr.padSpacing / 1000,
@@ -169,7 +176,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   let lastGrade = state.grade;
   let lastSpec = null;
   // 두상 변형 변경 감지 — 광학/프레임 슬라이더 변경 시 불필요한 재변형/리빌드 방지.
-  const earKeyOf = (h) => `${h?.earY || 0},${h?.earZ || 0}`;
+  const earKeyOf = (h) => `${h?.earY || 0},${h?.earZ || 0},${h?.earY_R || 0},${h?.earZ_R || 0},${h?.earYAsym || 0},${h?.earZAsym || 0}`;
   let lastHeadKey = JSON.stringify(state.v3head || {});
   let lastEarKey = earKeyOf(state.v3head);
 

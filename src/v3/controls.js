@@ -45,6 +45,12 @@ const CSS = `
     font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .v3-mini { display: flex; gap: 6px; flex-wrap: wrap; }
   .v3-mini .v3-btn { flex: 1; padding: 7px 4px; font-size: 11.5px; text-align: center; }
+  .v3-row.hidden { display: none; }
+  .v3-row input[type=checkbox].v3-asym { flex: 0 0 16px; width: 16px; height: 16px; margin: 0;
+    accent-color: #f5b64e; cursor: pointer; }
+  .v3-cbpad { flex: 0 0 16px; }
+  .v3-sub label { color: #9aa3b5; border-left: 2px solid rgba(245,182,78,0.45); padding-left: 6px; }
+  .v3-sub .num { color: #f5b64e; }
 `;
 
 const SLIDERS = [
@@ -58,11 +64,11 @@ const SLIDERS = [
 
 // 프레임 피팅 커스텀 — 광학 무관, 순수 다리 지오메트리 (state.v3frame)
 const FRAME_SLIDERS = [
-  { key: 'templeAngle', label: '다리 경사각', min: -20, max: 20, step: 1,   unit: '°',  std: 0 },
+  { key: 'templeAngle', label: '다리 경사각', min: -20, max: 20, step: 1,   unit: '°',  std: 0,   asym: true },
   { key: 'templeLen',   label: '다리 길이',   min: -20, max: 20, step: 1,   unit: 'mm', std: 0 },
-  { key: 'templeGap',   label: '옆면 간격',   min: 0,   max: 10, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 20 },
-  { key: 'earTipAngle', label: '귀팁각',      min: 90,  max: 180, step: 2,  unit: '°',  std: 118 },
+  { key: 'templeGap',   label: '옆면 간격',   min: 0,   max: 10, step: 0.5, unit: 'mm', std: 0,   asym: true },
+  { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 20,  asym: true },
+  { key: 'earTipAngle', label: '귀팁각',      min: 90,  max: 180, step: 2,  unit: '°',  std: 118, asym: true },
   { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
 ];
 
@@ -73,12 +79,13 @@ const PAD_SLIDERS = [
   { key: 'padArm',      label: '길이',      min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
 ];
 
-// 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 대칭.
+// 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 개별 조정 가능.
 const HEAD_SLIDERS = [
-  { key: 'earY', label: '양쪽 귀 상하', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'earZ', label: '양쪽 귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'noseBridge', label: '콧대',   min: -4,  max: 8,  step: 0.5, unit: 'mm', std: 0 },
+  { key: 'earY', label: '귀 상하', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
+  { key: 'earZ', label: '귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
+  { key: 'noseBridge', label: '콧대', min: -4, max: 8, step: 0.5, unit: 'mm', std: 0 },
 ];
+const HEAD_ASYM_KEYS = new Set(['earY', 'earZ']);   // change 핸들러 네임스페이스 판별
 
 const SHAPES = [
   { id: 'square', label: '사각' }, { id: 'round', label: '원형' },
@@ -141,14 +148,29 @@ export function mountControls(root, { stage, getDemo } = {}) {
         <label data-reset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
         <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-fit="${sl.key}">
         <span class="num" data-num="${sl.key}"></span>
+        <span class="v3-cbpad"></span>
       </div>
     `).join('')}
     <div class="v3-sec">프레임 피팅 커스텀</div>
-    ${FRAME_SLIDERS.map((sl) => `
+    ${FRAME_SLIDERS.map((sl) => sl.asym ? `
       <div class="v3-row">
         <label data-freset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
         <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-frame="${sl.key}">
         <span class="num" data-fnum="${sl.key}"></span>
+        <input type="checkbox" class="v3-asym" data-asym="${sl.key}" title="좌우 개별 조정">
+      </div>
+      <div class="v3-row v3-sub hidden" data-subrow="${sl.key}">
+        <label data-freset="${sl.key}_R" title="더블탭: 표준 복귀">우 ${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-frame="${sl.key}_R">
+        <span class="num" data-fnum="${sl.key}_R"></span>
+        <span class="v3-cbpad"></span>
+      </div>
+    ` : `
+      <div class="v3-row">
+        <label data-freset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-frame="${sl.key}">
+        <span class="num" data-fnum="${sl.key}"></span>
+        <span class="v3-cbpad"></span>
       </div>
     `).join('')}
     <div class="v3-sec">코받침</div>
@@ -160,14 +182,29 @@ export function mountControls(root, { stage, getDemo } = {}) {
         <label data-freset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
         <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-frame="${sl.key}">
         <span class="num" data-fnum="${sl.key}"></span>
+        <span class="v3-cbpad"></span>
       </div>
     `).join('')}
     <div class="v3-sec">두상 조정</div>
-    ${HEAD_SLIDERS.map((sl) => `
+    ${HEAD_SLIDERS.map((sl) => sl.asym ? `
       <div class="v3-row">
         <label data-hreset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
         <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-head="${sl.key}">
         <span class="num" data-hnum="${sl.key}"></span>
+        <input type="checkbox" class="v3-asym" data-asym="${sl.key}" title="좌우 개별 조정">
+      </div>
+      <div class="v3-row v3-sub hidden" data-subrow="${sl.key}">
+        <label data-hreset="${sl.key}_R" title="더블탭: 표준 복귀">우 ${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-head="${sl.key}_R">
+        <span class="num" data-hnum="${sl.key}_R"></span>
+        <span class="v3-cbpad"></span>
+      </div>
+    ` : `
+      <div class="v3-row">
+        <label data-hreset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-head="${sl.key}">
+        <span class="num" data-hnum="${sl.key}"></span>
+        <span class="v3-cbpad"></span>
       </div>
     `).join('')}
     <div class="v3-sec">프레임 형상</div>
@@ -202,13 +239,29 @@ export function mountControls(root, { stage, getDemo } = {}) {
     const hkey = e.target.dataset?.head;
     if (hkey) update({ v3head: { [hkey]: Number(e.target.value) } });
   });
+  // 좌우 비대칭 체크박스 — 플래그 토글. 켤 때 오른쪽(_R)을 현재 왼쪽값으로 시드.
+  panel.addEventListener('change', (e) => {
+    const cb = e.target;
+    if (cb?.type !== 'checkbox' || cb.dataset?.asym == null) return;
+    const key = cb.dataset.asym;
+    const ns = HEAD_ASYM_KEYS.has(key) ? 'v3head' : 'v3frame';
+    const patch = { [`${key}Asym`]: cb.checked ? 1 : 0 };
+    if (cb.checked) patch[`${key}_R`] = state[ns][key];
+    update({ [ns]: patch });
+  });
   panel.addEventListener('dblclick', (e) => {
     const key = e.target.dataset?.reset;
     if (key) update({ v3fit: { [key]: SLIDERS.find((s) => s.key === key).std } });
     const fkey = e.target.dataset?.freset;
-    if (fkey) update({ v3frame: { [fkey]: [...FRAME_SLIDERS, ...PAD_SLIDERS].find((s) => s.key === fkey).std } });
+    if (fkey) {
+      const std = [...FRAME_SLIDERS, ...PAD_SLIDERS].find((s) => s.key === fkey.replace(/_R$/, ''))?.std ?? 0;
+      update({ v3frame: { [fkey]: std } });
+    }
     const hkey = e.target.dataset?.hreset;
-    if (hkey) update({ v3head: { [hkey]: HEAD_SLIDERS.find((s) => s.key === hkey).std } });
+    if (hkey) {
+      const std = HEAD_SLIDERS.find((s) => s.key === hkey.replace(/_R$/, ''))?.std ?? 0;
+      update({ v3head: { [hkey]: std } });
+    }
   });
   panel.addEventListener('click', (e) => {
     const shape = e.target.closest('[data-shape]');
@@ -262,7 +315,8 @@ export function mountControls(root, { stage, getDemo } = {}) {
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
     }
     const fr = s.v3frame || {};
-    for (const sl of [...FRAME_SLIDERS, ...PAD_SLIDERS]) {
+    const rVar = (sl) => ({ ...sl, key: sl.key + '_R' });   // 오른쪽 슬라이더(std/unit 상속)
+    for (const sl of [...FRAME_SLIDERS, ...PAD_SLIDERS, ...FRAME_SLIDERS.filter((x) => x.asym).map(rVar)]) {
       const input = panel.querySelector(`[data-frame="${sl.key}"]`);
       const num = panel.querySelector(`[data-fnum="${sl.key}"]`);
       const val = fr[sl.key] ?? sl.std;
@@ -271,14 +325,28 @@ export function mountControls(root, { stage, getDemo } = {}) {
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
     }
     panel.querySelector('[data-padon]').classList.toggle('on', !!fr.padOn);
+    // 좌우 비대칭 (frame): 체크박스·오른쪽 서브행 표시·프라이머리 라벨(좌 표기)
+    for (const sl of FRAME_SLIDERS.filter((x) => x.asym)) {
+      const flag = !!fr[`${sl.key}Asym`];
+      panel.querySelector(`[data-asym="${sl.key}"]`).checked = flag;
+      panel.querySelector(`[data-subrow="${sl.key}"]`).classList.toggle('hidden', !flag);
+      panel.querySelector(`[data-freset="${sl.key}"]`).textContent = flag ? `좌 ${sl.label}` : sl.label;
+    }
     const hd = s.v3head || {};
-    for (const sl of HEAD_SLIDERS) {
+    for (const sl of [...HEAD_SLIDERS, ...HEAD_SLIDERS.filter((x) => x.asym).map(rVar)]) {
       const input = panel.querySelector(`[data-head="${sl.key}"]`);
       const num = panel.querySelector(`[data-hnum="${sl.key}"]`);
       const val = hd[sl.key] ?? sl.std;
       if (document.activeElement !== input) input.value = val;
       num.textContent = `${val}${sl.unit}`;
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
+    }
+    // 좌우 비대칭 (head): 체크박스·오른쪽 서브행 표시·프라이머리 라벨(좌 표기)
+    for (const sl of HEAD_SLIDERS.filter((x) => x.asym)) {
+      const flag = !!hd[`${sl.key}Asym`];
+      panel.querySelector(`[data-asym="${sl.key}"]`).checked = flag;
+      panel.querySelector(`[data-subrow="${sl.key}"]`).classList.toggle('hidden', !flag);
+      panel.querySelector(`[data-hreset="${sl.key}"]`).textContent = flag ? `좌 ${sl.label}` : sl.label;
     }
     panel.querySelectorAll('[data-shape]').forEach((b) =>
       b.classList.toggle('on', b.dataset.shape === f.shape));

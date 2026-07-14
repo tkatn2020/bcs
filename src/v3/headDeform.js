@@ -1,7 +1,7 @@
 // v3 Head deform — runtime vertex deformation of the facecap face mesh.
 //
-// Reposition both ears (Y up/down, Z front/back — bilaterally symmetric) and
-// reshape the nose (forward protrusion coupled with proportional thickening), so
+// Reposition both ears (Y up/down, Z front/back — per-side, symmetric by default)
+// and reshape the nose (forward protrusion coupled with proportional thickening), so
 // the fitting studio can represent varied ear positions / different nose profiles
 // (서양인 vs 동양인). Both regions use a flat-top separable window (weight ~1
 // across the whole feature, feathering to 0 at the junction) so each feature
@@ -10,8 +10,9 @@
 //
 // Coordinate frame (baked group space, metres): +x = avatar LEFT, +y = up,
 // +z = forward/face, pupil-midpoint at origin. See bakeHeadMesh in mannequin.js.
-// Ears move symmetrically: one mask covers BOTH ears (|x| protrusion gate), same
-// (dy, dz) applied to both — no per-side keys.
+// Ears: two masks split by x-sign (earMaskL = x>0 = avatar LEFT, earMaskR = x<0 =
+// avatar RIGHT). deform() applies base (earY/earZ) to L and _R (or base if not
+// asym) to R — symmetric when both equal.
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 // C¹ smoothstep ramp on [a,b]: 0 below a, 1 above b.
@@ -43,16 +44,18 @@ export function createHeadDeform({ headMesh, restPositions }) {
   const n = pos.count;
 
   // Precompute masks: flat arrays [index, weight, ...] (ear) / [index, weight, sign] (nose).
-  const earMask = [], noseMask = [];
+  // Ears split by x-sign for left/right independent adjustment: earMaskL = x>0 =
+  // avatar LEFT, earMaskR = x<0 = avatar RIGHT. |x| protrusion weight unchanged.
+  const earMaskL = [], earMaskR = [], noseMask = [];
   for (let i = 0; i < n; i++) {
     const x = rest[i * 3], y = rest[i * 3 + 1], z = rest[i * 3 + 2];
-    // Ears — flat-top window over the whole pinna, |x| gate covers BOTH ears.
+    // Ears — flat-top window over the whole pinna, |x| protrusion gate.
     const ey = bump(y, EAR.yCore0, EAR.yCore1, EAR.yFeather);
     if (ey > EPS) {
       const ez = bump(z, EAR.zCore0, EAR.zCore1, EAR.zFeather);
       if (ez > EPS) {
         const w = ey * ez * smooth(Math.abs(x), EAR.xGate0, EAR.xGate1);
-        if (w > EPS) earMask.push(i, w);
+        if (w > EPS) (x > 0 ? earMaskL : earMaskR).push(i, w);
       }
     }
     // Nose — separable smooth window over the WHOLE nose (root→tip→nostrils);
@@ -68,15 +71,22 @@ export function createHeadDeform({ headMesh, restPositions }) {
 
   // params in millimetres. Rewrites from the rest baseline every call (idempotent).
   function deform(p = {}) {
+    // 왼쪽 = base(earY/earZ). 오른쪽 = 비대칭(Asym)이면 _R, 아니면 base.
     const earY = (p.earY || 0) / 1000, earZ = (p.earZ || 0) / 1000;
+    const rY = ((p.earYAsym ? p.earY_R : p.earY) || 0) / 1000;
+    const rZ = ((p.earZAsym ? p.earZ_R : p.earZ) || 0) / 1000;
     const dp = (p.noseBridge || 0) / 1000;
 
     arr.set(rest);   // reset to rest baseline
 
-    // Ears — symmetric: same (dy, dz) on both ears (one mask covers both).
-    for (let j = 0; j < earMask.length; j += 2) {
-      const i = earMask[j], w = earMask[j + 1];
+    // Ears — per-side: 왼쪽(x>0) = base, 오른쪽(x<0) = _R (또는 대칭 시 base).
+    for (let j = 0; j < earMaskL.length; j += 2) {
+      const i = earMaskL[j], w = earMaskL[j + 1];
       arr[i * 3 + 1] += w * earY; arr[i * 3 + 2] += w * earZ;
+    }
+    for (let j = 0; j < earMaskR.length; j += 2) {
+      const i = earMaskR[j], w = earMaskR[j + 1];
+      arr[i * 3 + 1] += w * rY; arr[i * 3 + 2] += w * rZ;
     }
     // Nose bridge — forward protrusion + coupled proportional thickening.
     if (dp !== 0) {
