@@ -66,7 +66,7 @@ const initial = {
   },
   // View toggles
   v3view: {
-    zones: { distance: true, intermediate: true, near: true },
+    zones: { distance: false, intermediate: false, near: false },
     targets: false,
   },
   // 프레임 피팅 커스텀 (광학 요소와 무관 — 순수 물리 조정, 존에 영향 없음)

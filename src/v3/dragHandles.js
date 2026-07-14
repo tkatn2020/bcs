@@ -80,7 +80,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
     if (e.button !== 0) return;
     const target = hitTest(e);
     if (!target) {
-      // Double-tap empty space → home ¾ view (C5)
+      // Double-tap empty space → home 정면 view (C5)
       const now = performance.now();
       if (homeView && now - lastEmptyTapTime < 320) {
         stage.camera.position.set(...homeView.pos);
