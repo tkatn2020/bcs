@@ -1,157 +1,228 @@
-// v3 Drag handles — the tool's first-class input (PRD §7 B군).
-//   · drag glasses vertically   → OH  (fitting height, ±4mm)
-//   · drag glasses horizontally → VD  (vertex distance, 8~16mm — mapped along
-//                                      the head's forward axis on screen)
-//   · drag head vertically      → head pitch (B9 고개 숙임, −28°~+12°)
-//   · double-tap glasses        → OH/VD reset to standard
+// v3 Direct-touch handles — the tool's first-class input (PRD §7 B군).
 //
-// OrbitControls conflict handling (research §9.3): raycast FIRST on
-// pointerdown; when we claim the gesture we set controls.enabled=false and
-// restore on pointerup. Horizontal drags on the head are left to orbit.
+// 아바타 위의 명시적 "포인트 네비게이터" 3개로 조정한다(예전의 방향-모호
+// 드래그를 전면 대체 — 어디를 잡아야 뭐가 되는지 명확, 카메라 조작과 겹치지
+// 않음):
+//   · 이마(고개)    → 세로 드래그 = 고개 들기/숙임 (headPitch, −28°~+12°)
+//   · 힌지 옆(VD)   → 가로 드래그 = 정점간거리 (vertex distance, 0~20mm)
+//   · 브릿지(OH)    → 세로 드래그 = 피팅 높이 (OH, ±4mm)
+//   · 핸들 더블탭   → 그 항목만 표준 복귀 / 빈 공간 더블탭 → 홈 정면 뷰
+//
+// 핸들 = HTML 오버레이(pointer-events:none). 매 프레임 3D 앵커점을 화면에
+// 투영해 위치·표시(정면 향함 판정)를 갱신. 잡기 판정은 캔버스 포인터다운에서
+// 화면 거리로(레이캐스트 없음) → 손가락이 살짝 빗나가도 잡힘. 평소 작은 점,
+// 근처 hover/터치 시 확대+라벨. 두 손가락/빈 공간은 OrbitControls가 전담.
 
 import * as THREE from 'three';
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+const GRAB_R = 34;   // 잡기 반경(px)
+const HOVER_R = 52;  // 데스크톱 hover 강조 반경(px)
 
 export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFitChange, homeView }) {
   const el = stage.renderer.domElement;
-  const raycaster = new THREE.Raycaster();
-  const ndc = new THREE.Vector2();
+  const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _p = new THREE.Vector3();
+  const _c = new THREE.Vector3(), _n = new THREE.Vector3(), _q = new THREE.Quaternion();
 
-  // Tooltip
+  // ── Styles ──
+  const style = document.createElement('style');
+  style.textContent = `
+    .v3hnd-layer { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+    .v3hnd { position: fixed; transform: translate(-50%, -50%);
+      display: flex; align-items: center; gap: 7px; transition: opacity .15s ease; }
+    .v3hnd-dot { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
+      background: rgba(245,182,78,0.85);
+      box-shadow: 0 0 0 3px rgba(245,182,78,0.22), 0 1px 5px rgba(0,0,0,0.55);
+      transition: width .12s ease, height .12s ease, background .12s ease, box-shadow .12s ease; }
+    .v3hnd-lab { font: 700 11.5px 'Pretendard', system-ui, sans-serif; color: #fff;
+      background: rgba(16,19,26,0.82); backdrop-filter: blur(6px);
+      padding: 3px 8px; border-radius: 7px; white-space: nowrap;
+      opacity: 0; transform: translateX(-5px); transition: opacity .12s ease, transform .12s ease; }
+    .v3hnd.on .v3hnd-dot { width: 18px; height: 18px; background: #f5b64e;
+      box-shadow: 0 0 0 5px rgba(245,182,78,0.28), 0 2px 9px rgba(0,0,0,0.6); }
+    .v3hnd.on .v3hnd-lab { opacity: 1; transform: none; }
+    .v3hnd.hide { opacity: 0; }
+    .v3hnd-tip { position: fixed; z-index: 30; pointer-events: none; display: none;
+      padding: 6px 10px; border-radius: 8px; font: 700 12px 'Pretendard', system-ui, sans-serif;
+      background: rgba(16,19,26,0.88); color: #fff; backdrop-filter: blur(6px); white-space: nowrap; }
+  `;
+  document.head.appendChild(style);
+
+  const layer = document.createElement('div');
+  layer.className = 'v3hnd-layer';
+  document.body.appendChild(layer);
+
   const tip = document.createElement('div');
-  Object.assign(tip.style, {
-    position: 'fixed', zIndex: 30, pointerEvents: 'none', display: 'none',
-    padding: '6px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: '700',
-    fontFamily: "'Pretendard', system-ui, sans-serif",
-    background: 'rgba(16,19,26,0.85)', color: '#fff', backdropFilter: 'blur(6px)',
-    whiteSpace: 'nowrap',
-  });
+  tip.className = 'v3hnd-tip';
   document.body.appendChild(tip);
   let tipTimer = 0;
-
   function showTip(x, y, text) {
     tip.style.display = 'block';
-    tip.style.left = (x + 14) + 'px';
-    tip.style.top = (y - 34) + 'px';
+    tip.style.left = (x + 16) + 'px';
+    tip.style.top = (y - 36) + 'px';
     tip.textContent = text;
     clearTimeout(tipTimer);
   }
   function hideTipSoon() {
     clearTimeout(tipTimer);
-    tipTimer = setTimeout(() => { tip.style.display = 'none'; }, 650);
+    tipTimer = setTimeout(() => { tip.style.display = 'none'; }, 700);
   }
 
-  // Head forward (+z) direction on screen — gives the sign for VD drags.
-  function forwardScreenSign() {
-    const a = new THREE.Vector3(0, 0, 0).project(stage.camera);
-    const b = new THREE.Vector3(0, 0, 0.1).project(stage.camera);
-    const dx = b.x - a.x;
-    return Math.abs(dx) < 0.01 ? 0 : Math.sign(dx);
+  function mkHandle(labelText) {
+    const h = document.createElement('div');
+    h.className = 'v3hnd';
+    h.innerHTML = `<span class="v3hnd-dot"></span><span class="v3hnd-lab">${labelText}</span>`;
+    layer.appendChild(h);
+    return h;
   }
 
-  let drag = null;   // { target:'glasses'|'head', axis:null|'v'|'h', x0,y0, fit0, pitch0 }
-  let lastTapTime = 0;
-  let lastEmptyTapTime = 0;
-  const active = new Set();   // 활성 포인터 — 2개 이상이면 카메라 팬/줌 제스처
+  // world unit-direction from an object-local direction (for facing test)
+  function dirWorld(obj, x, y, z) {
+    obj.getWorldQuaternion(_q);
+    return _n.set(x, y, z).applyQuaternion(_q).normalize();
+  }
 
-  function hitTest(e) {
+  // ── Handle definitions ──
+  // anchor(): 3D 앵커점(월드, _v에 기록). normal(): 정면 향함 판정용 바깥 방향.
+  // drag(f0, dx, dy): 파라미터 적용 + 표시 문자열 반환. reset(): 표준 복귀.
+  const HANDLES = [
+    {
+      id: 'pitch', el: mkHandle('고개 ↕'),
+      anchor: () => headMesh.localToWorld(_v.set(0, 0.082, 0.030)),
+      normal: () => dirWorld(headMesh, 0, 0.5, 1),
+      drag: (f0, dx, dy) => {
+        const p = clamp(f0.headPitch - dy * 0.28, -28, 12);
+        onFitChange({ headPitch: Math.round(p) });
+        return `고개 ${p <= 0 ? '숙임 ' : '들기 +'}${Math.abs(p).toFixed(0)}°`;
+      },
+      reset: () => { onFitChange({ headPitch: 0 }); return '고개 표준 복귀'; },
+    },
+    {
+      id: 'vd', el: mkHandle('정점간거리 ↔'),
+      anchor: () => glassesGroup.localToWorld(_v.set(0.052, 0.004, -0.008)),
+      normal: () => dirWorld(glassesGroup, 0.35, 0, 1),
+      drag: (f0, dx, dy) => {
+        const vd = clamp(f0.vd + dx * 0.05, 0, 20);
+        onFitChange({ vd: Math.round(vd * 10) / 10 });
+        return `정점간거리 ${vd.toFixed(1)}mm (표준 12)`;
+      },
+      reset: () => { onFitChange({ vd: 12 }); return '정점간거리 표준 복귀'; },
+    },
+    {
+      id: 'oh', el: mkHandle('OH ↕'),
+      anchor: () => glassesGroup.localToWorld(_v.set(0, 0.008, 0)),
+      normal: () => dirWorld(glassesGroup, 0, 0, 1),
+      drag: (f0, dx, dy) => {
+        const oh = clamp(f0.oh - dy * 0.045, -4, 4);
+        onFitChange({ oh: Math.round(oh * 10) / 10 });
+        return `OH ${oh >= 0 ? '+' : ''}${oh.toFixed(1)}mm (표준 0)`;
+      },
+      reset: () => { onFitChange({ oh: 0 }); return 'OH 표준 복귀'; },
+    },
+  ];
+
+  const screen = new Map();   // id -> { x, y, visible }
+  let drag = null;            // { H, f0, x0, y0 }
+  let dragId = null, hoverId = null;
+  let lastEmptyTap = 0;
+  const lastTap = new Map();
+  const active = new Set();
+
+  function setEmphasis() {
+    for (const H of HANDLES) {
+      H.el.classList.toggle('on', H.id === dragId || H.id === hoverId);
+    }
+  }
+
+  // ── Per-frame: project anchors → screen, toggle visibility ──
+  let alive = true;
+  function frame() {
+    if (!alive) return;
     const rect = el.getBoundingClientRect();
-    ndc.set(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -((e.clientY - rect.top) / rect.height) * 2 + 1,
-    );
-    raycaster.setFromCamera(ndc, stage.camera);
-    if (raycaster.intersectObject(glassesGroup, true).length) return 'glasses';
-    if (headMesh && raycaster.intersectObject(headMesh, true).length) return 'head';
-    return null;
+    for (const H of HANDLES) {
+      const a = _a.copy(H.anchor());
+      const nrm = H.normal();
+      const facing = nrm.dot(_c.subVectors(stage.camera.position, a).normalize()) > 0.08;
+      const proj = _p.copy(a).project(stage.camera);
+      const inFront = proj.z < 1;
+      const visible = facing && inFront;
+      const x = rect.left + (proj.x * 0.5 + 0.5) * rect.width;
+      const y = rect.top + (-proj.y * 0.5 + 0.5) * rect.height;
+      // 드래그 중인 핸들은 앵커가 이동해도(고개 틸트) 계속 보이게 유지
+      const show = visible || H.id === dragId;
+      H.el.classList.toggle('hide', !show);
+      if (show) { H.el.style.left = x + 'px'; H.el.style.top = y + 'px'; }
+      screen.set(H.id, { x, y, visible: show });
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // 화면 거리로 가장 가까운(표시 중인) 핸들 — R 이내면 반환.
+  function nearest(px, py, R) {
+    let best = null, bd = R;
+    for (const H of HANDLES) {
+      const s = screen.get(H.id);
+      if (!s || !s.visible) continue;
+      const d = Math.hypot(s.x - px, s.y - py);
+      if (d < bd) { bd = d; best = H; }
+    }
+    return best;
   }
 
   function onDown(e) {
     active.add(e.pointerId);
-    // 두 손가락 이상 = 카메라 팬/줌 → 핸들 조작을 양보하고 OrbitControls가 전담.
-    if (active.size >= 2) {
-      drag = null;
-      stage.controls.enabled = true;
-      return;
-    }
-    if (!e.isPrimary) return;
-    // 우/중 마우스 버튼은 팬 전용(OrbitControls) — 핸들이 가로채지 않음.
-    if (e.button !== 0) return;
-    const target = hitTest(e);
-    if (!target) {
-      // Double-tap empty space → home 정면 view (C5)
+    // 두 손가락 이상 = 카메라 팬/줌 → 핸들 양보.
+    if (active.size >= 2) { drag = null; stage.controls.enabled = true; return; }
+    if (!e.isPrimary || e.button !== 0) return;   // 우/중클릭은 팬 전용
+
+    const H = nearest(e.clientX, e.clientY, GRAB_R);
+    if (!H) {
+      // 빈 공간 더블탭 → 홈 정면 뷰
       const now = performance.now();
-      if (homeView && now - lastEmptyTapTime < 320) {
+      if (homeView && now - lastEmptyTap < 320) {
         stage.camera.position.set(...homeView.pos);
         stage.controls.target.set(...homeView.tgt);
         stage.controls.update();
-        lastEmptyTapTime = 0;
-        return;
-      }
-      lastEmptyTapTime = now;
+        lastEmptyTap = 0;
+      } else { lastEmptyTap = now; }
+      return;   // 회전은 OrbitControls가 처리
+    }
+
+    // 핸들 더블탭 → 해당 항목 표준 복귀
+    const now = performance.now();
+    if (now - (lastTap.get(H.id) || 0) < 320) {
+      const msg = H.reset();
+      const s = screen.get(H.id);
+      showTip(s ? s.x : e.clientX, s ? s.y : e.clientY, msg);
+      hideTipSoon();
+      lastTap.set(H.id, 0);
       return;
     }
+    lastTap.set(H.id, now);
 
-    // Double-tap on glasses → reset OH/VD
-    if (target === 'glasses') {
-      const now = performance.now();
-      if (now - lastTapTime < 320) {
-        onFitChange({ oh: 0, vd: 12 });
-        showTip(e.clientX, e.clientY, 'OH·VD 표준 복귀');
-        hideTipSoon();
-        lastTapTime = 0;
-        return;
-      }
-      lastTapTime = now;
-      stage.controls.enabled = false;   // glasses drags always claim the gesture
-    }
-
-    drag = {
-      target, axis: null,
-      x0: e.clientX, y0: e.clientY,
-      fit0: { ...getFit() },
-      vdSign: forwardScreenSign(),
-    };
+    stage.controls.enabled = false;   // 핸들 잡으면 카메라 정지
+    drag = { H, f0: { ...getFit() }, x0: e.clientX, y0: e.clientY };
+    dragId = H.id; setEmphasis();
   }
 
   function onMove(e) {
-    if (!drag || !e.isPrimary || active.size >= 2) return;
-    const dx = e.clientX - drag.x0;
-    const dy = e.clientY - drag.y0;
-
-    if (!drag.axis) {
-      if (Math.hypot(dx, dy) < 7) return;
-      drag.axis = Math.abs(dy) >= Math.abs(dx) ? 'v' : 'h';
-      if (drag.target === 'head') {
-        if (drag.axis === 'v') stage.controls.enabled = false;   // claim: head pitch
-        else { drag = null; return; }                            // horizontal → orbit
-      }
+    if (active.size >= 2) return;
+    if (drag && e.isPrimary) {
+      const msg = drag.H.drag(drag.f0, e.clientX - drag.x0, e.clientY - drag.y0);
+      showTip(e.clientX, e.clientY, msg);   // 값은 커서 옆에(핸들이 틸트로 밀려도 안정)
+      return;
     }
-
-    if (drag.target === 'glasses') {
-      if (drag.axis === 'v') {
-        // 0.045 mm per px — 90px ≈ 4mm full range
-        const oh = clamp(drag.fit0.oh - dy * 0.045, -4, 4);
-        onFitChange({ oh: Math.round(oh * 10) / 10 });
-        showTip(e.clientX, e.clientY, `OH ${oh >= 0 ? '+' : ''}${oh.toFixed(1)}mm (표준 0)`);
-      } else {
-        const sign = drag.vdSign || 1;
-        const vd = clamp(drag.fit0.vd + sign * dx * 0.05, 0, 20);
-        onFitChange({ vd: Math.round(vd * 10) / 10 });
-        showTip(e.clientX, e.clientY, `정점간거리 ${vd.toFixed(1)}mm (표준 12)`);
-      }
-    } else if (drag.target === 'head' && drag.axis === 'v') {
-      const pitch = clamp(drag.fit0.headPitch - dy * 0.28, -28, 12);
-      onFitChange({ headPitch: Math.round(pitch) });
-      showTip(e.clientX, e.clientY, `고개 ${pitch <= 0 ? '숙임 ' : '들기 +'}${Math.abs(pitch).toFixed(0)}°`);
-    }
+    // hover 강조(데스크톱)
+    const H = nearest(e.clientX, e.clientY, HOVER_R);
+    const id = H ? H.id : null;
+    if (id !== hoverId) { hoverId = id; setEmphasis(); }
   }
 
   function onUp(e) {
     active.delete(e.pointerId);
-    if (active.size > 0) return;   // 손가락이 남아 있으면(멀티터치) 유지
-    if (drag) { drag = null; hideTipSoon(); }
+    if (active.size > 0) return;   // 멀티터치 잔여 손가락
+    if (drag) { drag = null; dragId = null; setEmphasis(); hideTipSoon(); }
     stage.controls.enabled = true;
   }
 
@@ -162,11 +233,12 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
 
   return {
     dispose() {
+      alive = false;
       el.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
-      tip.remove();
+      layer.remove(); tip.remove(); style.remove();
     },
   };
 }
