@@ -130,6 +130,16 @@ export function reset() {
   _scheduleNotify();
 }
 
+// v3 피팅 조정 전체를 초기 기본값으로 복귀 — 광학 피팅(v3fit)·프레임 커스텀
+// (v3frame)·두상 조정(v3head). 처방(grade/add/corridor)·시야존·카메라는 유지.
+export function resetFitting() {
+  const init = JSON.parse(JSON.stringify(initial));
+  state.v3fit = init.v3fit;
+  state.v3frame = init.v3frame;
+  state.v3head = init.v3head;
+  _scheduleNotify();
+}
+
 function applyPatch(target, patch) {
   for (const k in patch) {
     const v = patch[k];

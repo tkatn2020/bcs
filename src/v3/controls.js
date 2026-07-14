@@ -2,7 +2,7 @@
 // Visual design intentionally plain (PRD v0.5: design decided during build).
 // Double-tap a slider label to reset that parameter to standard.
 
-import { state, update, subscribe } from '../wavefront/state.js';
+import { state, update, subscribe, resetFitting } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
 import { STANDARD_FIT } from './fittingModel.js';
 
@@ -226,8 +226,11 @@ export function mountControls(root, { stage, getDemo } = {}) {
     <div class="v3-sec">데모</div>
     <div class="v3-mini">
       <button class="v3-btn" data-demo>▶ 시선 데모</button>
-      <button class="v3-btn" data-headdown>고개 숙임</button>
       <button class="v3-btn" data-turntable>턴테이블</button>
+    </div>
+    <div class="v3-sec">초기화</div>
+    <div class="v3-mini">
+      <button class="v3-btn warn" data-resetall>전체 기본값 복귀</button>
     </div>
   `;
   root.appendChild(panel);
@@ -286,17 +289,15 @@ export function mountControls(root, { stage, getDemo } = {}) {
     // ── 데모 ──
     const demoBtn = e.target.closest('[data-demo]');
     if (demoBtn) getDemo?.()?.play();
-    const headBtn = e.target.closest('[data-headdown]');
-    if (headBtn) {
-      const cur = state.v3fit?.headPitch ?? 0;
-      update({ v3fit: { headPitch: cur < -5 ? 0 : -18 } });   // 토글 (D5)
-    }
     const turnBtn = e.target.closest('[data-turntable]');
     if (turnBtn && stage) {
       stage.controls.autoRotate = !stage.controls.autoRotate;
       stage.controls.autoRotateSpeed = 1.1;
       turnBtn.classList.toggle('on', stage.controls.autoRotate);
     }
+    // ── 초기화 ── 광학·프레임·두상 조정 전체를 기본값으로
+    const resetBtn = e.target.closest('[data-resetall]');
+    if (resetBtn) resetFitting();
   });
 
   // ── Reactive refresh ──
@@ -355,8 +356,6 @@ export function mountControls(root, { stage, getDemo } = {}) {
       b.classList.toggle('on', !!s.v3view?.zones?.[b.dataset.zone]));
     panel.querySelector('[data-toggle="targets"]')
       .classList.toggle('on', !!s.v3view?.targets);
-    panel.querySelector('[data-headdown]')
-      .classList.toggle('on', (s.v3fit?.headPitch ?? 0) < -5);
   }
   refresh(state);
   subscribe(refresh);
