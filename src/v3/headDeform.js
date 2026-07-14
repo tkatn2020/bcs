@@ -35,12 +35,15 @@ const NOSE = {
   zGate0: 0.020, zGate1: 0.032,                     // 전방 코 표면만 (깊은 내부/얼굴면 제외)
   k: 0.45,                                          // thickness↔protrusion coupling ratio
 };
-// 옆통수(측두부) 폭 — 다리가 지나는 스컬 옆면. flat-top w=1 이 |x| 0.056~0.074
-// (안착 표면 ~0.072 포함), pinna(|x|>0.078)에선 w≈0 → EAR 게이트와 상보적.
+// 옆통수(측두부) 폭 — 다리가 지나는 "눈 뒤 관자놀이 앞판"만 부드럽게 넓힌다.
+// 핵심: 이 z대(−0.06~+0.02)에는 표면 정점이 |x|≈0.045~0.077에만 존재하고
+// 중심선 표면이 없으므로, |x| 게이트 없이 균일하게 옆으로 밀어도 저폴리에서
+// 톱니(facet)가 생기지 않는다. 예전의 |x| 상한 게이트(≈8mm 폭)는 관자놀이
+// 정점 구름 한가운데를 잘라 인접 정점을 full↔0 으로 튀게 만든 톱니의 주범이라
+// 제거했다. 귀(pinna, z<−0.062)는 z 뒤쪽 feather 로 완전히 배제한다.
 const TEMPORAL = {
-  yCore0: 0.004, yCore1: 0.044, yFeather: 0.013,   // 측두 세로(눈높이~상측두); 위=정수리/아래=볼 페더
-  zCore0: -0.095, zCore1: 0.008, zFeather: 0.016,  // 측두 앞뒤; 앞=얼굴면/뒤=뒤통수 페더
-  xGate0: 0.056, xGate1: 0.074, xFeather: 0.008,   // |x| 두개골 밴드(볼 안쪽·귀 pinna 바깥 제외)
+  yCore0: 0.004, yCore1: 0.014, yFeather: 0.030,   // 다리 높이 중심, 볼·정수리로 넓게 페더(완만)
+  zCore0: -0.030, zCore1: -0.008, zFeather: 0.032, // 관자놀이 접촉 밴드; 뒤=귀앞(−0.062서 0)·앞=얼굴면 페더
 };
 const EPS = 1e-3;
 
@@ -74,15 +77,13 @@ export function createHeadDeform({ headMesh, restPositions }) {
       const w = wx * wy * wz;
       if (w > EPS) noseMask.push(i, w, Math.sign(x));
     }
-    // Temporal/side — flat-top over the skull temporal band; |x| gated to the
-    // skull (below the pinna) so widening never touches the ear. L = x>0, R = x<0.
+    // Temporal/side — 눈 뒤 관자놀이 앞판을 부드러운 (y,z) 엔벨로프로 균일하게
+    // 넓힌다. |x| 게이트 없음(이 z대엔 외곽 정점만 존재) → 균일 밀기라 톱니 없음.
+    // 귀(pinna)는 z 뒤쪽 feather(−0.062서 0)로 배제. L = x>0, R = x<0.
     const ty = bump(y, TEMPORAL.yCore0, TEMPORAL.yCore1, TEMPORAL.yFeather);
     if (ty > EPS) {
-      const tz = bump(z, TEMPORAL.zCore0, TEMPORAL.zCore1, TEMPORAL.zFeather);
-      if (tz > EPS) {
-        const tw = ty * tz * bump(Math.abs(x), TEMPORAL.xGate0, TEMPORAL.xGate1, TEMPORAL.xFeather);
-        if (tw > EPS) (x > 0 ? sideMaskL : sideMaskR).push(i, tw);
-      }
+      const tw = ty * bump(z, TEMPORAL.zCore0, TEMPORAL.zCore1, TEMPORAL.zFeather);
+      if (tw > EPS) (x > 0 ? sideMaskL : sideMaskR).push(i, tw);
     }
   }
 
