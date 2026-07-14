@@ -17,7 +17,7 @@ import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] };
 const STANDARD_FRAME = { templeAngle: 0, templeLen: 0, templeGap: 0, templeBend: 20, earTipAngle: 118, endpiece: 0,
-  padOn: 1, padSpacing: 0, padVertical: 0, padArm: 0,
+  padOn: 1, padSpacing: 0, padVertical: 0, padArm: -10,
   templeAngle_R: 0, templeGap_R: 0, templeBend_R: 20, earTipAngle_R: 118,
   templeAngleAsym: 0, templeGapAsym: 0, templeBendAsym: 0, earTipAngleAsym: 0 };
 

@@ -54,12 +54,12 @@ const CSS = `
 `;
 
 const SLIDERS = [
-  { key: 'vd',    label: '정점간거리', min: 0,   max: 16, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd },
+  { key: 'vd',    label: '정점간거리', min: 0,   max: 20, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd },
   { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto },
   { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap },
   { key: 'pdErr', label: 'PD 오차',    min: -4,  max: 4,  step: 0.5, unit: 'mm', std: 0 },
   { key: 'oh',    label: 'OH 높이',    min: -4,  max: 4,  step: 0.5, unit: 'mm', std: 0 },
-  { key: 'bSize', label: '프레임 크기', min: 26, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize },
+  { key: 'bSize', label: '프레임 크기', min: 10, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize },
 ];
 
 // 프레임 피팅 커스텀 — 광학 무관, 순수 다리 지오메트리 (state.v3frame)
@@ -76,14 +76,14 @@ const FRAME_SLIDERS = [
 const PAD_SLIDERS = [
   { key: 'padSpacing',  label: '좌우 간격', min: -4, max: 10, step: 0.5, unit: 'mm', std: 0 },
   { key: 'padVertical', label: '상하 위치', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
-  { key: 'padArm',      label: '길이',      min: -10, max: 10, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'padArm',      label: '전후',      min: -10, max: 10, step: 0.5, unit: 'mm', std: -10 },
 ];
 
 // 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 개별 조정 가능.
 const HEAD_SLIDERS = [
   { key: 'earY', label: '귀 상하', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'earZ', label: '귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
-  { key: 'noseBridge', label: '콧대', min: -4, max: 8, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'noseBridge', label: '콧대', min: -8, max: 8, step: 0.5, unit: 'mm', std: -4 },
 ];
 const HEAD_ASYM_KEYS = new Set(['earY', 'earZ']);   // change 핸들러 네임스페이스 판별
 
