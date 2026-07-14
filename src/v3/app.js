@@ -140,7 +140,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   });
 
   // ── state → scene ──
-  function glassesParams(f, fr) {
+  function glassesParams(f, fr, hd) {
     // 프레임 크기(bSize)는 상하좌우 전체 비례 스케일 (기준 31mm)
     const frameScale = f.bSize / 31;
     return {
@@ -170,6 +170,9 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       padSpacing: fr.padSpacing / 1000,
       padVertical: fr.padVertical / 1000,
       padArm: (fr.padArm - 10) / 1000,   // 표시값 − 10 = 물리 (표시 0 = 물리 -10)
+      // 옆통수 폭 splay (mm → m, asym 대칭 시 base) — 측두부 표면에 가산
+      faceWidth: (hd?.faceWidth || 0) / 1000,
+      faceWidth_R: ((hd?.faceWidthAsym ? hd.faceWidth_R : hd?.faceWidth) || 0) / 1000,
     };
   }
 
@@ -193,7 +196,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     lastSpec = spec;
 
     zones.update(spec, animate);
-    glasses.setParams(glassesParams(f, fr));
+    glasses.setParams(glassesParams(f, fr, s.v3head || {}));
     glasses.updateZoneSpec(spec);
 
     // 두상 변형 (귀 위치·콧대) — v3head 변경 시에만.

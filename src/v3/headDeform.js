@@ -35,6 +35,13 @@ const NOSE = {
   zGate0: 0.020, zGate1: 0.032,                     // 전방 코 표면만 (깊은 내부/얼굴면 제외)
   k: 0.45,                                          // thickness↔protrusion coupling ratio
 };
+// 옆통수(측두부) 폭 — 다리가 지나는 스컬 옆면. flat-top w=1 이 |x| 0.056~0.074
+// (안착 표면 ~0.072 포함), pinna(|x|>0.078)에선 w≈0 → EAR 게이트와 상보적.
+const TEMPORAL = {
+  yCore0: 0.004, yCore1: 0.044, yFeather: 0.013,   // 측두 세로(눈높이~상측두); 위=정수리/아래=볼 페더
+  zCore0: -0.095, zCore1: 0.008, zFeather: 0.016,  // 측두 앞뒤; 앞=얼굴면/뒤=뒤통수 페더
+  xGate0: 0.056, xGate1: 0.074, xFeather: 0.008,   // |x| 두개골 밴드(볼 안쪽·귀 pinna 바깥 제외)
+};
 const EPS = 1e-3;
 
 export function createHeadDeform({ headMesh, restPositions }) {
@@ -46,7 +53,7 @@ export function createHeadDeform({ headMesh, restPositions }) {
   // Precompute masks: flat arrays [index, weight, ...] (ear) / [index, weight, sign] (nose).
   // Ears split by x-sign for left/right independent adjustment: earMaskL = x>0 =
   // avatar LEFT, earMaskR = x<0 = avatar RIGHT. |x| protrusion weight unchanged.
-  const earMaskL = [], earMaskR = [], noseMask = [];
+  const earMaskL = [], earMaskR = [], noseMask = [], sideMaskL = [], sideMaskR = [];
   for (let i = 0; i < n; i++) {
     const x = rest[i * 3], y = rest[i * 3 + 1], z = rest[i * 3 + 2];
     // Ears — flat-top window over the whole pinna, |x| protrusion gate.
@@ -67,6 +74,16 @@ export function createHeadDeform({ headMesh, restPositions }) {
       const w = wx * wy * wz;
       if (w > EPS) noseMask.push(i, w, Math.sign(x));
     }
+    // Temporal/side — flat-top over the skull temporal band; |x| gated to the
+    // skull (below the pinna) so widening never touches the ear. L = x>0, R = x<0.
+    const ty = bump(y, TEMPORAL.yCore0, TEMPORAL.yCore1, TEMPORAL.yFeather);
+    if (ty > EPS) {
+      const tz = bump(z, TEMPORAL.zCore0, TEMPORAL.zCore1, TEMPORAL.zFeather);
+      if (tz > EPS) {
+        const tw = ty * tz * bump(Math.abs(x), TEMPORAL.xGate0, TEMPORAL.xGate1, TEMPORAL.xFeather);
+        if (tw > EPS) (x > 0 ? sideMaskL : sideMaskR).push(i, tw);
+      }
+    }
   }
 
   // params in millimetres. Rewrites from the rest baseline every call (idempotent).
@@ -76,6 +93,9 @@ export function createHeadDeform({ headMesh, restPositions }) {
     const rY = ((p.earYAsym ? p.earY_R : p.earY) || 0) / 1000;
     const rZ = ((p.earZAsym ? p.earZ_R : p.earZ) || 0) / 1000;
     const dp = (p.noseBridge || 0) / 1000;
+    // 옆통수 폭: 왼쪽 = base, 오른쪽 = 비대칭 시 _R.
+    const wL = (p.faceWidth || 0) / 1000;
+    const wR = ((p.faceWidthAsym ? p.faceWidth_R : p.faceWidth) || 0) / 1000;
 
     arr.set(rest);   // reset to rest baseline
 
@@ -96,6 +116,9 @@ export function createHeadDeform({ headMesh, restPositions }) {
         arr[i * 3 + 2] += w * dp;             // forward protrusion
       }
     }
+    // Temporal widen — L(x>0) push +x, R(x<0) push −x → 옆통수 폭 확대(바깥으로).
+    if (wL) for (let j = 0; j < sideMaskL.length; j += 2) arr[sideMaskL[j] * 3] += sideMaskL[j + 1] * wL;
+    if (wR) for (let j = 0; j < sideMaskR.length; j += 2) arr[sideMaskR[j] * 3] += sideMaskR[j + 1] * (-wR);
 
     pos.needsUpdate = true;
     headMesh.geometry.computeVertexNormals();

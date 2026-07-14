@@ -95,6 +95,8 @@ const initial = {
     earZ: 0,       // 양쪽 귀 앞뒤 (mm, + = 앞/눈쪽, − = 뒤/뒤통수) — base=왼쪽
     earY_R: 0, earYAsym: 0,   // 좌우 비대칭 (_R = 오른쪽)
     earZ_R: 0, earZAsym: 0,
+    faceWidth: 0,     // 옆통수(측두부) 폭 (mm, + = 넓게) — base=왼쪽
+    faceWidth_R: 0, faceWidthAsym: 0,   // 좌우 비대칭 (_R = 오른쪽)
     noseBridge: 0, // 콧대 표시값 (물리 = 표시 − 4; 표준 표시 0 = 물리 -4)
   },
 

@@ -83,9 +83,10 @@ const PAD_SLIDERS = [
 const HEAD_SLIDERS = [
   { key: 'earY', label: '귀 상하', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'earZ', label: '귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
+  { key: 'faceWidth', label: '옆통수 폭', min: -6, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'noseBridge', label: '콧대', min: -8, max: 8, step: 0.5, unit: 'mm', std: 0 },
 ];
-const HEAD_ASYM_KEYS = new Set(['earY', 'earZ']);   // change 핸들러 네임스페이스 판별
+const HEAD_ASYM_KEYS = new Set(['earY', 'earZ', 'faceWidth']);   // change 핸들러 네임스페이스 판별
 
 const SHAPES = [
   { id: 'square', label: '사각' }, { id: 'round', label: '원형' },

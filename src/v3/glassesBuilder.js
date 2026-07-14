@@ -49,6 +49,7 @@ export const FRAME_DEFAULTS = {
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
   // 좌우 비대칭 오른쪽값(_R) — app.js가 대칭 시 base로 해석해 넘김
   templeAngle_R: 0, templeGap_R: 0, templeBend_R: 20, earTipAngle_R: 118,
+  faceWidth: 0, faceWidth_R: 0,   // 옆통수 폭 splay (m) — 측두부 표면에 가산
   headSideX: null,   // (z, side)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
 
   // ── 코받침(코패드) — 광학 무관 ──
@@ -62,7 +63,7 @@ const GEO_KEYS = [
   'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
   'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance', 'headSideX',
   'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'earTipAngle', 'endpiece',
-  'templeAngle_R', 'templeGap_R', 'templeBend_R', 'earTipAngle_R',
+  'templeAngle_R', 'templeGap_R', 'templeBend_R', 'earTipAngle_R', 'faceWidth', 'faceWidth_R',
   'padOn', 'padSpacing', 'padVertical', 'padArm',
 ];
 
@@ -322,6 +323,7 @@ export function createGlasses(anchors, opts = {}) {
       const templeGap   = side > 0 ? p.templeGap   : p.templeGap_R;
       const templeBend  = side > 0 ? p.templeBend   : p.templeBend_R;
       const earTipAngle = side > 0 ? p.earTipAngle : p.earTipAngle_R;
+      const faceWidth   = side > 0 ? p.faceWidth   : p.faceWidth_R;   // 옆통수 폭(측두 splay)
 
       // 1) Endpiece / hinge — the rim's outer-top corner in GROUP space.
       // The rim lives under frontG(panto rot) > sideG(wrap rot), so the temple
@@ -348,7 +350,7 @@ export function createGlasses(anchors, opts = {}) {
       // 옆면 간격 비대칭 보정(초기 세팅 기준) — 아바타 오른쪽 +5mm, 왼쪽 +2.5mm.
       // 프레임 커스텀 templeGap 위에 더해진다. side>0=아바타 왼쪽, side<0=오른쪽.
       const gapBias = side > 0 ? 0.0025 : 0.005;
-      const earRestX = headX(earTopZ, side) + templeGap + gapBias;   // 측두부 표면 (+ 옆면 간격)
+      const earRestX = headX(earTopZ, side) + templeGap + gapBias + faceWidth;   // 측두부 표면 (+ 옆면 간격 + 옆통수 폭)
       const bodyRun = Math.abs(earTopZ - hinge.z);
       // 비대칭 두상 보정 — 좌우 귀 접합부에 정확히 맞닿도록 실측 조정.
       // 좌표계: 아바타가 +z를 바라봐 side>0(+x)=아바타 왼쪽, side<0(−x)=아바타
@@ -368,7 +370,7 @@ export function createGlasses(anchors, opts = {}) {
         const t = i / N;
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
-        const surfX = headX(z, side) + templeGap + gapBias;   // 측두부 표면
+        const surfX = headX(z, side) + templeGap + gapBias + faceWidth;   // 측두부 표면 (+ 옆통수 폭)
         const bow = bendFrac * t * (1 - t) * 4;                 // 양끝 0, 중앙 1
         const x = side * (straightX + (surfX - straightX) * bow);
         const y = hinge.y + (earTopY - hinge.y) * t;
