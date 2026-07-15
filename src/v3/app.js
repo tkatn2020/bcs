@@ -180,12 +180,14 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       templeGap: fr.templeGap / 1000,
       templeBend: fr.templeBend,
       earTipAngle: fr.earTipAngle,
+      earConverge: fr.earConverge,
       endpiece: fr.endpiece / 1000,
       // 좌우 비대칭 오른쪽값 — 대칭(Asym off)이면 base로 해석해 양쪽 동일
       templeAngle_R: fr.templeAngleAsym ? fr.templeAngle_R : fr.templeAngle,
       templeGap_R: (fr.templeGapAsym ? fr.templeGap_R : fr.templeGap) / 1000,
       templeBend_R: fr.templeBendAsym ? fr.templeBend_R : fr.templeBend,
       earTipAngle_R: fr.earTipAngleAsym ? fr.earTipAngle_R : fr.earTipAngle,
+      earConverge_R: fr.earConvergeAsym ? fr.earConverge_R : fr.earConverge,
       // 코받침 (mm → m, 토글 bool)
       padOn: !!fr.padOn,
       padSpacing: fr.padSpacing / 1000,

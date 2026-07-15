@@ -48,9 +48,10 @@ export const FRAME_DEFAULTS = {
   templeGap: 0,      // 얼굴 옆면 간격 (m, 0 = 측두부 피부 밀착, + = 벌어짐)
   templeBend: 20,    // 다리 몸통 밴딩 (deg, 0 = 직선, 90 = 머리 곡률 완전 밀착)
   earTipAngle: 118,  // 귀팁각(귀 꺾임부) — deg, 180 = 직선, 90 = 수직 하향
+  earConverge: 0,    // 귀모임각 — deg, + = 드롭 끝 안쪽(모아짐), − = 바깥(벌어짐)
   endpiece: 0,       // 엔드피스(힌지) 높이 오프셋 (m)
   // 좌우 비대칭 오른쪽값(_R) — app.js가 대칭 시 base로 해석해 넘김
-  templeAngle_R: 0, templeGap_R: 0, templeBend_R: 20, earTipAngle_R: 118,
+  templeAngle_R: 0, templeGap_R: 0, templeBend_R: 20, earTipAngle_R: 118, earConverge_R: 0,
   faceWidth: 0, faceWidth_R: 0,   // 옆통수 폭 splay (m) — 측두부 표면에 가산
   headSideX: null,   // (z, side)=>x 측두부 옆면 프로파일 — app.js에서 실측 주입
 
@@ -66,6 +67,7 @@ const GEO_KEYS = [
   'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance', 'headSideX',
   'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'earTipAngle', 'endpiece',
   'templeAngle_R', 'templeGap_R', 'templeBend_R', 'earTipAngle_R', 'faceWidth', 'faceWidth_R',
+  'earConverge', 'earConverge_R',
   'padOn', 'padSpacing', 'padVertical', 'padArm',
 ];
 
@@ -340,6 +342,7 @@ export function createGlasses(anchors, opts = {}) {
       const templeBend  = side > 0 ? p.templeBend   : p.templeBend_R;
       const earTipAngle = side > 0 ? p.earTipAngle : p.earTipAngle_R;
       const faceWidth   = side > 0 ? p.faceWidth   : p.faceWidth_R;   // 옆통수 폭(측두 splay)
+      const earConverge = side > 0 ? p.earConverge : p.earConverge_R; // 귀모임각(드롭 옆기울기)
 
       // 1) Endpiece / hinge — 표준(REF) 경사각·안면각에서의 힌지 위치를 GROUP
       // 공간에 잡는다(실제 회전은 뒤에서 부모 sideG/frontG가 담당). 몸통·귀·드롭도
@@ -392,14 +395,18 @@ export function createGlasses(anchors, opts = {}) {
       }
       const earTop = bodyPts[bodyPts.length - 1];
 
-      // 4) Drop — 귀 뒤로 내려가는 이어피스. 귀팁각(꺾임부): 180=직선(수평 뒤),
-      //    90=수직 하향. 수평 기준 하강각 = 180 − earTipAngle (118 → 62 = 현행).
+      // 4) Drop — 귀 뒤로 내려가는 이어피스. 귀팁각(꺾임부 하강각): 180=직선(수평 뒤),
+      //    90=수직 하향. 귀모임각(earConverge): 드롭(꺾임 이후)만 옆으로 기울여 끝을
+      //    안쪽(모아짐, +)/바깥(벌어짐, −)으로 — earTop(꺾임점)·몸통은 고정, 드롭만
+      //    회전. cc로 드롭 길이 유지(하강 성분 축소, 옆 성분 추가 = 순수 옆기울기).
       const dropLen = Math.max(0.004, 0.020 + p.templeLen);
       const dropRad = THREE.MathUtils.degToRad(clamp(180 - earTipAngle, 0, 90));
+      const convRad = THREE.MathUtils.degToRad(earConverge);
+      const cc = Math.cos(convRad);
       const dropEnd = new THREE.Vector3(
-        earTop.x,
-        earTop.y - dropLen * Math.sin(dropRad),
-        earTop.z - dropLen * Math.cos(dropRad),
+        earTop.x - side * dropLen * Math.sin(convRad),   // + = 안쪽(머리쪽, 모아짐)
+        earTop.y - dropLen * Math.sin(dropRad) * cc,
+        earTop.z - dropLen * Math.cos(dropRad) * cc,
       );
 
       // REF 기준 GROUP 좌표를 sideG-로컬로 역변환 — 부모 sideG(안면각)·frontG(경사각)

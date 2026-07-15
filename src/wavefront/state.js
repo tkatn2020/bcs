@@ -77,12 +77,14 @@ const initial = {
     templeGap: 0,     // 얼굴 옆면 간격 (0~+10mm, + = 다리가 벌어짐)
     templeBend: 20,   // 다리 몸통 밴딩 (0~90°, 0 = 직선, 90 = 머리 곡률 밀착)
     earTipAngle: 118, // 귀팁각(귀 꺾임부) (90~180°, 180 = 직선, 90 = 수직)
+    earConverge: 0,   // 귀모임각 (드롭 옆기울기, + = 안쪽/모아짐, − = 바깥/벌어짐)
     endpiece: 0,      // 엔드피스(힌지) 높이 오프셋 (-6~+6mm)
     // 좌우 비대칭 (base = 왼쪽, _R = 오른쪽, Asym = 개별 조정 토글 0/1)
     templeAngle_R: 0,   templeAngleAsym: 0,
     templeGap_R: 0,     templeGapAsym: 0,
     templeBend_R: 20,   templeBendAsym: 0,
     earTipAngle_R: 118, earTipAngleAsym: 0,
+    earConverge_R: 0,   earConvergeAsym: 0,
     // 코받침(코패드)
     padOn: 1,         // 표시 (1/0)
     padSpacing: 0,    // 좌우 간격 (mm, + = 넓게)
