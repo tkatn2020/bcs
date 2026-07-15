@@ -111,9 +111,9 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   // drag(f0, dx, dy): 파라미터 적용 + 표시 문자열 반환. reset(): 표준 복귀.
   const HANDLES = [
     {
-      id: 'pitch', el: mkHandle('고개 ↕'),
+      id: 'pitch', el: mkHandle('고개 ↕'), faceMin: -0.4,   // 정면+양측면 노출(뒤통수만 숨김)
       anchor: () => headMesh.localToWorld(_v.set(0, 0.082, 0.030)),
-      normal: () => dirWorld(headMesh, 0, 0.5, 1),
+      normal: () => dirWorld(headMesh, 0, 0.4, 1),
       drag: (f0, dx, dy) => {
         // 아래로 드래그 = 고개 숙임. 실제 렌더(app.js group.rotation.x=headPitch)에서
         // 양수 headPitch가 코를 내리는(숙임) 방향이라 부호를 맞춘다. 숙임(아래) 28°,
@@ -143,7 +143,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
       anchor: () => glassesGroup.localToWorld(_v.set(0, 0.008, 0)),
       normal: () => dirWorld(glassesGroup, 0, 0, 1),
       drag: (f0, dx, dy) => {
-        const oh = clamp(f0.oh - dy * 0.045, -4, 4);
+        const oh = clamp(f0.oh - dy * 0.045, -8, 8);
         onFitChange({ oh: Math.round(oh * 10) / 10 });
         return `OH ${oh >= 0 ? '+' : ''}${oh.toFixed(1)}mm (표준 0)`;
       },
@@ -171,7 +171,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
     for (const H of HANDLES) {
       const a = _a.copy(H.anchor());
       const nrm = H.normal();
-      const facing = nrm.dot(_c.subVectors(stage.camera.position, a).normalize()) > 0.08;
+      const facing = nrm.dot(_c.subVectors(stage.camera.position, a).normalize()) > (H.faceMin ?? 0.08);
       const proj = _p.copy(a).project(stage.camera);
       const inFront = proj.z < 1;
       const visible = facing && inFront;

@@ -28,6 +28,43 @@ export function mannequinMaterial() {
 const TARGET_PD_M = 0.062;      // real-world IPD the head is normalized to
 const FALLBACK_HEAD_HEIGHT_M = 0.24;
 
+// facecap 스캔은 얼굴-두피 경계에 미세한 접힘(crease)이 있어 computeVertexNormals
+// 후 그 선이 음영으로 드러난다. 지오메트리·인덱스는 그대로 두고(정점 변형이
+// 인덱스에 의존 — 절대 불변) 노멀만 이웃과 Laplacian 평균내 경계를 매끄럽게 한다.
+// 인접(엣지) 관계는 geo.userData에 1회 캐시(변형마다 재사용). 2회·λ0.5면 seam은
+// 지우면서 코·이목구비 디테일은 보존.
+export function smoothVertexNormals(geo, iters = 2, lambda = 0.5) {
+  const idx = geo.index && geo.index.array;
+  const nrm = geo.attributes.normal;
+  if (!idx || !nrm) return;
+  let adj = geo.userData._normalAdj;
+  if (!adj) {
+    const cnt = geo.attributes.position.count;
+    const sets = Array.from({ length: cnt }, () => new Set());
+    for (let t = 0; t < idx.length; t += 3) {
+      const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+      sets[a].add(b); sets[a].add(c); sets[b].add(a); sets[b].add(c); sets[c].add(a); sets[c].add(b);
+    }
+    adj = sets.map((s) => Array.from(s));
+    geo.userData._normalAdj = adj;
+  }
+  const arr = nrm.array, n = nrm.count;
+  for (let it = 0; it < iters; it++) {
+    const out = new Float32Array(arr.length);
+    for (let i = 0; i < n; i++) {
+      let nx = arr[i * 3], ny = arr[i * 3 + 1], nz = arr[i * 3 + 2];
+      const nb = adj[i];
+      for (let k = 0; k < nb.length; k++) {
+        const j = nb[k]; nx += arr[j * 3] * lambda; ny += arr[j * 3 + 1] * lambda; nz += arr[j * 3 + 2] * lambda;
+      }
+      const m = Math.hypot(nx, ny, nz) || 1;
+      out[i * 3] = nx / m; out[i * 3 + 1] = ny / m; out[i * 3 + 2] = nz / m;
+    }
+    arr.set(out);
+  }
+  nrm.needsUpdate = true;
+}
+
 // Bake a quantized morph mesh into a plain Float32 geometry in GROUP space and
 // reparent it directly under `group` with identity transform, so runtime vertex
 // deformation (headDeform.js) can write millimetre offsets straight into the
@@ -85,6 +122,7 @@ function bakeHeadMesh(mesh, group) {
   // this Float32 attribute correctly.
   geo.deleteAttribute('normal');
   geo.computeVertexNormals();
+  smoothVertexNormals(geo);   // 얼굴-두피 경계 crease 완화
   geo.computeBoundingSphere();
   return mesh;
 }
