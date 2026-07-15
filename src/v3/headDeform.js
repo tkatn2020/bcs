@@ -111,11 +111,13 @@ export function createHeadDeform({ headMesh, restPositions }) {
       const i = earMaskR[j], w = earMaskR[j + 1];
       arr[i * 3 + 1] += w * rY; arr[i * 3 + 2] += w * rZ;
     }
-    // Nose bridge — forward protrusion + coupled proportional thickening.
+    // Nose bridge — forward protrusion + coupled thickening.
     if (dp !== 0) {
       for (let j = 0; j < noseMask.length; j += 3) {
-        const i = noseMask[j], w = noseMask[j + 1], sx = noseMask[j + 2];
-        arr[i * 3] += w * NOSE.k * dp * sx;   // thickness (∝ protrusion; sign fans sides out/in)
+        const i = noseMask[j], w = noseMask[j + 1];
+        // 두께 = x에 '비례'(부호×정량 아님)해 스케일 → 중심선 정점은 거의 안 움직이고
+        // 강한 음수(저비강)서도 좌우가 반대편을 안 넘어감(삼각형 반전·검은음영 방지).
+        arr[i * 3] += w * NOSE.k * dp * (rest[i * 3] / NOSE.xEdge);   // thickness (∝ x)
         arr[i * 3 + 2] += w * dp;             // forward protrusion
       }
     }

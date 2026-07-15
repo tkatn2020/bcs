@@ -100,7 +100,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   // VD 공통 드래그 — 정면축 투영량으로 조정(앞으로 당김 = 멀어짐, +).
   function vdDrag(f0, dx, dy, ctx) {
     const proj = ctx.fwd ? dx * ctx.fwd.x + dy * ctx.fwd.y : dx;
-    const vd = clamp(f0.vd + proj * 0.05, 0, 20);
+    const vd = clamp(f0.vd + proj * 0.05, 5, 20);   // 표시 5 = 물리 0(눈 밀착), 음수 방지
     onFitChange({ vd: Math.round(vd * 10) / 10 });
     return `정점간거리 ${vd.toFixed(1)}mm (표준 12)`;
   }
