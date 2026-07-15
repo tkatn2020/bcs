@@ -14,7 +14,7 @@
 // avatar RIGHT). deform() applies base (earY/earZ) to L and _R (or base if not
 // asym) to R — symmetric when both equal.
 
-import { smoothVertexNormals } from './mannequin.js';
+import { smoothVertexNormals, blendSeamNormals } from './mannequin.js';
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 // C¹ smoothstep ramp on [a,b]: 0 below a, 1 above b.
@@ -125,7 +125,8 @@ export function createHeadDeform({ headMesh, restPositions }) {
 
     pos.needsUpdate = true;
     headMesh.geometry.computeVertexNormals();
-    smoothVertexNormals(headMesh.geometry);   // 얼굴-두피 경계 crease 완화(재계산된 노멀에 재적용)
+    smoothVertexNormals(headMesh.geometry);   // 경계 crease 완화(재계산된 노멀에 재적용)
+    blendSeamNormals(headMesh.geometry);      // 마스크↔뒤통수 접합부 seam 잇기(재적용)
     headMesh.geometry.computeBoundingSphere();
   }
 

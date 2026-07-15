@@ -65,6 +65,65 @@ export function smoothVertexNormals(geo, iters = 2, lambda = 0.5) {
   nrm.needsUpdate = true;
 }
 
+// facecap mesh_2는 '앞 얼굴 마스크'와 '뒤통수 쉘'이 별도 연결요소로 분리돼 있어
+// 둘의 rim이 맞닿는 옆통수·이마 둘레에 뚜렷한 음영 seam이 남는다(Laplacian은
+// 연결된 이웃만 평균내 두 쉘을 못 이음). → 두 쉘이 공간적으로 맞닿는 '접합부'
+// 정점만 골라(반경 내 다른 연결요소 존재) 토폴로지 무관 공간 노멀 블렌드로 두
+// 쉘 음영을 잇는다. 눈·입·콧구멍 구멍은 근처에 상대 쉘이 없어 자동 제외 → 이목
+// 구비 보존. 접합부 밴드·이웃 리스트는 geo.userData에 1회 캐시(인덱스 기반이라
+// 변형으로 위치가 이동해도 유효). 지오·인덱스 불변(변형 안전).
+export function blendSeamNormals(geo, radius = 0.006, iters = 3) {
+  const nrm = geo.attributes.normal;
+  const idx = geo.index && geo.index.array;
+  if (!nrm || !idx) return;
+  let cache = geo.userData._seamBlend;
+  if (!cache) {
+    const pos = geo.attributes.position.array;
+    const cnt = geo.attributes.position.count;
+    const adj = Array.from({ length: cnt }, () => []);
+    for (let t = 0; t < idx.length; t += 3) {
+      const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+      adj[a].push(b, c); adj[b].push(a, c); adj[c].push(a, b);
+    }
+    const comp = new Int32Array(cnt).fill(-1);
+    let cid = 0;
+    for (let i = 0; i < cnt; i++) {
+      if (comp[i] >= 0 || adj[i].length === 0) continue;
+      const st = [i]; comp[i] = cid;
+      while (st.length) { const u = st.pop(); for (const w of adj[u]) if (comp[w] < 0) { comp[w] = cid; st.push(w); } }
+      cid++;
+    }
+    const cs = radius, grid = new Map();
+    const gk = (x, y, z) => `${Math.round(x / cs)},${Math.round(y / cs)},${Math.round(z / cs)}`;
+    for (let i = 0; i < cnt; i++) { const k = gk(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]); const g = grid.get(k); if (g) g.push(i); else grid.set(k, [i]); }
+    const near = (i, r) => {
+      const r2 = r * r, res = [];
+      const cx = Math.round(pos[i * 3] / cs), cy = Math.round(pos[i * 3 + 1] / cs), cz = Math.round(pos[i * 3 + 2] / cs), sp = Math.ceil(r / cs);
+      for (let a = -sp; a <= sp; a++) for (let b = -sp; b <= sp; b++) for (let c = -sp; c <= sp; c++) {
+        const g = grid.get(`${cx + a},${cy + b},${cz + c}`); if (!g) continue;
+        for (const j of g) { const dx = pos[i * 3] - pos[j * 3], dy = pos[i * 3 + 1] - pos[j * 3 + 1], dz = pos[i * 3 + 2] - pos[j * 3 + 2]; if (dx * dx + dy * dy + dz * dz < r2) res.push(j); }
+      }
+      return res;
+    };
+    const bandSet = new Set();
+    for (let i = 0; i < cnt; i++) { const nb = near(i, radius * 1.2); if (nb.some((j) => comp[j] !== comp[i])) { for (const j of near(i, radius)) bandSet.add(j); } }
+    const band = Array.from(bandSet);
+    cache = { band, nbr: band.map((i) => near(i, radius)) };
+    geo.userData._seamBlend = cache;
+  }
+  const band = cache.band, nbr = cache.nbr, arr = nrm.array;
+  for (let it = 0; it < iters; it++) {
+    const upd = new Array(band.length);
+    for (let b = 0; b < band.length; b++) {
+      let nx = 0, ny = 0, nz = 0; const nb = nbr[b];
+      for (let k = 0; k < nb.length; k++) { const j = nb[k]; nx += arr[j * 3]; ny += arr[j * 3 + 1]; nz += arr[j * 3 + 2]; }
+      const m = Math.hypot(nx, ny, nz) || 1; upd[b] = [nx / m, ny / m, nz / m];
+    }
+    for (let b = 0; b < band.length; b++) { const i = band[b]; arr[i * 3] = upd[b][0]; arr[i * 3 + 1] = upd[b][1]; arr[i * 3 + 2] = upd[b][2]; }
+  }
+  nrm.needsUpdate = true;
+}
+
 // Bake a quantized morph mesh into a plain Float32 geometry in GROUP space and
 // reparent it directly under `group` with identity transform, so runtime vertex
 // deformation (headDeform.js) can write millimetre offsets straight into the
@@ -122,7 +181,8 @@ function bakeHeadMesh(mesh, group) {
   // this Float32 attribute correctly.
   geo.deleteAttribute('normal');
   geo.computeVertexNormals();
-  smoothVertexNormals(geo);   // 얼굴-두피 경계 crease 완화
+  smoothVertexNormals(geo);   // 경계 crease 완화(연결된 이웃)
+  blendSeamNormals(geo);      // 얼굴 마스크↔뒤통수 쉘 접합부 seam 잇기
   geo.computeBoundingSphere();
   return mesh;
 }
