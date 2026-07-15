@@ -153,8 +153,12 @@ function drawZoneMap(ctx, spec) {
   // Wing top: better corridor pushes wings lower; larger area pulls them up
   // (more of the lens is distorted).
   const wingTopY = MAP_H * clamp(0.30 + 0.16 * corrNorm - 0.10 * (area - 1), 0.20, 0.62);
-  // Waist width = clear corridor at mid height; density squeezes it inward.
-  const waistHalf = Math.max(6, (corrNorm * 0.115 * MAP_W) / density);
+  // Waist width = clear corridor at mid height. 코리도 '폭'은 누진면 속성이라 프레임
+  // 크기와 무관(3D 콘 intermediate.h와 동일). 존맵은 렌즈에 입힌 텍스처라 렌즈가
+  // 커지면 텍스처도 늘어나므로, area(프레임 스케일)로 나눠 렌즈 확대를 상쇄 → 월드
+  // 기준 코리도 폭이 프레임과 무관해진다(큰 렌즈=얇은 채널, 작은 렌즈=렌즈를 채움 =
+  // 소형 프레임이 누진에 불리하다는 교육). 두 뷰 일치(A2). add/코리도는 corrNorm에 반영.
+  const waistHalf = Math.max(6, (corrNorm * 0.115 * MAP_W) / area);
   const gapHalf = Math.max(10, (nearNorm * 0.20 * MAP_W) / Math.sqrt(density));
   // Larger frame → wing reaches further toward the lens center (more exposure).
   const edgeReach = 0.52 - 0.06 * (area - 1);

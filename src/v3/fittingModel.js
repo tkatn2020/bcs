@@ -30,8 +30,10 @@ const BASE = {
   near:         { h: 15, v: 10, pitch: -33, len: 0.42 },
 };
 
-// Frame size shared by the glasses builder (single source).
-export const FRAME_BASE = { lensW: 0.046, lensH: 0.031, bSize: 31 };
+// 존 모델의 프레임 크기 기준(중립 100%) — 표준 피팅 bSize=26에 맞춤(A1: 26 통일).
+// 렌즈 치수는 bSize 26일 때 실제 렌더값(app.js 0.046·0.031 × 26/31)이라 개구
+// (aperture) 계산이 렌더 렌즈와 일치. (glassesBuilder는 이 상수를 안 쓰고 자체 스케일.)
+export const FRAME_BASE = { lensW: 0.03858, lensH: 0.026, bSize: 26 };
 
 export function computeZones(s) {
   const g = getGrade(s.grade);
@@ -57,7 +59,7 @@ export function computeZones(s) {
   const wrapFactor = clamp(1 - wrapDev * 0.03, 0.5, 1);
   const pdCorridor = clamp(1 - Math.abs(f.pdErr) * 0.13, 0.45, 1); // 1mm ≈ 폭 2mm 손실
   const pitchShift = f.oh * 2.0;                                   // deg/mm
-  const nearRoom = clamp(1 + (f.oh + (f.bSize - 31) / 2) * 0.10, 0.3, 1.12);
+  const nearRoom = clamp(1 + (f.oh + (f.bSize - 26) / 2) * 0.10, 0.3, 1.12);
 
   // ── 프레임 크기 = 개구(aperture) ──
   // 렌즈 전체가 비례 스케일: 원거리/근거리 시야가 프레임 크기를 따라 변함.
