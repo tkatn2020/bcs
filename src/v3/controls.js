@@ -100,6 +100,10 @@ const CAM_PRESETS = [
   { id: 'top', label: '상면', pos: [0.02, 0.45, 0.335], tgt: [0, 0, 0.02] },   // polar ~35° (minPolarAngle 32.4° 안쪽)
 ];
 
+// 피팅 프리셋 3슬롯 — 올바른/잘못된 피팅 빠른 비교용. 인메모리(모듈 스코프)라
+// 페이지 새로고침 시 초기화. 각 슬롯 = { v3fit, v3frame, v3head } 스냅샷.
+const fitPresets = [null, null, null];
+
 export function mountControls(root, { stage, getDemo } = {}) {
   const style = document.createElement('style');
   style.textContent = CSS;
@@ -228,6 +232,17 @@ export function mountControls(root, { stage, getDemo } = {}) {
       <button class="v3-btn" data-demo>▶ 시선 데모</button>
       <button class="v3-btn" data-turntable>턴테이블</button>
     </div>
+    <div class="v3-sec">피팅 프리셋 (비교용 · 새로고침 시 초기화)</div>
+    <div class="v3-mini">
+      <button class="v3-btn" data-preset-load="0">프리셋 1</button>
+      <button class="v3-btn" data-preset-load="1">프리셋 2</button>
+      <button class="v3-btn" data-preset-load="2">프리셋 3</button>
+    </div>
+    <div class="v3-mini">
+      <button class="v3-btn" data-preset-save="0">1 저장</button>
+      <button class="v3-btn" data-preset-save="1">2 저장</button>
+      <button class="v3-btn" data-preset-save="2">3 저장</button>
+    </div>
     <div class="v3-sec">초기화</div>
     <div class="v3-mini">
       <button class="v3-btn warn" data-resetall>전체 기본값 복귀</button>
@@ -300,6 +315,21 @@ export function mountControls(root, { stage, getDemo } = {}) {
     // ── 초기화 ── 광학·프레임·두상 조정 전체를 기본값으로
     const resetBtn = e.target.closest('[data-resetall]');
     if (resetBtn) resetFitting();
+    // ── 피팅 프리셋 ── 저장(현재 조정값 스냅샷) / 불러오기(적용)
+    const pSave = e.target.closest('[data-preset-save]');
+    if (pSave) {
+      fitPresets[+pSave.dataset.presetSave] = {
+        v3fit: JSON.parse(JSON.stringify(state.v3fit)),
+        v3frame: JSON.parse(JSON.stringify(state.v3frame)),
+        v3head: JSON.parse(JSON.stringify(state.v3head)),
+      };
+      refresh(state);   // 채워진 슬롯 표시 갱신(저장은 state 변경이 아니라 수동 호출)
+    }
+    const pLoad = e.target.closest('[data-preset-load]');
+    if (pLoad) {
+      const snap = fitPresets[+pLoad.dataset.presetLoad];
+      if (snap) update({ v3fit: snap.v3fit, v3frame: snap.v3frame, v3head: snap.v3head });
+    }
   });
 
   // ── Reactive refresh ──
@@ -358,6 +388,11 @@ export function mountControls(root, { stage, getDemo } = {}) {
       b.classList.toggle('on', !!s.v3view?.zones?.[b.dataset.zone]));
     panel.querySelector('[data-toggle="targets"]')
       .classList.toggle('on', !!s.v3view?.targets);
+    // 피팅 프리셋: 채워진 슬롯은 강조(불러오기 가능), 빈 슬롯은 흐리게
+    fitPresets.forEach((snap, i) => {
+      const b = panel.querySelector(`[data-preset-load="${i}"]`);
+      if (b) { b.classList.toggle('on', !!snap); b.style.opacity = snap ? '1' : '0.45'; }
+    });
   }
   refresh(state);
   subscribe(refresh);
