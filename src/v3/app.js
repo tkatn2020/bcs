@@ -155,6 +155,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     eyes, morphMesh,
     onFitChange: (patch) => update({ v3fit: patch }),
     onTargetsOn: () => update({ v3view: { targets: true } }),
+    getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
   });
 
   // ── state → scene ──
@@ -170,6 +171,8 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       lensW: 0.046 * frameScale,
       lensH: 0.031 * frameScale,
       cornerR: 0.008 * frameScale,
+      rimT: 0.0018 * (f.bSize / 26),   // 테 두께도 프레임 크기에 비례(기본 26서 0.0018 유지)
+      depth: 0.0018 * (f.bSize / 26),
       shape: f.shape,
       // 프레임 피팅 커스텀 (광학 무관 — mm/deg → m/deg)
       templeAngle: fr.templeAngle,
@@ -261,7 +264,6 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     headMesh: head,
     getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
     onFitChange: (patch) => update({ v3fit: patch }),
-    homeView: HOME_VIEW,
   });
 
   mountControls(document.body, { stage, getDemo: () => demo });
@@ -273,4 +275,14 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   });
 }).catch((err) => {
   console.error('Mannequin load failed:', err);
+  // 로드 실패 시 빈 화면 대신 오류 안내 + 재시도(키오스크에서 직원이 복구 가능).
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;'
+    + 'background:#171a20;color:#cfd6e4;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:24px;';
+  box.innerHTML = '<div><div style="font-size:16px;font-weight:800;margin-bottom:10px">3D 아바타를 불러오지 못했습니다</div>'
+    + '<div style="font-size:13px;opacity:.7;margin-bottom:18px">네트워크 연결을 확인하고 다시 시도해 주세요.</div>'
+    + '<button id="v3-retry" style="padding:10px 20px;border-radius:10px;border:1px solid rgba(255,255,255,.2);'
+    + 'background:#e8ecf4;color:#10131a;font-weight:700;font-size:13px;cursor:pointer">다시 시도</button></div>';
+  document.body.appendChild(box);
+  box.querySelector('#v3-retry').addEventListener('click', () => location.reload());
 });

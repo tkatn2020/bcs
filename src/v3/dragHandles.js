@@ -207,7 +207,7 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
   function onDown(e) {
     active.add(e.pointerId);
     // 두 손가락 이상 = 카메라 팬/줌 → 핸들 양보.
-    if (active.size >= 2) { drag = null; stage.controls.enabled = true; return; }
+    if (active.size >= 2) { drag = null; dragId = null; setEmphasis(); stage.controls.enabled = true; return; }
     if (!e.isPrimary || e.button !== 0) return;   // 우/중클릭은 팬 전용
 
     const H = nearest(e.clientX, e.clientY, GRAB_R);

@@ -87,7 +87,7 @@ export function computeZones(s) {
   };
   const near = {
     h: Math.min(BASE.near.h * gradeScale * nearAdd * vdFactor * nearFit * nearRoom * pdCorridor * Math.sqrt(frameFactor), apertureH * 0.85),
-    v: BASE.near.v * (0.75 + 0.25 * nearAdd) * nearRoom,
+    v: BASE.near.v * (0.75 + 0.25 * nearAdd) * nearRoom * vdFactor,
     pitch: BASE.near.pitch - nearPitchShift + pitchShift,
     len: BASE.near.len * clamp(nearRoom + 0.15, 0.5, 1),
   };

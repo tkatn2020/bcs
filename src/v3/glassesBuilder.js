@@ -275,7 +275,7 @@ export function createGlasses(anchors, opts = {}) {
       const zonePlane = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(innerPts)), zoneMat);
       zonePlane.position.z = 0.0006;
       zonePlane.renderOrder = 6;
-      remapUVs(zonePlane.geometry, p.lensW, p.lensH);
+      remapUVs(zonePlane.geometry);
       sideG.add(zonePlane);
       built.push(zonePlane);
 
@@ -298,7 +298,7 @@ export function createGlasses(anchors, opts = {}) {
         const A = new THREE.Vector3(
           rootX - side * 0.0015 + side * p.padSpacing,          // 좌우 간격(안쪽=코)
           padY - p.padArm * Math.sin(dropRad) + p.padVertical,  // 상하 + 길이
-          -(0.0085 + p.padArm * Math.cos(dropRad)),             // 코쪽(뒤·아래)으로
+          Math.min(-0.001, -(0.0085 + p.padArm * Math.cos(dropRad))),  // 코쪽(뒤). 극단값서 림 앞으로 안 나가게 클램프
         );
         const mid = new THREE.Vector3(
           (R.x + A.x) / 2, (R.y + A.y) / 2, (R.z + A.z) / 2 - 0.0015,   // 살짝 bow
@@ -432,11 +432,17 @@ export function createGlasses(anchors, opts = {}) {
     applyFit();
   }
 
-  function remapUVs(geo, w, h) {
+  function remapUVs(geo) {
+    // 존맵 텍스처를 렌즈 실제 외곽(bounding box)에 정확히 매핑 — 원형·애비에이터처럼
+    // 실폭/실높이가 lensW/lensH와 다른 형태에서도 왜곡 도표가 어긋나지 않게.
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox;
+    const w = (bb.max.x - bb.min.x) || 1, h = (bb.max.y - bb.min.y) || 1;
+    const cx = (bb.max.x + bb.min.x) / 2, cy = (bb.max.y + bb.min.y) / 2;
     const uv = geo.attributes.uv;
     const pos = geo.attributes.position;
     for (let i = 0; i < uv.count; i++) {
-      uv.setXY(i, pos.getX(i) / w + 0.5, pos.getY(i) / h + 0.5);
+      uv.setXY(i, (pos.getX(i) - cx) / w + 0.5, (pos.getY(i) - cy) / h + 0.5);
     }
     uv.needsUpdate = true;
   }

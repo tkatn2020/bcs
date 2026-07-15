@@ -22,7 +22,7 @@ const PHASES = [
 const TOTAL_S = 8.0;
 const DEMO_CAM = { pos: new THREE.Vector3(0.78, 0.14, 0.62), tgt: new THREE.Vector3(0.02, -0.1, 0.35) };
 
-export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn }) {
+export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn, getFit }) {
   // Gaze line — thin additive beam from pupil midpoint to the active target.
   const gazeMat = new THREE.MeshBasicMaterial({
     color: 0xffffff, transparent: true, opacity: 0.55,
@@ -52,6 +52,8 @@ export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, o
   let raf = 0;
   let cur = { pitch: 0, eye: 0 };
   let savedCam = null;
+  let savedHeadPitch = 0;    // 데모 전 사용자 고개각 — 종료 시 복원(0으로 덮어쓰지 않게)
+  let savedAutoRotate = false; // 데모 전 턴테이블 상태 — 종료 시 복원(중간 중지 시 유실 방지)
 
   function pointGaze(targetKey) {
     const from = mannequin.group.localToWorld(anchorMid.clone());
@@ -84,8 +86,9 @@ export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, o
     zones.setEmphasis(null);
     applyEyes(0);
     cur = { pitch: 0, eye: 0 };
-    onFitChange({ headPitch: 0 });
+    onFitChange({ headPitch: savedHeadPitch });   // 데모 전 고개각 복원
     stage.controls.enabled = true;
+    stage.controls.autoRotate = savedAutoRotate;  // 데모 전 턴테이블 상태 복원(모든 종료 경로)
     if (savedCam) {
       stage.camera.position.copy(savedCam.pos);
       stage.controls.target.copy(savedCam.tgt);
@@ -99,7 +102,8 @@ export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, o
     playing = true;
     onTargetsOn();
     savedCam = { pos: stage.camera.position.clone(), tgt: stage.controls.target.clone() };
-    const wasAutoRotate = stage.controls.autoRotate;
+    savedHeadPitch = getFit ? (getFit().headPitch ?? 0) : 0;
+    savedAutoRotate = stage.controls.autoRotate;
     stage.controls.autoRotate = false;
     stage.controls.enabled = false;
 
@@ -129,8 +133,7 @@ export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, o
       pointGaze(phase.target);
 
       if (t >= TOTAL_S) {
-        restore();
-        stage.controls.autoRotate = wasAutoRotate;
+        restore();   // autoRotate·headPitch 복원 포함
         return;
       }
       raf = requestAnimationFrame(frame);

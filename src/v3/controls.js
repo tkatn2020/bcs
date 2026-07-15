@@ -97,7 +97,7 @@ const CAM_PRESETS = [
   { id: 'quarter', label: '¾', pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] },
   { id: 'front', label: '정면', pos: [0.02, 0.02, 0.55], tgt: [0, 0, 0] },
   { id: 'side', label: '측면', pos: [0.52, 0.02, 0.03], tgt: [0, 0, 0.01] },
-  { id: 'top', label: '상면', pos: [0.02, 0.55, 0.14], tgt: [0, 0, 0.03] },
+  { id: 'top', label: '상면', pos: [0.02, 0.45, 0.335], tgt: [0, 0, 0.02] },   // polar ~35° (minPolarAngle 32.4° 안쪽)
 ];
 
 export function mountControls(root, { stage, getDemo } = {}) {
@@ -284,6 +284,8 @@ export function mountControls(root, { stage, getDemo } = {}) {
       const c = CAM_PRESETS.find((x) => x.id === cam.dataset.cam);
       stage.camera.position.set(...c.pos);
       stage.controls.target.set(...c.tgt);
+      stage.controls.autoRotate = false;   // 프리셋 이동 시 턴테이블 정지(계속 도는 것 방지)
+      panel.querySelector('[data-turntable]')?.classList.remove('on');
       stage.controls.update();
     }
     // ── 데모 ──
