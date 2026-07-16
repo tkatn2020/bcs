@@ -127,6 +127,163 @@ export function blendSeamNormals(geo, radius = 0.006, iters = 3) {
   nrm.needsUpdate = true;
 }
 
+// 쉘 테두리 인접 밴드의 노멀을 목 벽면(방사형)으로 눕혀, 두피 쉘의 말린
+// 테두리가 목 위에서 밝은 띠(선반처럼 보이는 음영)로 도드라지는 것을 없앤다.
+// 대상·가중치는 목 생성 시(buildNeckClosure) geo.userData._rimFix에 저장 —
+// headDeform.deform이 노멀을 재계산할 때마다 재적용해야 하므로 함수로 분리.
+export function applyRimNormalFix(geo) {
+  const fix = geo.userData._rimFix;
+  if (!fix || !geo.attributes.normal) return;
+  const nrm = geo.attributes.normal.array;
+  for (let k = 0; k < fix.idx.length; k++) {
+    const i = fix.idx[k], w = fix.w[k];
+    const nx = nrm[i * 3] * (1 - w) + fix.rx[k] * w;
+    const ny = nrm[i * 3 + 1] * (1 - w);
+    const nz = nrm[i * 3 + 2] * (1 - w) + fix.rz[k] * w;
+    const m = Math.hypot(nx, ny, nz) || 1;
+    nrm[i * 3] = nx / m; nrm[i * 3 + 1] = ny / m; nrm[i * 3 + 2] = nz / m;
+  }
+  geo.attributes.normal.needsUpdate = true;
+}
+
+// 두상 하부 목 클로저(rim-anchored bust) — 실제 헤드스캔처럼 자연스러운 목.
+// 두상 쉘(얼굴 마스크+두피)의 '아래 테두리(rim)'를 실측 추출해 목 상단을
+// 그 테두리에 정확히 꿰매고(틈·관통 원천 차단), 아래로 턱→목젖·뒤통수→
+// 목덜미 곡선을 그리며 쇄골 직전(y −0.225)에서 평절단(캡)한다.
+// 반환: 목 Mesh. 부수효과: headGeo.userData._rimFix(테두리 노멀 픽스 데이터).
+function buildNeckClosure(headMesh, mat) {
+  const geo = headMesh.geometry;
+  const pos = geo.attributes.position.array;
+  const idx = geo.index.array;
+  const n = geo.attributes.position.count;
+  const CZ = -0.05;   // 목 축의 z 중심(두상 단면 중심)
+
+  // 1) 연결요소 라벨(대형 쉘 2개만 신뢰 — 잔여 소형 조각 배제)
+  const adj = Array.from({ length: n }, () => []);
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+    adj[a].push(b, c); adj[b].push(a, c); adj[c].push(a, b);
+  }
+  const comp = new Int32Array(n).fill(-1);
+  let cid = 0; const csize = [];
+  for (let i = 0; i < n; i++) {
+    if (comp[i] >= 0 || adj[i].length === 0) continue;
+    let sz = 0; const st = [i]; comp[i] = cid;
+    while (st.length) { const u = st.pop(); sz++; for (const w of adj[u]) if (comp[w] < 0) { comp[w] = cid; st.push(w); } }
+    csize.push(sz); cid++;
+  }
+  const bigComps = new Set(csize.map((sz, i) => [sz, i]).filter(([sz]) => sz > 500).map(([, i]) => i));
+
+  // 2) 경계(열린 rim) 정점 → θ빈별 '최저 y' 앵커 (귀 pinna·눈/입 구멍 배제:
+  //    구멍들은 y가 더 높아 최저-y 선택에서 자연 탈락, pinna는 명시 제외)
+  const ec = new Map();
+  for (let t = 0; t < idx.length; t += 3) {
+    const tri = [idx[t], idx[t + 1], idx[t + 2]];
+    for (let e = 0; e < 3; e++) {
+      let a = tri[e], b = tri[(e + 1) % 3]; if (a > b) [a, b] = [b, a];
+      const k = a * 100000 + b; ec.set(k, (ec.get(k) || 0) + 1);
+    }
+  }
+  const bset = new Set();
+  ec.forEach((v, k) => { if (v === 1) { bset.add(Math.floor(k / 100000)); bset.add(k % 100000); } });
+  const SEG = 64;
+  const rimR = new Array(SEG).fill(null), rimY = new Array(SEG).fill(null);
+  bset.forEach((i) => {
+    if (!bigComps.has(comp[i])) return;
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    if (y >= -0.02) return;
+    if (Math.abs(x) > 0.0765 && z > -0.11 && z < -0.05) return;   // pinna 제외
+    const th = Math.atan2(x, z - CZ);
+    const b = Math.round((th + Math.PI) / (2 * Math.PI) * SEG) % SEG;
+    if (rimY[b] === null || y < rimY[b]) { rimY[b] = y; rimR[b] = Math.hypot(x, z - CZ); }
+  });
+  for (let b = 0; b < SEG; b++) {   // 빈 빈 원형 보간
+    if (rimR[b] !== null) continue;
+    let p = b, q = b, dp = 0, dq = 0;
+    while (rimR[(p + SEG - 1) % SEG] === null && dp < SEG) { p = (p + SEG - 1) % SEG; dp++; }
+    p = (p + SEG - 1) % SEG; dp++;
+    while (rimR[(q + 1) % SEG] === null && dq < SEG) { q = (q + 1) % SEG; dq++; }
+    q = (q + 1) % SEG; dq++;
+    const t = dp / (dp + dq);
+    rimR[b] = rimR[p] * (1 - t) + rimR[q] * t; rimY[b] = rimY[p] * (1 - t) + rimY[q] * t;
+  }
+  const smoothCirc = (arr, passes) => {   // 저폴리 지그재그 완화
+    for (let p = 0; p < passes; p++) {
+      const o = arr.slice();
+      for (let b = 0; b < SEG; b++) arr[b] = (o[(b + SEG - 2) % SEG] + 2 * o[(b + SEG - 1) % SEG] + 3 * o[b] + 2 * o[(b + 1) % SEG] + o[(b + 2) % SEG]) / 9;
+    }
+  };
+  smoothCirc(rimR, 2); smoothCirc(rimY, 2);
+
+  // 3) 목 그리드 — 앵커 2행(쉘 안 1.5mm→테두리 밖 0.4mm로 관통해 봉합) +
+  //    바디 16행(테두리→목 단면으로 스무스 블렌드, 하단 6% 트라페지우스 플레어)
+  //    + 하단 평절단 캡. 수치는 시각 튜닝 확정값.
+  const P = { yBot: -0.225, rxN: 0.050, frontZ: 0.018, backZ: -0.113, nExp: 2.3, flareAmt: 0.10, shapeEnd: 0.32, proud: 0.0004, inset: 0.0015, topUp: 0.010 };
+  const cN = (P.frontZ + P.backZ) / 2, rzN = (P.frontZ - P.backZ) / 2;
+  const ss = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const M = 16, W = SEG + 1;
+  const pts = [], tri = [];
+  for (let j = 0; j <= M + 1; j++) {
+    for (let b = 0; b <= SEG; b++) {
+      const bi = b % SEG;
+      const th = -Math.PI + (bi / SEG) * 2 * Math.PI;
+      const sin = Math.sin(th), cos = Math.cos(th);
+      if (j === 0) {
+        pts.push((rimR[bi] - P.inset) * sin, rimY[bi] + P.topUp, CZ + (rimR[bi] - P.inset) * cos);
+      } else if (j === 1) {
+        pts.push((rimR[bi] + P.proud) * sin, rimY[bi] - 0.0015, CZ + (rimR[bi] + P.proud) * cos);
+      } else {
+        const u = (j - 1) / M;
+        const sh = ss(0, P.shapeEnd, u);
+        const flare = 1 + P.flareAmt * ss(0.75, 1, u);
+        const e = 2 / P.nExp;
+        const tx = P.rxN * flare * Math.sign(sin) * Math.pow(Math.abs(sin), e);
+        const tz = cN + rzN * flare * Math.sign(cos) * Math.pow(Math.abs(cos), e);
+        const rx0 = (rimR[bi] + P.proud) * sin, rz0 = CZ + (rimR[bi] + P.proud) * cos;
+        const y = (rimY[bi] - 0.0015) * (1 - u) + P.yBot * u;
+        pts.push(rx0 * (1 - sh) + tx * sh, y, rz0 * (1 - sh) + tz * sh);
+      }
+    }
+  }
+  for (let j = 0; j < M + 1; j++) {
+    for (let b = 0; b < SEG; b++) {
+      const a = j * W + b, c = a + W;
+      tri.push(a, c, a + 1, a + 1, c, c + 1);
+    }
+  }
+  const centerIdx = pts.length / 3;
+  pts.push(0, P.yBot, cN);
+  const lastRow = (M + 1) * W;
+  for (let b = 0; b < SEG; b++) tri.push(lastRow + b, centerIdx, lastRow + b + 1);
+  const neckGeo = new THREE.BufferGeometry();
+  neckGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  neckGeo.setIndex(tri);
+  neckGeo.computeVertexNormals();
+  const neck = new THREE.Mesh(neckGeo, mat);
+  neck.name = 'neck';
+
+  // 4) 테두리 노멀 픽스 데이터 — 테두리 위 12mm 밴드의 쉘 정점 노멀을 방사형
+  //    으로 85%까지 눕힘(테두리에 가까울수록 강하게). rest 위치 기준 1회 계산.
+  const fIdx = [], fW = [], fRx = [], fRz = [];
+  for (let i = 0; i < n; i++) {
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    if (y > -0.02 || !bigComps.has(comp[i])) continue;
+    const th = Math.atan2(x, z - CZ);
+    const b = ((Math.round((th + Math.PI) / (2 * Math.PI) * SEG)) % SEG + SEG) % SEG;
+    const dy = y - rimY[b];
+    if (dy < -0.004 || dy > 0.012) continue;
+    const w = (1 - Math.max(0, dy) / 0.012) * 0.85;
+    const rl = Math.hypot(x, z - CZ) || 1;
+    fIdx.push(i); fW.push(w); fRx.push(x / rl); fRz.push((z - CZ) / rl);
+  }
+  geo.userData._rimFix = {
+    idx: Uint32Array.from(fIdx), w: Float32Array.from(fW),
+    rx: Float32Array.from(fRx), rz: Float32Array.from(fRz),
+  };
+  applyRimNormalFix(geo);
+  return neck;
+}
+
 // Bake a quantized morph mesh into a plain Float32 geometry in GROUP space and
 // reparent it directly under `group` with identity transform, so runtime vertex
 // deformation (headDeform.js) can write millimetre offsets straight into the
@@ -294,55 +451,15 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
       // 두상 하부 마감(facecap 전용) — 아래 시점에서 얼굴 안이 보이지 않게.
       // ① 이빨/잇몸 메시 숨김: 입은 항상 다물려 있어 정상 시점에선 안 보이고,
       //    아래에서 들여다볼 때만 노출되는 불쾌 요소. 눈알(시선 데모)·얼굴만 유지.
-      // ② 하부 클로저(bust): 두피 쉘이 y≈−0.05에서 끝나 그 아래 뒤통수·바닥이
-      //    통째로 뚫려 있다(단순 실린더는 그 틈으로 원기둥이 그대로 드러남).
-      //    두상 단면을 실측해 행별 수퍼타원(모서리가 통통 — 실제 스컬 단면 근사)
-      //    을 쌓은 커스텀 서피스로 개구부 전체를 같은 피부로 감싼다.
-      //    · 뒤: 상단 행이 두피 테두리(z≈−0.147)를 3~8mm 감싸 틈 없이 이음.
-      //    · 앞: 얼굴 마스크가 턱(y −0.114)까지 덮으므로 깊숙이(z≈+0.015) 후퇴
-      //      — 입/볼 관통 방지. 턱 아래부터 목젖으로 자연 노출.
-      //    · 상단 링은 스컬 안(귀 아래)에 묻혀 이음새 없음. 시각 튜닝값.
+      // ② 하부 목 클로저: 두피 쉘이 y≈−0.05에서 끝나 그 아래가 통째로 뚫려
+      //    있다. buildNeckClosure가 쉘의 실제 아래 테두리를 추출해 목 상단을
+      //    거기에 꿰매고(틈·관통 원천 차단) 쇄골 직전까지 자연스러운 목을
+      //    만든다 + 테두리 노멀 픽스(_rimFix)로 접합부 음영을 목과 연속화.
       if (headMesh && eyeL && eyeR) {
         root.traverse((o) => {
           if (o.isMesh && o !== eyeL.mesh && o !== eyeR.mesh) o.visible = false;
         });
-        const ROWS = [   // [y, x반지름, z중심, z반지름, 수퍼타원 지수 n]
-          [-0.030, 0.069, -0.070, 0.085, 2.8],
-          [-0.050, 0.068, -0.069, 0.081, 2.8],
-          [-0.075, 0.064, -0.0665, 0.0785, 2.6],
-          [-0.100, 0.056, -0.055, 0.070, 2.4],
-          [-0.130, 0.048, -0.0435, 0.0615, 2.2],
-          [-0.170, 0.045, -0.040, 0.055, 2.2],
-          [-0.350, 0.048, -0.041, 0.059, 2.2],
-        ];
-        const SEG = 64;
-        const pts = [], tri = [];
-        for (let r = 0; r < ROWS.length; r++) {
-          const [y, rx, cz, rz, sn] = ROWS[r];
-          const e = 2 / sn;
-          for (let k = 0; k <= SEG; k++) {
-            const a = (k / SEG) * Math.PI * 2;
-            const si = Math.sin(a), co = Math.cos(a);
-            pts.push(
-              rx * Math.sign(si) * Math.pow(Math.abs(si), e),
-              y,
-              cz + rz * Math.sign(co) * Math.pow(Math.abs(co), e),
-            );
-          }
-        }
-        for (let r = 0; r < ROWS.length - 1; r++) {
-          for (let k = 0; k < SEG; k++) {
-            const a = r * (SEG + 1) + k, b = a + SEG + 1;
-            tri.push(a, b, a + 1, a + 1, b, b + 1);
-          }
-        }
-        const bustGeo = new THREE.BufferGeometry();
-        bustGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-        bustGeo.setIndex(tri);
-        bustGeo.computeVertexNormals();
-        const bust = new THREE.Mesh(bustGeo, mat);
-        bust.name = 'neck';
-        group.add(bust);
+        group.add(buildNeckClosure(headMesh, mat));
       }
 
       resolve({
