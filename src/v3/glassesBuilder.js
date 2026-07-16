@@ -364,11 +364,10 @@ export function createGlasses(anchors, opts = {}) {
       // ear는 귀 최외곽점(app.js). 끝점 x는 귀 최외곽이 아니라 측두부 표면
       // (귀-머리 접합부)이라야 템플이 귀 위 홈에 얹히고 귀 뒤로 드롭한다.
       const earTopZ = ear.z - groupOffsetZ;
-      // 옆면 간격 비대칭 보정(초기 세팅 기준) — 아바타 오른쪽 +4mm, 왼쪽 +1.5mm.
+      // 옆면 간격 비대칭 보정(초기 세팅 기준) — 아바타 오른쪽 +6mm, 왼쪽 +3.5mm.
       // 프레임 커스텀 templeGap 위에 더해진다. side>0=아바타 왼쪽, side<0=오른쪽.
-      // (2026-07-16 재캘리: 표시 0mm에 ~1mm 잔여 간격이 보여 양쪽 −1mm — 표시
-      //  0 = 밀착 기준)
-      const gapBias = side > 0 ? 0.0015 : 0.004;
+      // (2026-07-16 재캘리: 기준 간격을 기존보다 +1mm — 표시 0 = 기존 1mm 상태)
+      const gapBias = side > 0 ? 0.0035 : 0.006;
       const earRestX = headX(earTopZ, side) + templeGap + gapBias + faceWidth;   // 측두부 표면 (+ 옆면 간격 + 옆통수 폭)
       const bodyRun = Math.abs(earTopZ - hinge.z);
       // 비대칭 두상 보정 — 좌우 귀 접합부에 정확히 맞닿도록 실측 조정.
