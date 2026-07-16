@@ -407,11 +407,17 @@ export function createGlasses(anchors, opts = {}) {
       const dropRad = THREE.MathUtils.degToRad(clamp(180 - earTipAngle, 0, 90));
       const convRad = THREE.MathUtils.degToRad(earConverge);
       const cc = Math.cos(convRad);
-      const dropEnd = new THREE.Vector3(
-        earTop.x - side * dropLen * Math.sin(convRad),   // + = 안쪽(머리쪽, 모아짐)
-        earTop.y - dropLen * Math.sin(dropRad) * cc,
-        earTop.z - dropLen * Math.cos(dropRad) * cc,
+      // 밴딩 연장(귀 끝까지): 밴딩이 클수록 드롭(귀팁)도 안쪽으로 감아 다리
+      // '전체'가 얼굴을 감싼다. 팁으로 갈수록 강하게(t²), 90°서 팁 6mm 안쪽.
+      // 귀모임각(earConverge)의 옆기울기와 가산 합성.
+      const wrapIn = bendFrac * 0.006;
+      const dropPt = (t) => new THREE.Vector3(
+        earTop.x - side * (dropLen * t * Math.sin(convRad) + wrapIn * t * t),
+        earTop.y - dropLen * t * Math.sin(dropRad) * cc,
+        earTop.z - dropLen * t * Math.cos(dropRad) * cc,
       );
+      const dropMid = dropPt(0.5);
+      const dropEnd = dropPt(1);
 
       // REF 기준 GROUP 좌표를 sideG-로컬로 역변환 — 부모 sideG(안면각)·frontG(경사각)
       // 회전을 다시 얹으면, 실제 각도 = 표준일 때 귀에 안착하고 벗어나면 함께 회전.
@@ -422,7 +428,7 @@ export function createGlasses(anchors, opts = {}) {
       const toSideLocal = (pg) =>
         pg.sub(frontGp).applyQuaternion(qUnPanto).sub(sideGp).applyQuaternion(qUnWrap);
 
-      const curve = new THREE.CatmullRomCurve3([...bodyPts, dropEnd].map(toSideLocal));
+      const curve = new THREE.CatmullRomCurve3([...bodyPts, dropMid, dropEnd].map(toSideLocal));
       const temple = new THREE.Mesh(
         new THREE.TubeGeometry(curve, 40, 0.0014, 8),
         frameMat,
