@@ -294,20 +294,55 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
       // 두상 하부 마감(facecap 전용) — 아래 시점에서 얼굴 안이 보이지 않게.
       // ① 이빨/잇몸 메시 숨김: 입은 항상 다물려 있어 정상 시점에선 안 보이고,
       //    아래에서 들여다볼 때만 노출되는 불쾌 요소. 눈알(시선 데모)·얼굴만 유지.
-      // ② 목 기둥: 얼굴과 동일한 피부 재질로 머리 밑 개구부를 막고 목까지 잇는다.
-      //    타원 단면(z 1.3배), 상단은 머리 안쪽(y −0.05)에 묻혀 이음새 없음.
+      // ② 하부 클로저(bust): 두피 쉘이 y≈−0.05에서 끝나 그 아래 뒤통수·바닥이
+      //    통째로 뚫려 있다(단순 실린더는 그 틈으로 원기둥이 그대로 드러남).
+      //    두상 단면을 실측해 행별 수퍼타원(모서리가 통통 — 실제 스컬 단면 근사)
+      //    을 쌓은 커스텀 서피스로 개구부 전체를 같은 피부로 감싼다.
+      //    · 뒤: 상단 행이 두피 테두리(z≈−0.147)를 3~8mm 감싸 틈 없이 이음.
+      //    · 앞: 얼굴 마스크가 턱(y −0.114)까지 덮으므로 깊숙이(z≈+0.015) 후퇴
+      //      — 입/볼 관통 방지. 턱 아래부터 목젖으로 자연 노출.
+      //    · 상단 링은 스컬 안(귀 아래)에 묻혀 이음새 없음. 시각 튜닝값.
       if (headMesh && eyeL && eyeR) {
         root.traverse((o) => {
           if (o.isMesh && o !== eyeL.mesh && o !== eyeR.mesh) o.visible = false;
         });
-        const neck = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.046, 0.058, 0.30, 28),
-          mat,
-        );
-        neck.name = 'neck';
-        neck.position.set(0, -0.20, -0.045);   // top y −0.05(머리 속) ~ bottom −0.35
-        neck.scale.set(1, 1, 1.3);
-        group.add(neck);
+        const ROWS = [   // [y, x반지름, z중심, z반지름, 수퍼타원 지수 n]
+          [-0.030, 0.069, -0.070, 0.085, 2.8],
+          [-0.050, 0.068, -0.069, 0.081, 2.8],
+          [-0.075, 0.064, -0.0665, 0.0785, 2.6],
+          [-0.100, 0.056, -0.055, 0.070, 2.4],
+          [-0.130, 0.048, -0.0435, 0.0615, 2.2],
+          [-0.170, 0.045, -0.040, 0.055, 2.2],
+          [-0.350, 0.048, -0.041, 0.059, 2.2],
+        ];
+        const SEG = 64;
+        const pts = [], tri = [];
+        for (let r = 0; r < ROWS.length; r++) {
+          const [y, rx, cz, rz, sn] = ROWS[r];
+          const e = 2 / sn;
+          for (let k = 0; k <= SEG; k++) {
+            const a = (k / SEG) * Math.PI * 2;
+            const si = Math.sin(a), co = Math.cos(a);
+            pts.push(
+              rx * Math.sign(si) * Math.pow(Math.abs(si), e),
+              y,
+              cz + rz * Math.sign(co) * Math.pow(Math.abs(co), e),
+            );
+          }
+        }
+        for (let r = 0; r < ROWS.length - 1; r++) {
+          for (let k = 0; k < SEG; k++) {
+            const a = r * (SEG + 1) + k, b = a + SEG + 1;
+            tri.push(a, b, a + 1, a + 1, b, b + 1);
+          }
+        }
+        const bustGeo = new THREE.BufferGeometry();
+        bustGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        bustGeo.setIndex(tri);
+        bustGeo.computeVertexNormals();
+        const bust = new THREE.Mesh(bustGeo, mat);
+        bust.name = 'neck';
+        group.add(bust);
       }
 
       resolve({
