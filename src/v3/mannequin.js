@@ -22,6 +22,9 @@ export function mannequinMaterial() {
     roughness: 0.34,
     clearcoat: 1.0,
     clearcoatRoughness: 0.18,
+    // 얼굴/두피 쉘이 열린 메시라 앞면만 렌더하면 아래·뒤 시점에서 안이 관통돼
+    // 보인다(눈알·이빨 노출). 양면 렌더로 쉘 안쪽도 피부로 막는다.
+    side: THREE.DoubleSide,
   });
 }
 
@@ -286,6 +289,25 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
       if (morphMesh) {
         headMesh = bakeHeadMesh(morphMesh, group);
         restPositions = headMesh.geometry.attributes.position.array.slice();
+      }
+
+      // 두상 하부 마감(facecap 전용) — 아래 시점에서 얼굴 안이 보이지 않게.
+      // ① 이빨/잇몸 메시 숨김: 입은 항상 다물려 있어 정상 시점에선 안 보이고,
+      //    아래에서 들여다볼 때만 노출되는 불쾌 요소. 눈알(시선 데모)·얼굴만 유지.
+      // ② 목 기둥: 얼굴과 동일한 피부 재질로 머리 밑 개구부를 막고 목까지 잇는다.
+      //    타원 단면(z 1.3배), 상단은 머리 안쪽(y −0.05)에 묻혀 이음새 없음.
+      if (headMesh && eyeL && eyeR) {
+        root.traverse((o) => {
+          if (o.isMesh && o !== eyeL.mesh && o !== eyeR.mesh) o.visible = false;
+        });
+        const neck = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.046, 0.058, 0.30, 28),
+          mat,
+        );
+        neck.name = 'neck';
+        neck.position.set(0, -0.20, -0.045);   // top y −0.05(머리 속) ~ bottom −0.35
+        neck.scale.set(1, 1, 1.3);
+        group.add(neck);
       }
 
       resolve({
