@@ -364,9 +364,11 @@ export function createGlasses(anchors, opts = {}) {
       // ear는 귀 최외곽점(app.js). 끝점 x는 귀 최외곽이 아니라 측두부 표면
       // (귀-머리 접합부)이라야 템플이 귀 위 홈에 얹히고 귀 뒤로 드롭한다.
       const earTopZ = ear.z - groupOffsetZ;
-      // 옆면 간격 비대칭 보정(초기 세팅 기준) — 아바타 오른쪽 +5mm, 왼쪽 +2.5mm.
+      // 옆면 간격 비대칭 보정(초기 세팅 기준) — 아바타 오른쪽 +4mm, 왼쪽 +1.5mm.
       // 프레임 커스텀 templeGap 위에 더해진다. side>0=아바타 왼쪽, side<0=오른쪽.
-      const gapBias = side > 0 ? 0.0025 : 0.005;
+      // (2026-07-16 재캘리: 표시 0mm에 ~1mm 잔여 간격이 보여 양쪽 −1mm — 표시
+      //  0 = 밀착 기준)
+      const gapBias = side > 0 ? 0.0015 : 0.004;
       const earRestX = headX(earTopZ, side) + templeGap + gapBias + faceWidth;   // 측두부 표면 (+ 옆면 간격 + 옆통수 폭)
       const bodyRun = Math.abs(earTopZ - hinge.z);
       // 비대칭 두상 보정 — 좌우 귀 접합부에 정확히 맞닿도록 실측 조정.
@@ -388,7 +390,10 @@ export function createGlasses(anchors, opts = {}) {
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
         const surfX = headX(z, side) + templeGap + gapBias + faceWidth;   // 측두부 표면 (+ 옆통수 폭)
-        const bow = bendFrac * t * (1 - t) * 4;                 // 양끝 0, 중앙 1
+        // 양끝(hinge·귀)은 고정하되, 포물선(중앙만 뾰족)이 아니라 플래토 곡선
+        // (^0.45)으로 엔드피스 직후부터 귀 직전까지 다리 '전체'가 머리 곡률을
+        // 따라 밴딩되게 한다(관자놀이 부근만 휘던 문제 수정).
+        const bow = bendFrac * Math.pow(Math.max(0, 4 * t * (1 - t)), 0.45);
         const x = side * (straightX + (surfX - straightX) * bow);
         const y = hinge.y + (earTopY - hinge.y) * t;
         bodyPts.push(new THREE.Vector3(x, y, z));

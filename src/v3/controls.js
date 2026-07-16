@@ -33,9 +33,15 @@ const CSS = `
   .v3-btn.on { background: #e8ecf4; color: #10131a; border-color: #e8ecf4; }
   .v3-btn.warn { border-color: rgba(239,68,68,0.55); color: #f0a0a0; }
 
-  .v3-panel { top: 78px; right: 14px; width: 250px; padding: 12px 14px;
-    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 170px);
+  .v3-panel { top: 192px; right: 14px; width: 250px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 284px);
     overflow-y: auto; scrollbar-gutter: stable; }
+  .v3-presetbar { position: fixed; z-index: 10; top: 78px; right: 14px; width: 250px;
+    padding: 10px 14px; border-radius: 14px;
+    background: rgba(16, 19, 26, 0.74); backdrop-filter: blur(10px);
+    font-family: 'Pretendard', system-ui, sans-serif; user-select: none; -webkit-user-select: none;
+    display: flex; flex-direction: column; gap: 8px; }
+  .v3-presetbar .v3-sec { margin-top: 0; }
   .v3-sec { font-size: 10px; letter-spacing: 0.12em; color: #8b93a7; font-weight: 800; margin-top: 4px; }
   .v3-row { display: flex; align-items: center; gap: 8px; }
   .v3-row label { flex: 0 0 78px; font-size: 11.5px; color: #cfd6e4; font-weight: 600; cursor: pointer;
@@ -233,6 +239,17 @@ export function mountControls(root, { stage, getDemo } = {}) {
       <button class="v3-btn" data-demo>▶ 시선 데모</button>
       <button class="v3-btn" data-turntable>턴테이블</button>
     </div>
+    <div class="v3-sec">초기화</div>
+    <div class="v3-mini">
+      <button class="v3-btn warn" data-resetall>전체 기본값 복귀</button>
+    </div>
+  `;
+  root.appendChild(panel);
+
+  // ── 상단 개별 패널: 피팅 프리셋 (자주 쓰는 기능 — 스크롤 없이 즉시 접근) ──
+  const presetBar = document.createElement('div');
+  presetBar.className = 'v3-presetbar';
+  presetBar.innerHTML = `
     <div class="v3-sec">피팅 프리셋 (비교용 · 새로고침 시 초기화)</div>
     <div class="v3-mini">
       <button class="v3-btn" data-preset-load="0">프리셋 1</button>
@@ -244,12 +261,24 @@ export function mountControls(root, { stage, getDemo } = {}) {
       <button class="v3-btn" data-preset-save="1">2 저장</button>
       <button class="v3-btn" data-preset-save="2">3 저장</button>
     </div>
-    <div class="v3-sec">초기화</div>
-    <div class="v3-mini">
-      <button class="v3-btn warn" data-resetall>전체 기본값 복귀</button>
-    </div>
   `;
-  root.appendChild(panel);
+  root.appendChild(presetBar);
+  presetBar.addEventListener('click', (e) => {
+    const pSave = e.target.closest('[data-preset-save]');
+    if (pSave) {
+      fitPresets[+pSave.dataset.presetSave] = {
+        v3fit: JSON.parse(JSON.stringify(state.v3fit)),
+        v3frame: JSON.parse(JSON.stringify(state.v3frame)),
+        v3head: JSON.parse(JSON.stringify(state.v3head)),
+      };
+      refresh(state);   // 채워진 슬롯 표시 갱신(저장은 state 변경이 아니라 수동 호출)
+    }
+    const pLoad = e.target.closest('[data-preset-load]');
+    if (pLoad) {
+      const snap = fitPresets[+pLoad.dataset.presetLoad];
+      if (snap) update({ v3fit: snap.v3fit, v3frame: snap.v3frame, v3head: snap.v3head });
+    }
+  });
 
   panel.addEventListener('input', (e) => {
     const key = e.target.dataset?.fit;
@@ -316,21 +345,6 @@ export function mountControls(root, { stage, getDemo } = {}) {
     // ── 초기화 ── 광학·프레임·두상 조정 전체를 기본값으로
     const resetBtn = e.target.closest('[data-resetall]');
     if (resetBtn) resetFitting();
-    // ── 피팅 프리셋 ── 저장(현재 조정값 스냅샷) / 불러오기(적용)
-    const pSave = e.target.closest('[data-preset-save]');
-    if (pSave) {
-      fitPresets[+pSave.dataset.presetSave] = {
-        v3fit: JSON.parse(JSON.stringify(state.v3fit)),
-        v3frame: JSON.parse(JSON.stringify(state.v3frame)),
-        v3head: JSON.parse(JSON.stringify(state.v3head)),
-      };
-      refresh(state);   // 채워진 슬롯 표시 갱신(저장은 state 변경이 아니라 수동 호출)
-    }
-    const pLoad = e.target.closest('[data-preset-load]');
-    if (pLoad) {
-      const snap = fitPresets[+pLoad.dataset.presetLoad];
-      if (snap) update({ v3fit: snap.v3fit, v3frame: snap.v3frame, v3head: snap.v3head });
-    }
   });
 
   // ── Reactive refresh ──
@@ -391,7 +405,7 @@ export function mountControls(root, { stage, getDemo } = {}) {
       .classList.toggle('on', !!s.v3view?.targets);
     // 피팅 프리셋: 채워진 슬롯은 강조(불러오기 가능), 빈 슬롯은 흐리게
     fitPresets.forEach((snap, i) => {
-      const b = panel.querySelector(`[data-preset-load="${i}"]`);
+      const b = presetBar.querySelector(`[data-preset-load="${i}"]`);
       if (b) { b.classList.toggle('on', !!snap); b.style.opacity = snap ? '1' : '0.45'; }
     });
   }
