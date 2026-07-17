@@ -11,18 +11,22 @@ import * as THREE from 'three';
 import { TARGET_POSITIONS } from './targets.js';
 
 // 누진 사용법의 정석: "고개는 살짝만, 눈을 내려 렌즈 하부를 사용".
-// pitch는 존 축이 각 타깃의 실제 편각에 정렬되도록 캘리브레이션
-// (존 pitch + headPitch ≈ 타깃 편각 → 도달 판정 링이 초록으로 켜짐),
-// 시선 하강의 체감은 눈알 회전(eye)이 담당한다.
-const PHASES = [
-  { until: 2.3, zone: 'distance',     target: 'far',     pitch: 0,    eye: 0 },
-  { until: 4.7, zone: 'intermediate', target: 'monitor', pitch: -2,   eye: 0.18 },
-  { until: 7.2, zone: 'near',         target: 'book',    pitch: -4.5, eye: 0.35 },
-];
+// 페이즈는 재생 시점의 존 스펙(getSpec)으로 동적 생성(C5) — 누진대가 길수록
+// |near.pitch|가 커져 눈 하강량(eye)이 깊어진다 = "긴 누진대는 시선을 더
+// 내려야 함"을 데모가 직접 시연. headPitch 부호는 + = 숙임(렌더 규약).
+const buildPhases = (spec) => {
+  const midP = spec ? Math.abs(spec.intermediate.pitch) : 15;
+  const nearP = spec ? Math.abs(spec.near.pitch) : 33;
+  return [
+    { until: 2.3, zone: 'distance',     target: 'far',     pitch: 0,   eye: 0 },
+    { until: 4.7, zone: 'intermediate', target: 'monitor', pitch: 2,   eye: 0.18 * (midP / 15) },
+    { until: 7.2, zone: 'near',         target: 'book',    pitch: 4.5, eye: 0.35 * (nearP / 33) },
+  ];
+};
 const TOTAL_S = 8.0;
 const DEMO_CAM = { pos: new THREE.Vector3(0.78, 0.14, 0.62), tgt: new THREE.Vector3(0.02, -0.1, 0.35) };
 
-export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn, getFit }) {
+export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn, onZonesOn, getFit, getSpec }) {
   // Gaze line — thin additive beam from pupil midpoint to the active target.
   const gazeMat = new THREE.MeshBasicMaterial({
     color: 0xffffff, transparent: true, opacity: 0.55,
@@ -101,6 +105,8 @@ export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, o
     if (playing) { restore(); return; }   // 재생 중 재클릭 = 중지
     playing = true;
     onTargetsOn();
+    if (onZonesOn) onZonesOn();   // 존 콘이 꺼져 있으면 데모가 '보이지 않는 콘'을 강조하게 되므로 자동 점등(C4)
+    const phases = buildPhases(getSpec ? getSpec() : null);
     savedCam = { pos: stage.camera.position.clone(), tgt: stage.controls.target.clone() };
     savedHeadPitch = getFit ? (getFit().headPitch ?? 0) : 0;
     savedAutoRotate = stage.controls.autoRotate;
@@ -122,7 +128,7 @@ export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, o
       stage.controls.target.lerpVectors(tgtFrom, DEMO_CAM.tgt, ce);
       stage.controls.update();
 
-      const phase = PHASES.find((p) => t <= p.until) || PHASES[PHASES.length - 1];
+      const phase = phases.find((p) => t <= p.until) || phases[phases.length - 1];
 
       // Critically-damped chase toward the phase pose
       cur.pitch += (phase.pitch - cur.pitch) * 0.06;

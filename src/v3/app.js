@@ -207,7 +207,9 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     eyes, morphMesh,
     onFitChange: (patch) => update({ v3fit: patch }),
     onTargetsOn: () => update({ v3view: { targets: true } }),
+    onZonesOn: () => update({ v3view: { zones: { distance: true, intermediate: true, near: true } } }),
     getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
+    getSpec: () => lastSpec,
   });
 
   // ── state → scene ──

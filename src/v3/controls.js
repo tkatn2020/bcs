@@ -189,6 +189,13 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
   const panel = document.createElement('div');
   panel.className = 'v3-panel';
   panel.innerHTML = `
+    <div class="v3-sec">시야 존 표시</div>
+    <div class="v3-mini">
+      <button class="v3-btn" data-zone="distance">원거리</button>
+      <button class="v3-btn" data-zone="intermediate">중간</button>
+      <button class="v3-btn" data-zone="near">근거리</button>
+      <button class="v3-btn" data-toggle="targets">타깃</button>
+    </div>
     <div class="v3-sec">광학 피팅 (라벨 더블탭 = 표준 복귀)</div>
     ${SLIDERS.map((sl) => `
       <div class="v3-row">
@@ -257,13 +264,6 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
     <div class="v3-sec">프레임 형상</div>
     <div class="v3-mini">
       ${SHAPES.map((s) => `<button class="v3-btn" data-shape="${s.id}">${s.label}</button>`).join('')}
-    </div>
-    <div class="v3-sec">시야 존 표시</div>
-    <div class="v3-mini">
-      <button class="v3-btn" data-zone="distance">원거리</button>
-      <button class="v3-btn" data-zone="intermediate">중간</button>
-      <button class="v3-btn" data-zone="near">근거리</button>
-      <button class="v3-btn" data-toggle="targets">타깃</button>
     </div>
     <div class="v3-sec">카메라</div>
     <div class="v3-mini">
