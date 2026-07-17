@@ -384,16 +384,19 @@ export function createGlasses(anchors, opts = {}) {
       const bendFrac = clamp(templeBend / 90, 0, 1);
       const bodyPts = [];
       const N = 8;
+      // 깔끔한 단일 활꼴(아크): 측두부 프로파일을 점별로 따라가면(가중 블렌드)
+      // 프로파일 굴곡 + 귀 직전 급복귀로 다리가 꾸불꾸불해진다. 대신 중앙
+      // 새그(sag)만 표면 기준으로 잡고 순수 포물선 아크(≈원호)로 그린다 —
+      // 전 구간 일정한 곡률의 매끈한 커브, 밴딩 90°면 중앙이 표면에 닿는다.
+      const zMid = (hinge.z + earTopZ) / 2;
+      const chordMidX = (Math.abs(hinge.x) + earRestX) / 2;
+      const surfMidX = headX(zMid, side) + templeGap + gapBias + faceWidth;
+      const sag = bendFrac * (surfMidX - chordMidX);
       for (let i = 0; i <= N; i++) {
         const t = i / N;
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
-        const surfX = headX(z, side) + templeGap + gapBias + faceWidth;   // 측두부 표면 (+ 옆통수 폭)
-        // 양끝(hinge·귀)은 고정하되, 포물선(중앙만 뾰족)이 아니라 플래토 곡선
-        // (^0.45)으로 엔드피스 직후부터 귀 직전까지 다리 '전체'가 머리 곡률을
-        // 따라 밴딩되게 한다(관자놀이 부근만 휘던 문제 수정).
-        const bow = bendFrac * Math.pow(Math.max(0, 4 * t * (1 - t)), 0.45);
-        const x = side * (straightX + (surfX - straightX) * bow);
+        const x = side * (straightX + sag * 4 * t * (1 - t));
         const y = hinge.y + (earTopY - hinge.y) * t;
         bodyPts.push(new THREE.Vector3(x, y, z));
       }
