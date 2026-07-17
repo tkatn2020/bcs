@@ -342,7 +342,19 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       if (sl?.edu) cap(sl.edu);
     }
     const fkey = e.target.dataset?.frame;
-    if (fkey) update({ v3frame: { [fkey]: Number(e.target.value) } });
+    if (fkey) {
+      update({ v3frame: { [fkey]: Number(e.target.value) } });
+      // 코받침 → 광학 실반영량(B-2)을 캡션으로 — 물리→광학 인과를 눈에 보이게
+      if (fkey === 'padVertical' || fkey === 'padSpacing' || fkey === 'padArm') {
+        const fr = state.v3frame;
+        const padOh = fr.padOn ? -fr.padVertical * 0.8 - fr.padSpacing * 0.5 : 0;
+        const padVd = fr.padOn ? -fr.padSpacing * 0.4 + fr.padArm * 0.4 : 0;
+        const sg = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
+        cap(`코받침 조정 → 광학 실반영: OH ${sg(padOh)}mm · 정점간거리 ${sg(padVd)}mm`);
+      } else if (fkey === 'templeAngle' || fkey === 'templeAngle_R') {
+        cap('다리 경사각: 실제 조제에선 경사각(panto)을 바꾸는 1차 수단 — 본 앱에선 광학과 독립(경사각 슬라이더로 재현)');
+      }
+    }
     const hkey = e.target.dataset?.head;
     if (hkey) update({ v3head: { [hkey]: Number(e.target.value) } });
   });
