@@ -60,12 +60,18 @@ const CSS = `
 `;
 
 const SLIDERS = [
-  { key: 'vd',    label: '정점간거리', min: 5,   max: 20, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd },
-  { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto },
-  { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap },
-  { key: 'pdErr', label: 'PD 오차',    min: -4,  max: 4,  step: 0.5, unit: 'mm', std: 0 },
-  { key: 'oh',    label: 'OH 높이',    min: -8,  max: 8,  step: 0.5, unit: 'mm', std: 0 },
-  { key: 'bSize', label: '프레임 크기', min: 10, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize },
+  { key: 'vd',    label: '정점간거리', min: 5,   max: 20, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd,
+    edu: '정점간거리: 멀수록 착용 여유↑ · 시야각↓ · 왜곡 노출↑' },
+  { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto,
+    edu: '경사각: 부족하면 근용 손실 · 과다하면 원용 손실 (표준 8~12°)' },
+  { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap,
+    edu: '안면각: 표준(5°)에서 벗어날수록 주변부 수차·시야 왜곡↑' },
+  { key: 'pdErr', label: 'PD 오차',    min: -4,  max: 4,  step: 0.5, unit: 'mm', std: 0,
+    edu: 'PD 오차: 통로 폭↓ · 양안 겹침↓ (− 좁게 가공=수렴 / + 넓게=발산)' },
+  { key: 'oh',    label: 'OH 높이',    min: -8,  max: 8,  step: 0.5, unit: 'mm', std: 0,
+    edu: 'OH: 낮으면 근용 도달 어려움 · 높으면 원용 침범 — 양쪽 다 대가' },
+  { key: 'bSize', label: '프레임 크기', min: 10, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize,
+    edu: '프레임: 클수록 시야↑ 그러나 왜곡 노출도↑ (누진 통로 폭은 불변)' },
 ];
 
 // 프레임 피팅 커스텀 — 광학 무관, 순수 다리 지오메트리 (state.v3frame)
@@ -111,7 +117,8 @@ const CAM_PRESETS = [
 // 페이지 새로고침 시 초기화. 각 슬롯 = { v3fit, v3frame, v3head } 스냅샷.
 const fitPresets = [null, null, null];
 
-export function mountControls(root, { stage, getDemo } = {}) {
+export function mountControls(root, { stage, getDemo, setCaption } = {}) {
+  const cap = (t) => { if (setCaption) setCaption(t); };
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
@@ -125,7 +132,12 @@ export function mountControls(root, { stage, getDemo } = {}) {
   root.appendChild(top);
   top.addEventListener('click', (e) => {
     const b = e.target.closest('[data-grade]');
-    if (b) update({ grade: Number(b.dataset.grade) });
+    if (b) {
+      const id = Number(b.dataset.grade);
+      update({ grade: id });
+      const g = GRADES.find((x) => x.id === id);
+      if (g) cap(`${g.bpCode} ${g.name}: ${g.description} — 왜곡은 재분배될 뿐 0이 되진 않음`);
+    }
   });
 
   // ── Bottom: ADD · corridor · presets ──
@@ -145,9 +157,13 @@ export function mountControls(root, { stage, getDemo } = {}) {
     if (add) {
       const next = Math.min(3.5, Math.max(0.75, (state.add ?? 2) + Number(add.dataset.add)));
       update({ add: Math.round(next * 4) / 4 });
+      cap('ADD: 높을수록 통로가 좁아지고 주변부 왜곡 구배가 급해짐');
     }
     const corr = e.target.closest('[data-corr]');
-    if (corr) update({ corridor: Number(corr.dataset.corr) });
+    if (corr) {
+      update({ corridor: Number(corr.dataset.corr) });
+      cap('누진대: 길수록 왜곡 완만↓ · 근용까지 시선을 더 내려야 함');
+    }
   });
 
   // ── Right: fitting panel ──
@@ -282,7 +298,11 @@ export function mountControls(root, { stage, getDemo } = {}) {
 
   panel.addEventListener('input', (e) => {
     const key = e.target.dataset?.fit;
-    if (key) update({ v3fit: { [key]: Number(e.target.value) } });
+    if (key) {
+      update({ v3fit: { [key]: Number(e.target.value) } });
+      const sl = SLIDERS.find((x) => x.key === key);
+      if (sl?.edu) cap(sl.edu);
+    }
     const fkey = e.target.dataset?.frame;
     if (fkey) update({ v3frame: { [fkey]: Number(e.target.value) } });
     const hkey = e.target.dataset?.head;

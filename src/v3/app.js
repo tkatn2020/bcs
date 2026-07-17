@@ -113,6 +113,54 @@ function mountCredit(root) {
   root.appendChild(div);
 }
 
+// ── 교육 HUD (C1) — 파생 광학 지표를 숫자로, 표준 피팅 대비 Δ를 색으로 ──
+// "모든 변수의 얻는 것·잃는 것이 한눈에": 콘 형상만으로는 미세한 대가
+// (예: 누진대↑ 시 근용 시선 −2.4°)가 안 보이므로 숫자 층을 추가한다.
+// + 교육 캡션(C2): 마지막으로 조작한 변수의 원리 한 줄.
+function mountEduHud(root) {
+  const el = document.createElement('div');
+  Object.assign(el.style, {
+    position: 'fixed', left: '14px', bottom: '64px', zIndex: 10, width: '236px',
+    padding: '10px 12px', borderRadius: '12px',
+    background: 'rgba(16,19,26,0.74)', backdropFilter: 'blur(10px)',
+    fontFamily: "'Pretendard', system-ui, sans-serif", fontSize: '11.5px',
+    color: '#cfd6e4', userSelect: 'none', pointerEvents: 'none', lineHeight: '1.55',
+  });
+  el.innerHTML = `
+    <div style="font-size:10px;letter-spacing:.12em;color:#8b93a7;font-weight:800;margin-bottom:4px">광학 성능 (표준 대비)</div>
+    <div data-hud-rows></div>
+    <div data-hud-cap style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08);
+      color:#f5d9a0;font-size:11px;min-height:14px"></div>
+  `;
+  root.appendChild(el);
+  const rowsEl = el.querySelector('[data-hud-rows]');
+  const capEl = el.querySelector('[data-hud-cap]');
+  const GOOD = '#7dd490', BAD = '#f0a35e';
+
+  let baseline = null;
+  function row(label, val, unit, delta, biggerIsGood) {
+    const d = Math.abs(delta) < 0.05 ? '' :
+      `<span style="color:${(delta > 0) === biggerIsGood ? GOOD : BAD};font-weight:700"> ${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}</span>`;
+    return `<div style="display:flex;justify-content:space-between">
+      <span>${label}</span><span style="color:#fff;font-weight:700;font-variant-numeric:tabular-nums">${val.toFixed(1)}${unit}${d}</span></div>`;
+  }
+  function update(spec) {
+    if (!baseline) return;
+    const b = baseline;
+    rowsEl.innerHTML =
+      row('원용 시야', spec.distance.h * 2, '°', spec.distance.h * 2 - b.distance.h * 2, true) +
+      row('중간부 폭', spec.intermediate.h * 2, '°', spec.intermediate.h * 2 - b.intermediate.h * 2, true) +
+      row('근용 시야', spec.near.h * 2, '°', spec.near.h * 2 - b.near.h * 2, true) +
+      row('근용 시선 하강', Math.abs(spec.near.pitch), '°', Math.abs(spec.near.pitch) - Math.abs(b.near.pitch), false) +
+      row('왜곡 노출', (spec.distortion.exposure ?? 1) * 100, '%', ((spec.distortion.exposure ?? 1) - (b.distortion.exposure ?? 1)) * 100, false);
+  }
+  return {
+    update,
+    setBaseline(spec) { baseline = spec; },
+    caption(text) { capEl.textContent = text || ''; },
+  };
+}
+
 const container = document.getElementById('v3-stage');
 const stage = createStudioStage(container);
 
@@ -122,6 +170,10 @@ stage.controls.maxDistance = 2.6;
 stage.controls.update();
 
 window.__v3 = { stage };
+
+const hud = mountEduHud(document.body);
+// 표준 피팅 기준값 — 모든 Δ의 비교 대상 (등급 3·ADD 2.00·누진대 12·표준 피팅)
+hud.setBaseline(computeZones({ grade: 3, add: 2.0, corridor: 12, v3fit: { ...STANDARD_FIT } }));
 
 loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions }) => {
   stage.scene.add(group);
@@ -219,6 +271,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     lastSpec = spec;
 
     zones.update(spec, animate);
+    hud.update(spec);
     glasses.setParams(glassesParams(f, fr, s.v3head || {}));
     glasses.updateZoneSpec(spec);
 
@@ -268,7 +321,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     onFitChange: (patch) => update({ v3fit: patch }),
   });
 
-  mountControls(document.body, { stage, getDemo: () => demo });
+  mountControls(document.body, { stage, getDemo: () => demo, setCaption: hud.caption });
   mountCredit(document.body);
 
   Object.assign(window.__v3, {
