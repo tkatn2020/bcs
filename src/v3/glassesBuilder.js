@@ -247,6 +247,14 @@ export function createGlasses(anchors, opts = {}) {
 
     const hingeY = p.lensH * 0.28;
     const wrapRad = THREE.MathUtils.degToRad(p.wrapDeg);
+    // ── 프레임 = 강체 '제품' 스케일 ──
+    // 프레임 크기는 렌즈만이 아니라 프런트 전체(렌즈 간격·브릿지·코받침)를
+    // 중앙(x=0) 기준으로 통째로 비례시킨다 — 큰 테 = 렌즈 중심이 동공 바깥으로
+    // 벌어진 "얼굴보다 큰 안경" 모습, 작은 테 = 그 반대. 기준은 bSize 26
+    // (fscale=1)이고, PD 오차는 스케일 후 절대 mm로 가산(가공 편심 오차).
+    const refW26 = 0.046 * 26 / 31;
+    const fscale = p.lensW / refW26;
+    const frameHalf = pdHalf * fscale + p.pdErr;
 
     frontG = new THREE.Group();
     frontG.position.set(0, hingeY, 0);     // pivot at the hinge line
@@ -254,7 +262,7 @@ export function createGlasses(anchors, opts = {}) {
 
     for (const side of [-1, 1]) {
       const sideG = new THREE.Group();
-      sideG.position.set(side * (pdHalf + p.pdErr), -hingeY, 0);
+      sideG.position.set(side * frameHalf, -hingeY, 0);
       // Wrap: outer edges sweep BACK toward the temples (−wrap = 역랩)
       sideG.rotation.y = side * wrapRad;
       frontG.add(sideG);
@@ -290,17 +298,16 @@ export function createGlasses(anchors, opts = {}) {
         // 뿌리 R = 렌즈 안쪽 가장자리(리무 테두리 안, 코 방향) — 여기서 아래로
         // 뻗어 내려간다. 렌즈 세로 중앙 부근(살짝 위)에 두어 예전 상단(0.22)과
         // 하단(−0.18)의 중간 높이로. 슬라이더 무관 고정 → 용접 유지.
+        // 코받침도 '제품의 일부' — 프런트 강체 스케일에 포함(sideG 자식 + 렌즈
+        // 치수 기반)돼 큰 테에선 좌우로 벌어져 코에 헐렁하게 걸친 모습이 된다.
         const rootY = p.lensH * 0.02;
         const rootX = -side * (p.lensW / 2 + p.rimT * 0.4);
         const R = new THREE.Vector3(rootX, rootY, 0);
-        // 패드 A는 '코'에 앵커 — 프레임 크기와 무관하게 기준(26mm) 치수로 고정
-        // (사용자 요청: 프레임 크기를 바꿔도 코받침 위치·조정값은 불변). 뿌리 R만
-        // 림 안쪽 모서리를 따라가고, 암 길이가 그 차이를 흡수한다.
-        const refW = 0.046 * 26 / 31, refH = 0.031 * 26 / 31;   // bSize 26 기준 렌즈 치수
+        // 패드 A는 뿌리보다 낮은 콧대 옆면 위치에 얹힌다(뿌리와 높이 분리 → 긴 암).
         const dropRad = THREE.MathUtils.degToRad(58);
-        const padY = -refH * 0.15 - 0.0070;                    // 패드 기본 높이(고정)
+        const padY = -p.lensH * 0.15 - 0.0070;                 // 패드 기본 높이
         const A = new THREE.Vector3(
-          -side * (refW / 2 + 0.0018 * 0.4 + 0.0015) + side * p.padSpacing,  // 좌우(코 기준 고정)
+          rootX - side * 0.0015 + side * p.padSpacing,          // 좌우 간격(안쪽=코)
           padY - p.padArm * Math.sin(dropRad) + p.padVertical,  // 상하 + 길이
           Math.min(-0.001, -(0.0085 + p.padArm * Math.cos(dropRad))),  // 코쪽(뒤). 극단값서 림 앞으로 안 나가게 클램프
         );
@@ -353,7 +360,7 @@ export function createGlasses(anchors, opts = {}) {
       const refWrapRad = side * THREE.MathUtils.degToRad(TEMPLE_REF_WRAP);
       const sideW = refWrapRad;
       const Ex = side * hx, Ey = p.endpiece;   // (Ey relative to hinge line)
-      const fx = Ex * Math.cos(sideW) + side * (pdHalf + p.pdErr);
+      const fx = Ex * Math.cos(sideW) + side * frameHalf;
       const fz = -Ex * Math.sin(sideW);
       const cp = Math.cos(refPantoRad), sp = Math.sin(refPantoRad);
       const hinge = new THREE.Vector3(
@@ -429,7 +436,7 @@ export function createGlasses(anchors, opts = {}) {
       const qUnPanto = new THREE.Quaternion().setFromAxisAngle(X_AXIS, refPantoRad).invert();
       const qUnWrap = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, refWrapRad).invert();
       const frontGp = new THREE.Vector3(0, hingeY, 0);
-      const sideGp = new THREE.Vector3(side * (pdHalf + p.pdErr), -hingeY, 0);
+      const sideGp = new THREE.Vector3(side * frameHalf, -hingeY, 0);
       const toSideLocal = (pg) =>
         pg.sub(frontGp).applyQuaternion(qUnPanto).sub(sideGp).applyQuaternion(qUnWrap);
 
@@ -442,15 +449,11 @@ export function createGlasses(anchors, opts = {}) {
       built.push(temple);
     }
 
-    // 브릿지 폭은 프레임 크기에 '비례'(사용자 요청 — 실제 제품처럼 큰 테=큰
-    // 브릿지). 기준(26mm)에서의 렌즈 사이 간격을 프레임 스케일로 늘리고 줄인다.
-    // 렌즈 중심은 동공 고정이므로 큰 프레임에선 브릿지가 림 안쪽으로 겹쳐
-    // 들어가고(가려짐), 작은 프레임에선 짧아진다.
-    const refW26 = 0.046 * 26 / 31;
-    const fscale = p.lensW / refW26;
-    const baseGap26 = 2 * (pdHalf + p.pdErr) - refW26 - p.rimT * 2;
+    // 브릿지 = 렌즈 사이 실제 간격. 프런트 전체가 강체 스케일이므로 간격도
+    // 프레임 크기에 자연 비례(큰 테=큰 브릿지)하고 항상 림에 붙어 있다.
+    const innerGap = 2 * frameHalf - p.lensW - p.rimT * 2;
     const bridge = new THREE.Mesh(
-      new THREE.BoxGeometry(Math.max(baseGap26 * fscale, 0.005), 0.0028, 0.0018),
+      new THREE.BoxGeometry(Math.max(innerGap, 0.005), 0.0028, 0.0018),
       frameMat,
     );
     bridge.position.set(0, 0, 0);          // hinge height in frontG frame
