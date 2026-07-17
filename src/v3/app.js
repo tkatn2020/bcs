@@ -225,8 +225,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       lensW: 0.046 * frameScale,
       lensH: 0.031 * frameScale,
       cornerR: 0.008 * frameScale,
-      rimT: 0.0018 * (f.bSize / 26),   // 테 두께도 프레임 크기에 비례(기본 26서 0.0018 유지)
-      depth: 0.0018 * (f.bSize / 26),
+      // 테 두께·깊이는 프레임 크기와 무관하게 고정(사용자 요청 — 렌즈 박스만 스케일)
       shape: f.shape,
       // 프레임 피팅 커스텀 (광학 무관 — mm/deg → m/deg)
       templeAngle: fr.templeAngle,

@@ -66,7 +66,7 @@ const SLIDERS = [
     edu: '경사각: 부족하면 근용 손실 · 과다하면 원용 손실 (표준 8~12°)' },
   { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap,
     edu: '안면각: 표준(5°)에서 벗어날수록 주변부 수차·시야 왜곡↑' },
-  { key: 'pdErr', label: 'PD 오차',    min: -4,  max: 4,  step: 0.5, unit: 'mm', std: 0,
+  { key: 'pdErr', label: 'PD 오차',    min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,
     edu: 'PD 오차: 통로 폭↓ · 양안 겹침↓ (− 좁게 가공=수렴 / + 넓게=발산)' },
   { key: 'oh',    label: 'OH 높이',    min: -8,  max: 8,  step: 0.5, unit: 'mm', std: 0,
     edu: 'OH: 낮으면 근용 도달 어려움 · 높으면 원용 침범 — 양쪽 다 대가' },
@@ -78,7 +78,7 @@ const SLIDERS = [
 const FRAME_SLIDERS = [
   { key: 'templeAngle', label: '다리 경사각', min: -20, max: 20, step: 1,   unit: '°',  std: 0,   asym: true },
   { key: 'templeLen',   label: '다리 길이',   min: -20, max: 20, step: 1,   unit: 'mm', std: 0 },
-  { key: 'templeGap',   label: '옆면 간격',   min: 0,   max: 10, step: 0.5, unit: 'mm', std: 0,   asym: true },
+  { key: 'templeGap',   label: '옆면 간격',   min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,   asym: true },
   { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 20,  asym: true },
   { key: 'earTipAngle', label: '귀팁각',      min: 90,  max: 180, step: 2,  unit: '°',  std: 118, asym: true },
   { key: 'earConverge', label: '귀모임각',    min: -25, max: 25, step: 1,   unit: '°',  std: 0,   asym: true },
@@ -121,19 +121,20 @@ const fitPresets = [null, null, null];
 // 하는가'를 즉시 볼 수 있는 읽기 전용 시나리오. 로드 = 전체 기본값 복귀 후
 // 패치 적용 + 관련 존/타깃 자동 점등 + 원리 캡션. (targets.js의 도달 판정이
 // 애초에 이런 시나리오용으로 캘리브레이션돼 있었음 — S1 교육 순간.)
+// 모든 케이스는 로드 시 시야 존 3종 + 타깃을 전부 켠다(사용자 요청 —
+// '표준 피팅'처럼 광학 피드백이 항상 보이는 상태로 케이스를 관찰).
 const EDU_CASES = [
-  { label: '표준 피팅', desc: '기준 상태 — 원·중·근 세 타깃 모두 통과(초록 링)',
-    view: { zones: { distance: true, intermediate: true, near: true }, targets: true } },
+  { label: '표준 피팅', desc: '기준 상태 — 원·중·근 세 타깃 모두 통과(초록 링)' },
   { label: 'OH 낮은 안경', desc: 'OH↓ → 근용(책) 도달 실패 — 판정 링이 빨개짐 (S1)',
-    fit: { oh: -5 }, view: { zones: { near: true }, targets: true } },
+    fit: { oh: -5 } },
   { label: '큰 프레임', desc: '프레임↑ → 시야 넓어짐 · 그러나 왜곡 노출도↑ (HUD Δ 확인)',
-    fit: { bSize: 38 }, view: { zones: { distance: true, near: true }, targets: false } },
+    fit: { bSize: 38 } },
   { label: '긴 누진대·작은 테', desc: '작은 프레임에 긴 누진대 → 근용이 잘림 (피팅높이 부족)',
-    fit: { bSize: 16 }, top: { corridor: 14 }, view: { zones: { near: true }, targets: true } },
+    fit: { bSize: 21 }, top: { corridor: 14 } },
   { label: '귀 비대칭 고객', desc: '오른쪽 귀가 낮은 고객 → 다리 좌우 비대칭 조정 연습',
-    head: { earYAsym: 1, earY: 0, earY_R: -6 }, view: { zones: {}, targets: false } },
+    head: { earYAsym: 1, earY: 0, earY_R: -6 } },
   { label: '낮은 콧대 고객', desc: '낮은 콧대 → 코받침(간격·전후) 조정 연습',
-    head: { noseBridge: -6 }, view: { zones: {}, targets: false } },
+    head: { noseBridge: -6 } },
 ];
 
 export function mountControls(root, { stage, getDemo, setCaption } = {}) {
@@ -327,8 +328,8 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       if (c.frame) patch.v3frame = c.frame;
       if (c.head) patch.v3head = c.head;
       if (c.top) Object.assign(patch, c.top);
-      patch.v3view = { zones: { distance: false, intermediate: false, near: false, ...(c.view?.zones || {}) },
-        targets: !!c.view?.targets };
+      // 모든 케이스: 시야 존 3종 + 타깃 전부 표시(광학 피드백 상시 노출)
+      patch.v3view = { zones: { distance: true, intermediate: true, near: true }, targets: true };
       update(patch);
       cap(c.desc);
     }

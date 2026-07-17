@@ -293,12 +293,14 @@ export function createGlasses(anchors, opts = {}) {
         const rootY = p.lensH * 0.02;
         const rootX = -side * (p.lensW / 2 + p.rimT * 0.4);
         const R = new THREE.Vector3(rootX, rootY, 0);
-        // 패드 A는 뿌리보다 낮은 콧대 옆면 위치에 얹힌다(뿌리와 높이 분리 → 긴 암).
-        // 길이(padArm)는 코 방향 연장/축소 — 파묻히면 음수로 빼낸다(범위 ±10mm).
+        // 패드 A는 '코'에 앵커 — 프레임 크기와 무관하게 기준(26mm) 치수로 고정
+        // (사용자 요청: 프레임 크기를 바꿔도 코받침 위치·조정값은 불변). 뿌리 R만
+        // 림 안쪽 모서리를 따라가고, 암 길이가 그 차이를 흡수한다.
+        const refW = 0.046 * 26 / 31, refH = 0.031 * 26 / 31;   // bSize 26 기준 렌즈 치수
         const dropRad = THREE.MathUtils.degToRad(58);
-        const padY = -p.lensH * 0.15 - 0.0070;                 // 패드 기본 높이
+        const padY = -refH * 0.15 - 0.0070;                    // 패드 기본 높이(고정)
         const A = new THREE.Vector3(
-          rootX - side * 0.0015 + side * p.padSpacing,          // 좌우 간격(안쪽=코)
+          -side * (refW / 2 + 0.0018 * 0.4 + 0.0015) + side * p.padSpacing,  // 좌우(코 기준 고정)
           padY - p.padArm * Math.sin(dropRad) + p.padVertical,  // 상하 + 길이
           Math.min(-0.001, -(0.0085 + p.padArm * Math.cos(dropRad))),  // 코쪽(뒤). 극단값서 림 앞으로 안 나가게 클램프
         );
@@ -440,9 +442,15 @@ export function createGlasses(anchors, opts = {}) {
       built.push(temple);
     }
 
-    const innerGap = 2 * (pdHalf + p.pdErr) - p.lensW - p.rimT * 2;
+    // 브릿지 폭은 프레임 크기에 '비례'(사용자 요청 — 실제 제품처럼 큰 테=큰
+    // 브릿지). 기준(26mm)에서의 렌즈 사이 간격을 프레임 스케일로 늘리고 줄인다.
+    // 렌즈 중심은 동공 고정이므로 큰 프레임에선 브릿지가 림 안쪽으로 겹쳐
+    // 들어가고(가려짐), 작은 프레임에선 짧아진다.
+    const refW26 = 0.046 * 26 / 31;
+    const fscale = p.lensW / refW26;
+    const baseGap26 = 2 * (pdHalf + p.pdErr) - refW26 - p.rimT * 2;
     const bridge = new THREE.Mesh(
-      new THREE.BoxGeometry(Math.max(innerGap, 0.006), 0.0028, 0.0018),
+      new THREE.BoxGeometry(Math.max(baseGap26 * fscale, 0.005), 0.0028, 0.0018),
       frameMat,
     );
     bridge.position.set(0, 0, 0);          // hinge height in frontG frame
