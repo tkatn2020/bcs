@@ -59,7 +59,13 @@ export function computeZones(s) {
   const wrapFactor = clamp(1 - wrapDev * 0.03, 0.5, 1);
   const pdCorridor = clamp(1 - Math.abs(f.pdErr) * 0.13, 0.45, 1); // 1mm ≈ 폭 2mm 손실
   const pitchShift = f.oh * 2.0;                                   // deg/mm
-  const nearRoom = clamp(1 + (f.oh + (f.bSize - 26) / 2) * 0.10, 0.3, 1.12);
+  // OH 과다(+2mm 초과)는 원용부를 침범 — "OH는 높을수록 좋다"가 되지 않게
+  // 원용 페널티를 준다(양면 트레이드오프). 부족(−)의 근용 페널티는 nearRoom이 담당.
+  const ohHigh = Math.max(0, f.oh - 2);
+  const distOh = clamp(1 - ohHigh * 0.04, 0.6, 1);
+  // 근용 수직 여유 = OH + 프레임 B 여유 − 누진대 잠식. 누진대가 길수록 피팅
+  // 높이를 더 요구한다("짧은 프레임에 긴 누진대 금기") — corridor 항이 그 규칙.
+  const nearRoom = clamp(1 + (f.oh + (f.bSize - 26) / 2 - (corr - 12) / 2) * 0.10, 0.3, 1.12);
 
   // ── 프레임 크기 = 개구(aperture) ──
   // 렌즈 전체가 비례 스케일: 원거리/근거리 시야가 프레임 크기를 따라 변함.
@@ -73,8 +79,8 @@ export function computeZones(s) {
   const apertureV = rad2deg(Math.atan((lensHm / 2) / eyeDist)) + 12; // 존 지도 수직 여유
 
   const distance = {
-    h: Math.min(BASE.distance.h * (0.45 + 0.55 * gradeScale) * vdFactor * distFit * wrapFactor * frameFactor, apertureH * 0.95),
-    v: Math.min(BASE.distance.v * vdFactor * distFit * frameFactor, apertureV),
+    h: Math.min(BASE.distance.h * (0.45 + 0.55 * gradeScale) * vdFactor * distFit * distOh * wrapFactor * frameFactor, apertureH * 0.95),
+    v: Math.min(BASE.distance.v * vdFactor * distFit * distOh * frameFactor, apertureV),
     pitch: BASE.distance.pitch + pitchShift * 0.35,
     len: BASE.distance.len,
   };
@@ -92,21 +98,27 @@ export function computeZones(s) {
     len: BASE.near.len * clamp(nearRoom + 0.15, 0.5, 1),
   };
 
-  // ── 주변부 왜곡(비점수차) 지표 — 프레임 크기 트레이드오프 (리서치 §14.1) ──
-  //   area    : 착용자 시야에 노출되는 왜곡 날개의 면적 (큰 프레임일수록↑,
-  //             작은 프레임은 잘려나가 ↓ — "작은 프레임이 왜곡을 줄인다")
-  //   density : 왜곡 구배의 급함/밀집도. Minkwitz(Add÷corridor) × 프레임 반비례
-  //             (작은 프레임 → short-corridor 강제 → 밀도↑, 남은 통로 좁아짐)
-  // 두 지표를 렌즈 존 맵(베이지 날개)의 크기·짙기·통로 간격에 매핑한다.
+  // ── 주변부 왜곡(비점수차) 지표 ──
+  //   area    : 렌즈 위 왜곡 날개의 면적 — 렌즈(프레임)가 클수록↑, 작은 프레임은
+  //             잘려나가↓. 렌즈 속성이므로 프레임 크기에만 의존.
+  //   density : 왜곡 구배의 급함 — 누진면 설계 속성. Minkwitz(Add÷corridor) ×
+  //             설계 등급(재분배 — cylReductionFactor, BP30=1 기준, 0은 불가).
+  //             ⚠️ 프레임 크기와 무관(같은 렌즈 설계면 구배 동일 — 프레임을 넣던
+  //             거짓 인과 제거: 큰 프레임=날개가 '넓어질' 뿐 '옅어지지' 않는다).
+  //   exposure: 착용자가 '체감'하는 왜곡 노출 — 날개 면적 × 정점간거리(멀수록
+  //             시야에서 왜곡영역 비중↑). HUD 등 착용자-관점 지표용.
   const minkGrad = (add / corr);                          // 도수변화율 (D/mm)
+  const gradeCyl = g.cylReductionFactor / 0.78;           // BP30 기준 정규화
   const distortion = {
-    area: clamp(frameScale * 1.0, 0.55, 1.4),             // 큰 프레임 = 더 노출
-    density: clamp((minkGrad / (2.0 / 12)) / frameScale, 0.5, 2.2), // 작은 프레임 = 더 밀집
+    area: clamp(frameScale * 1.0, 0.55, 1.4),
+    density: clamp((minkGrad / (2.0 / 12)) * gradeCyl, 0.5, 2.2),
+    exposure: clamp(frameScale * ((f.vd + 13) / 25) * (minkGrad / (2.0 / 12)) * gradeCyl, 0.3, 2.5),
   };
 
   return {
     distance, intermediate, near, distortion,
-    // PD 오차 → 좌우 콘이 바깥으로 벌어져 양안 겹침(additive 밝은 영역) 축소
-    eyeYawDeg: Math.abs(f.pdErr) * 1.4,
+    // PD 오차 → 좌우 콘이 어긋남. +(넓게 가공) = 바깥 발산, −(좁게 가공) =
+    // 안쪽 수렴 — 부호로 방향이 구분되며 둘 다 양안 겹침이 줄어든다.
+    eyeYawDeg: f.pdErr * 1.4,
   };
 }
