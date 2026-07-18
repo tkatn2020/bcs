@@ -180,11 +180,11 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       <button class="v3-btn" data-zone="distance">원거리</button>
       <button class="v3-btn" data-zone="intermediate">중간</button>
       <button class="v3-btn" data-zone="near">근거리</button>
-      <button class="v3-btn" data-toggle="targets">타깃</button>
     </div>
     <div class="v3-sec">기준선 (정렬 확인)</div>
     <div class="v3-mini">
-      <button class="v3-btn" data-guide-arm>＋ 선 배치</button>
+      <button class="v3-btn" data-guide-mode="h">가로선</button>
+      <button class="v3-btn" data-guide-mode="v">세로선</button>
       <button class="v3-btn" data-guide-clear>모두 지우기</button>
     </div>
     <div class="v3-sec">광학 피팅 (라벨 더블탭 = 표준 복귀)</div>
@@ -285,9 +285,9 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
     resetFitting();
     update({
       corridor: 12, add: 2.0,
-      v3view: { zones: { distance: true, intermediate: true, near: true }, targets: true },
+      v3view: { zones: { distance: true, intermediate: true, near: true }, targets: false },
     });
-    cap('표준 피팅 — 기준 상태 복귀 (원·중·근 세 타깃 모두 통과)');
+    cap('표준 피팅 — 기준 상태 복귀');
   });
 
   // ── 기준선(정렬 확인) — '선 배치' 모드에서 화면 클릭 지점마다 수직·수평선
@@ -300,27 +300,31 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
     position: 'fixed', inset: '0', zIndex: 5, pointerEvents: 'none', cursor: 'crosshair',
   });
   root.appendChild(guideLayer);
-  const guideArmBtn = panel.querySelector('[data-guide-arm]');
-  guideArmBtn.addEventListener('click', () => {
-    const on = !guideArmBtn.classList.contains('on');
-    guideArmBtn.classList.toggle('on', on);
-    guideLayer.style.pointerEvents = on ? 'auto' : 'none';
-    cap(on ? '기준선: 원하는 위치를 클릭하면 수직·수평선이 놓입니다 (다시 누르면 배치 종료)' : '');
-  });
+  // 배치 모드: 'h'(가로선) | 'v'(세로선) | null — 가로/세로 각각 따로 배치
+  // (사용자 요청: 십자 쌍이 아니라 개별 선). 두 버튼은 상호 배타 토글.
+  let guideMode = null;
+  const guideBtns = [...panel.querySelectorAll('[data-guide-mode]')];
+  guideBtns.forEach((btn) => btn.addEventListener('click', () => {
+    guideMode = guideMode === btn.dataset.guideMode ? null : btn.dataset.guideMode;
+    guideBtns.forEach((b) => b.classList.toggle('on', b.dataset.guideMode === guideMode));
+    guideLayer.style.pointerEvents = guideMode ? 'auto' : 'none';
+    cap(guideMode
+      ? `기준선: 원하는 위치를 클릭하면 ${guideMode === 'h' ? '가로선' : '세로선'}이 놓입니다 (다시 누르면 배치 종료)`
+      : '');
+  }));
   panel.querySelector('[data-guide-clear]').addEventListener('click', () => {
     guideLayer.replaceChildren();
   });
   guideLayer.addEventListener('click', (e) => {
-    const mk = (st) => {
-      const d = document.createElement('div');
-      Object.assign(d.style, {
-        position: 'fixed', pointerEvents: 'none',
-        background: 'rgba(56,189,248,0.7)', boxShadow: '0 0 3px rgba(56,189,248,0.45)',
-      }, st);
-      guideLayer.appendChild(d);
-    };
-    mk({ left: e.clientX + 'px', top: '0', width: '1px', height: '100vh' });
-    mk({ left: '0', top: e.clientY + 'px', width: '100vw', height: '1px' });
+    if (!guideMode) return;
+    const d = document.createElement('div');
+    Object.assign(d.style, {
+      position: 'fixed', pointerEvents: 'none',
+      background: 'rgba(56,189,248,0.7)', boxShadow: '0 0 3px rgba(56,189,248,0.45)',
+    }, guideMode === 'h'
+      ? { left: '0', top: e.clientY + 'px', width: '100vw', height: '1px' }
+      : { left: e.clientX + 'px', top: '0', width: '1px', height: '100vh' });
+    guideLayer.appendChild(d);
   });
 
   // ── 상단 개별 패널: 피팅 프리셋 (자주 쓰는 기능 — 스크롤 없이 즉시 접근) ──
@@ -413,8 +417,6 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       const k = zone.dataset.zone;
       update({ v3view: { zones: { [k]: !state.v3view.zones[k] } } });
     }
-    const tgl = e.target.closest('[data-toggle="targets"]');
-    if (tgl) update({ v3view: { targets: !state.v3view.targets } });
     const padBtn = e.target.closest('[data-padon]');
     if (padBtn) update({ v3frame: { padOn: state.v3frame.padOn ? 0 : 1 } });
     const cam = e.target.closest('[data-cam]');
@@ -491,8 +493,6 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       b.classList.toggle('on', b.dataset.shape === f.shape));
     panel.querySelectorAll('[data-zone]').forEach((b) =>
       b.classList.toggle('on', !!s.v3view?.zones?.[b.dataset.zone]));
-    panel.querySelector('[data-toggle="targets"]')
-      .classList.toggle('on', !!s.v3view?.targets);
     // 피팅 프리셋: 채워진 슬롯은 강조(불러오기 가능), 빈 슬롯은 흐리게
     fitPresets.forEach((snap, i) => {
       const b = presetBar.querySelector(`[data-preset-load="${i}"]`);

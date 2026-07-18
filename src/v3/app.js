@@ -209,6 +209,9 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     eyes, morphMesh,
     onFitChange: (patch) => update({ v3fit: patch }),
     onTargetsOn: () => update({ v3view: { targets: true } }),
+    // 타깃 토글 UI가 제거돼(사용자 요청) 타깃은 데모 재생 중에만 표시 —
+    // 종료 시 꺼서 켜진 채 방치되지 않게 한다.
+    onTargetsOff: () => update({ v3view: { targets: false } }),
     onZonesOn: () => update({ v3view: { zones: { distance: true, intermediate: true, near: true } } }),
     getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
     getSpec: () => lastSpec,

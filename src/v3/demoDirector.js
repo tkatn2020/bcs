@@ -29,7 +29,7 @@ const TOTAL_S = 8.0;
 // 앵글은 시선 라인 위주라 눈동자가 안 보였다.
 const DEMO_CAM = { pos: new THREE.Vector3(0.31, -0.03, 0.53), tgt: new THREE.Vector3(0.03, -0.03, 0.05) };
 
-export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn, onZonesOn, getFit, getSpec }) {
+export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn, onTargetsOff, onZonesOn, getFit, getSpec }) {
   // Gaze line — thin additive beam from pupil midpoint to the active target.
   const gazeMat = new THREE.MeshBasicMaterial({
     color: 0xffffff, transparent: true, opacity: 0.55,
@@ -93,6 +93,7 @@ export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, o
     zones.setEmphasis(null);
     applyEyes(0);
     cur = { pitch: 0, eye: 0 };
+    if (onTargetsOff) onTargetsOff();   // 타깃은 데모 전용 — 종료 시 끔(토글 UI 없음)
     onFitChange({ headPitch: savedHeadPitch });   // 데모 전 고개각 복원
     stage.controls.enabled = true;
     stage.controls.autoRotate = savedAutoRotate;  // 데모 전 턴테이블 상태 복원(모든 종료 경로)
