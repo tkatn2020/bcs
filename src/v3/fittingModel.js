@@ -24,6 +24,9 @@
 //   · 프레임 크기(B) → 렌즈 = 시야의 개구(aperture):
 //       원거리·근거리 시야는 프레임에 비례해 커지고/잘리고,
 //       corridor 폭은 누진면 속성이라 프레임 크기와 무관 (핵심 교육 포인트)
+//   · 렌즈 형상 → 같은 B라도 실면적이 다르다(2026-07-19): 원형·보스턴·
+//     애비에이터는 박스(사각) 대비 개구가 좁고 하부가 잘려 근용 여유↓,
+//     대신 하부 측면 코너의 왜곡 날개도 함께 잘려 왜곡 노출↓ (양면 트레이드오프)
 
 import { getGrade } from '../optics/grades.js';
 
@@ -39,6 +42,19 @@ const BASE = {
   distance:     { h: 38, v: 24, pitch: -2,  len: 1.5 },
   intermediate: { h: 11, v: 8,  pitch: -15, len: 0.68 },
   near:         { h: 15, v: 10, pitch: -33, len: 0.42 },
+};
+
+// 렌즈 형상 → 실면적 계수 (박스 사각 = 1 앵커, 정성 캘리브레이션).
+//   ap      : 개구(수평/수직) — 상·측면이 곡선으로 깎이는 만큼
+//   nearCut : 하부(근용 영역) 잘림 — 원형·티어드롭은 바닥이 좁다
+//   wing    : 하부 측면 코너(왜곡 날개 자리) 잘림 — 착용자 왜곡 체감↓.
+//     날개의 '시각' 잘림은 렌즈 외곽 지오메트리가 존맵을 물리적으로 크롭해
+//     자동 표현되므로 여기서는 체감 지표(exposure)에만 곱한다.
+const SHAPE_FACTORS = {
+  square:  { ap: 1.00, nearCut: 1.00, wing: 1.00 },
+  round:   { ap: 0.93, nearCut: 0.85, wing: 0.75 },
+  boston:  { ap: 0.95, nearCut: 0.90, wing: 0.82 },
+  aviator: { ap: 0.97, nearCut: 0.88, wing: 0.80 },
 };
 
 // 존 모델의 프레임 크기 기준(중립 100%) — 표준 피팅 bSize=26에 맞춤(A1: 26 통일).
@@ -71,6 +87,11 @@ export function computeZones(s) {
   const interFit = clamp(1 - pantoLow * 0.02 - pantoHigh * 0.015, 0.6, 1);
   const wrapDev = Math.max(0, Math.abs(f.wrap - 5) - 2);           // ±2° 허용, −15°까지
   const wrapFactor = clamp(1 - wrapDev * 0.03, 0.5, 1);
+  // 기울기 유발 비점수차(Martin tilt, 2026-07-19): 표준 자세(경사 8~12°·
+  // 안면각 5±2°)를 벗어난 총 이탈량만큼 주변부 수차가 커져 착용자의 왜곡
+  // 체감(exposure)이 증가. 시야 폭 페널티(distFit·wrapFactor 등)와 별개 축.
+  const tiltDev = wrapDev + pantoLow + pantoHigh;
+  const tiltAstig = clamp(1 + tiltDev * 0.02, 1, 1.5);
   // 가공 미보정 편심(per eye, mm) = PD 오차 + 프레임 유래(박스 중앙 이탈).
   // 31 = 모델 반동공거리 mm — FRAME_BASE.lensW(0.046·26/31)와 같은 앵커.
   const decMm = f.pdErr + 31 * (f.bSize - 26) / 26;
@@ -102,8 +123,11 @@ export function computeZones(s) {
   const lensWm = FRAME_BASE.lensW * frameScale;
   const lensHm = FRAME_BASE.lensH * frameScale;
   const eyeDist = (f.vd + 13) / 1000;
-  const apertureH = rad2deg(Math.atan((lensWm / 2) / eyeDist));
-  const apertureV = rad2deg(Math.atan((lensHm / 2) / eyeDist)) + 12; // 존 지도 수직 여유
+  // 형상 개구 계수: 곡선 외곽이 박스 대비 깎는 만큼 — 캡에 곱하면 표준(사각)
+  // 에서 이미 캡에 물린 원용이 형상 변경 시 즉시 반응한다(캡 은폐 없음).
+  const shp = SHAPE_FACTORS[f.shape] || SHAPE_FACTORS.square;
+  const apertureH = rad2deg(Math.atan((lensWm / 2) / eyeDist)) * shp.ap;
+  const apertureV = (rad2deg(Math.atan((lensHm / 2) / eyeDist)) + 12) * shp.ap; // +12 = 존 지도 수직 여유
 
   // 시선 하강각 = 눈에서 본 기하(2026-07-19): 기준 VD 12(눈회전점까지 25mm)
   // 에서 캘리브레이션된 각도를 렌즈 위 드롭(mm)으로 환산해 실제 VD로 재계산.
@@ -134,7 +158,8 @@ export function computeZones(s) {
     // 안면각은 근용에 √(절반 가중) — 수렴 시선의 사선 통과라 영향은 있지만
     // 주 피해는 원용 주변부(임상 위계: wrap 과다→원용, panto 부족→근용)라
     // 풀계수를 주면 화면상 위계가 역전된다(리뷰 2026-07-19).
-    h: Math.min(BASE.near.h * gradeScale * nearAdd * vdFactor * nearFit * nearRoom * pdCorridor * Math.sqrt(wrapFactor) * Math.sqrt(frameFactor), apertureH * 0.85),
+    // shp.nearCut: 원형·티어드롭은 바닥이 좁아 근용 영역이 형상만으로 잘린다.
+    h: Math.min(BASE.near.h * gradeScale * nearAdd * vdFactor * nearFit * nearRoom * pdCorridor * Math.sqrt(wrapFactor) * Math.sqrt(frameFactor), apertureH * 0.85) * shp.nearCut,
     v: BASE.near.v * (0.75 + 0.25 * nearAdd) * nearRoom * vdFactor,
     pitch: eyePitch(BASE.near.pitch - nearPitchShift + pitchShift),
     len: BASE.near.len * clamp(nearRoom + 0.15, 0.5, 1),
@@ -148,13 +173,16 @@ export function computeZones(s) {
   //             ⚠️ 프레임 크기와 무관(같은 렌즈 설계면 구배 동일 — 프레임을 넣던
   //             거짓 인과 제거: 큰 프레임=날개가 '넓어질' 뿐 '옅어지지' 않는다).
   //   exposure: 착용자가 '체감'하는 왜곡 노출 — 날개 면적 × 정점간거리(멀수록
-  //             시야에서 왜곡영역 비중↑). HUD 등 착용자-관점 지표용.
+  //             시야에서 왜곡영역 비중↑) × 형상(날개 코너 잘림) × 기울기
+  //             비점수차(경사·안면각 이탈). HUD 등 착용자-관점 지표용.
+  //             (area는 존맵 텍스처-공간 의미라 형상을 안 곱는다 — 형상의
+  //             시각 잘림은 렌즈 외곽이 존맵을 크롭해 자동 표현.)
   const minkGrad = (add / corr);                          // 도수변화율 (D/mm)
   const gradeCyl = g.cylReductionFactor / 0.78;           // BP30 기준 정규화
   const distortion = {
     area: clamp(frameScale * 1.0, 0.55, 1.4),
     density: clamp((minkGrad / (2.0 / 12)) * gradeCyl, 0.5, 2.2),
-    exposure: clamp(frameScale * ((f.vd + 13) / 25) * (minkGrad / (2.0 / 12)) * gradeCyl, 0.3, 2.5),
+    exposure: clamp(frameScale * shp.wing * ((f.vd + 13) / 25) * (minkGrad / (2.0 / 12)) * gradeCyl * tiltAstig, 0.3, 2.5),
   };
 
   return {

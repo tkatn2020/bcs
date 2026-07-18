@@ -409,9 +409,19 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       update({ v3head: { [hkey]: std } });
     }
   });
+  // 형상 → 광학 원리 캡션 (같은 크기라도 실면적·잘림이 다르다)
+  const SHAPE_EDU = {
+    square: '사각: 박스 면적을 가장 넓게 사용 — 기준 형상',
+    round: '원형: 하부·코너가 잘려 근용 여유↓ — 대신 왜곡 날개도 함께 잘려 노출↓',
+    boston: '보스턴: 하부가 완만히 잘림 — 근용·왜곡 모두 중간 수준',
+    aviator: '애비에이터: 위는 넓고 아래가 좁아 근용 여유↓ · 왜곡 날개 일부 잘림',
+  };
   panel.addEventListener('click', (e) => {
     const shape = e.target.closest('[data-shape]');
-    if (shape) update({ v3fit: { shape: shape.dataset.shape } });
+    if (shape) {
+      update({ v3fit: { shape: shape.dataset.shape } });
+      cap(SHAPE_EDU[shape.dataset.shape] || '');
+    }
     const zone = e.target.closest('[data-zone]');
     if (zone) {
       const k = zone.dataset.zone;
