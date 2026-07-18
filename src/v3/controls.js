@@ -33,10 +33,14 @@ const CSS = `
   .v3-btn.on { background: #e8ecf4; color: #10131a; border-color: #e8ecf4; }
   .v3-btn.warn { border-color: rgba(239,68,68,0.55); color: #f0a0a0; }
 
-  .v3-panel { top: 296px; right: 14px; width: 250px; padding: 12px 14px;
-    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 388px);
+  .v3-panel { top: 186px; right: 14px; width: 250px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 278px);
     overflow-y: auto; scrollbar-gutter: stable; }
-  .v3-presetbar { position: fixed; z-index: 10; top: 78px; right: 14px; width: 250px;
+  .v3-resetbar { position: fixed; z-index: 10; top: 14px; right: 14px; width: 250px;
+    padding: 10px 14px; border-radius: 14px;
+    background: rgba(16, 19, 26, 0.74); backdrop-filter: blur(10px);
+    font-family: 'Pretendard', system-ui, sans-serif; user-select: none; -webkit-user-select: none; }
+  .v3-presetbar { position: fixed; z-index: 10; top: 72px; right: 14px; width: 250px;
     padding: 10px 14px; border-radius: 14px;
     background: rgba(16, 19, 26, 0.74); backdrop-filter: blur(10px);
     font-family: 'Pretendard', system-ui, sans-serif; user-select: none; -webkit-user-select: none;
@@ -94,7 +98,7 @@ const PAD_SLIDERS = [
 
 // 두상 조정 — 얼굴 메시 변형 (state.v3head). 광학 무관. 귀는 좌우 개별 조정 가능.
 const HEAD_SLIDERS = [
-  { key: 'earY', label: '귀 상하', min: -10, max: 15, step: 0.5, unit: 'mm', std: 0, asym: true },
+  { key: 'earY', label: '귀 상하', min: -10, max: 25, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'earZ', label: '귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'faceWidth', label: '옆통수 폭', min: -6, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'noseBridge', label: '콧대', min: -8, max: 8, step: 0.5, unit: 'mm', std: 0 },
@@ -117,21 +121,6 @@ const CAM_PRESETS = [
 // 페이지 새로고침 시 초기화. 각 슬롯 = { v3fit, v3frame, v3head } 스냅샷.
 const fitPresets = [null, null, null];
 
-// 내장 교육 케이스(C3) — 초년차가 '잘못된 피팅이 어떤 모습이고 무엇이 실패
-// 하는가'를 즉시 볼 수 있는 읽기 전용 시나리오. 로드 = 전체 기본값 복귀 후
-// 패치 적용 + 관련 존/타깃 자동 점등 + 원리 캡션. (targets.js의 도달 판정이
-// 애초에 이런 시나리오용으로 캘리브레이션돼 있었음 — S1 교육 순간.)
-// 모든 케이스는 로드 시 시야 존 3종 + 타깃을 전부 켠다(사용자 요청 —
-// '표준 피팅'처럼 광학 피드백이 항상 보이는 상태로 케이스를 관찰).
-const EDU_CASES = [
-  { label: '표준 피팅', desc: '기준 상태 — 원·중·근 세 타깃 모두 통과(초록 링)' },
-  { label: 'OH 낮은 안경', desc: 'OH↓ → 근용(책) 도달 실패 — 판정 링이 빨개짐 (S1)',
-    fit: { oh: -5 } },
-  { label: '큰 프레임', desc: '프레임↑ → 시야는 넓지만 광학중심(십자)이 동공 밖으로 — PD 오차로 보정해보기',
-    fit: { bSize: 38 } },
-  { label: '긴 누진대·작은 테', desc: '작은 프레임에 긴 누진대 → 근용이 잘림 (피팅높이 부족)',
-    fit: { bSize: 21 }, top: { corridor: 14 } },
-];
 
 export function mountControls(root, { stage, getDemo, setCaption } = {}) {
   const cap = (t) => { if (setCaption) setCaption(t); };
@@ -276,12 +265,30 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       <button class="v3-btn" data-demo>▶ 시선 데모</button>
       <button class="v3-btn" data-turntable>턴테이블</button>
     </div>
-    <div class="v3-sec">초기화</div>
-    <div class="v3-mini">
-      <button class="v3-btn warn" data-resetall>전체 기본값 복귀</button>
-    </div>
   `;
   root.appendChild(panel);
+
+  // ── 최상단 별도 패널: 전체 기본값 복귀 — 항상 같은 자리에서 즉시 접근.
+  // 누르면 '표준 피팅' 상태가 된다: 전체 기본값 + 렌즈 구성(누진대·ADD) 기준
+  // + 시야 존 3종·타깃 표시 (구 교육 케이스 '표준 피팅'과 동일 — 케이스 기능은
+  // 사용자 요청으로 제거, 이 버튼이 그 역할을 흡수).
+  const resetBar = document.createElement('div');
+  resetBar.className = 'v3-resetbar';
+  resetBar.innerHTML = `
+    <div class="v3-mini">
+      <button class="v3-btn warn" data-resetall>전체 기본값 복귀 (표준 피팅)</button>
+    </div>
+  `;
+  root.appendChild(resetBar);
+  resetBar.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-resetall]')) return;
+    resetFitting();
+    update({
+      corridor: 12, add: 2.0,
+      v3view: { zones: { distance: true, intermediate: true, near: true }, targets: true },
+    });
+    cap('표준 피팅 — 기준 상태 복귀 (원·중·근 세 타깃 모두 통과)');
+  });
 
   // ── 기준선(정렬 확인) — '선 배치' 모드에서 화면 클릭 지점마다 수직·수평선
   // 한 쌍을 놓는다(수평 정렬·좌우 높이차 확인용 자). 배치 모드 동안은 오버레이가
@@ -331,10 +338,6 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       <button class="v3-btn" data-preset-save="1">2 저장</button>
       <button class="v3-btn" data-preset-save="2">3 저장</button>
     </div>
-    <div class="v3-sec">교육 케이스</div>
-    ${Array.from({ length: Math.ceil(EDU_CASES.length / 2) }, (_, r) => `<div class="v3-mini">${EDU_CASES.slice(r * 2, r * 2 + 2)
-      .map((c, i) => `<button class="v3-btn" data-educase="${r * 2 + i}" title="${c.desc}">${c.label}</button>`)
-      .join('')}</div>`).join('')}
   `;
   root.appendChild(presetBar);
   presetBar.addEventListener('click', (e) => {
@@ -351,21 +354,6 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
     if (pLoad) {
       const snap = fitPresets[+pLoad.dataset.presetLoad];
       if (snap) update({ v3fit: snap.v3fit, v3frame: snap.v3frame, v3head: snap.v3head });
-    }
-    // ── 교육 케이스 로드: 기본값 복귀 → 패치 → 존/타깃 점등 → 원리 캡션 ──
-    const edu = e.target.closest('[data-educase]');
-    if (edu) {
-      const c = EDU_CASES[+edu.dataset.educase];
-      resetFitting();
-      const patch = { corridor: 12, add: 2.0 };   // 렌즈 구성도 기준으로(케이스 간 잔존 방지)
-      if (c.fit) patch.v3fit = c.fit;
-      if (c.frame) patch.v3frame = c.frame;
-      if (c.head) patch.v3head = c.head;
-      if (c.top) Object.assign(patch, c.top);
-      // 모든 케이스: 시야 존 3종 + 타깃 전부 표시(광학 피드백 상시 노출)
-      patch.v3view = { zones: { distance: true, intermediate: true, near: true }, targets: true };
-      update(patch);
-      cap(c.desc);
     }
   });
 
@@ -447,9 +435,6 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       stage.controls.autoRotateSpeed = 1.1;
       turnBtn.classList.toggle('on', stage.controls.autoRotate);
     }
-    // ── 초기화 ── 광학·프레임·두상 조정 전체를 기본값으로
-    const resetBtn = e.target.closest('[data-resetall]');
-    if (resetBtn) resetFitting();
   });
 
   // ── Reactive refresh ──
