@@ -67,11 +67,11 @@ const SLIDERS = [
   { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap,
     edu: '안면각: 표준(5°)에서 벗어날수록 주변부 수차·시야 왜곡↑' },
   { key: 'pdErr', label: 'PD 오차',    min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,
-    edu: 'PD 오차: 통로 폭↓ · 양안 겹침↓ (− 좁게 가공=수렴 / + 넓게=발산)' },
+    edu: 'PD: 십자(광학중심)가 동공과 어긋난 만큼 통로 폭↓·양안 겹침↓ — 프레임 유래 편심과 합산' },
   { key: 'oh',    label: 'OH 높이',    min: -8,  max: 8,  step: 0.5, unit: 'mm', std: 0,
     edu: 'OH: 낮으면 근용 도달 어려움 · 높으면 원용 침범 — 양쪽 다 대가' },
   { key: 'bSize', label: '프레임 크기', min: 10, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize,
-    edu: '프레임: 클수록 시야↑ 그러나 왜곡 노출도↑ (누진 통로 폭은 불변)' },
+    edu: '프레임: 클수록 시야↑·왜곡↑ + 가공 전엔 광학중심(십자)이 동공에서 벌어짐 — PD로 보정' },
 ];
 
 // 프레임 피팅 커스텀 — 광학 무관, 순수 다리 지오메트리 (state.v3frame)
@@ -127,7 +127,7 @@ const EDU_CASES = [
   { label: '표준 피팅', desc: '기준 상태 — 원·중·근 세 타깃 모두 통과(초록 링)' },
   { label: 'OH 낮은 안경', desc: 'OH↓ → 근용(책) 도달 실패 — 판정 링이 빨개짐 (S1)',
     fit: { oh: -5 } },
-  { label: '큰 프레임', desc: '프레임↑ → 시야 넓어짐 · 그러나 왜곡 노출도↑ (HUD Δ 확인)',
+  { label: '큰 프레임', desc: '프레임↑ → 시야는 넓지만 광학중심(십자)이 동공 밖으로 — PD 오차로 보정해보기',
     fit: { bSize: 38 } },
   { label: '긴 누진대·작은 테', desc: '작은 프레임에 긴 누진대 → 근용이 잘림 (피팅높이 부족)',
     fit: { bSize: 21 }, top: { corridor: 14 } },

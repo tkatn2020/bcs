@@ -148,6 +148,8 @@ function mountEduHud(root) {
     if (!baseline) return;
     const b = baseline;
     rowsEl.innerHTML =
+      // 편심은 원인, 아래 지표는 결과 — 맨 위에. 값은 부호(방향), Δ는 |벗어남|.
+      row('광학중심 편심', spec.decMm ?? 0, 'mm', Math.abs(spec.decMm ?? 0) - Math.abs(b.decMm ?? 0), false) +
       row('원용 시야', spec.distance.h * 2, '°', spec.distance.h * 2 - b.distance.h * 2, true) +
       row('중간부 폭', spec.intermediate.h * 2, '°', spec.intermediate.h * 2 - b.intermediate.h * 2, true) +
       row('근용 시야', spec.near.h * 2, '°', spec.near.h * 2 - b.near.h * 2, true) +

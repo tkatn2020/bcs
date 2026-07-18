@@ -8,7 +8,11 @@
 //   · VD    → 시야각 ∝ 1/(눈회전점~렌즈 거리): 0mm(눈 밀착)까지 확대 허용
 //   · panto → 표준(8~12°) 밖 양방향 페널티. 음수(retroscopic)는 근용 악화 + 원용 수차
 //   · wrap  → 5° 기준 양방향 이탈 페널티 (−15° 역랩까지)
-//   · PD err→ corridor 축소 + 좌우 콘 발산(양안 겹침 손실)
+//   · 편심(decMm) → corridor 축소 + 좌우 콘 발산(양안 겹침 손실).
+//     이 앱은 '가공 전' 기준(사용자 결정 2026-07-18): 렌즈 광학중심은 박스
+//     중앙에 있고, 프레임이 커지면 중앙이 동공 밖으로 벌어진다 — 그 프레임
+//     유래 편심을 PD 오차와 합산해 그대로 광학에 반영한다(인셋 가공으로
+//     이미 보정됐다는 전제 폐기). PD·OH를 동공에 맞추면 회복되는 게 교육 포인트.
 //   · OH    → 존 지도 수직 이동 + 근용 잘림
 //   · 프레임 크기(B) → 렌즈 = 시야의 개구(aperture):
 //       원거리·근거리 시야는 프레임에 비례해 커지고/잘리고,
@@ -57,7 +61,13 @@ export function computeZones(s) {
                 * clamp(1 + Math.min(0, f.panto) * 0.02, 0.72, 1); // retroscopic 원용 수차
   const wrapDev = Math.max(0, Math.abs(f.wrap - 5) - 2);           // ±2° 허용, −15°까지
   const wrapFactor = clamp(1 - wrapDev * 0.03, 0.5, 1);
-  const pdCorridor = clamp(1 - Math.abs(f.pdErr) * 0.13, 0.45, 1); // 1mm ≈ 폭 2mm 손실
+  // 가공 미보정 편심(per eye, mm) = PD 오차 + 프레임 유래(박스 중앙 이탈).
+  // 31 = 모델 반동공거리 mm — FRAME_BASE.lensW(0.046·26/31)와 같은 앵커.
+  const decMm = f.pdErr + 31 * (f.bSize - 26) / 26;
+  // 편심 → 통로 폭: 쌍곡선 감쇠 — 프레임 유래 편심(최대 ~17mm)까지 단조
+  // 감소해야 'PD 보정 → 회복'이 전 구간에서 보인다(선형+바닥 0.45는 4mm에
+  // 서 포화돼 보정 효과가 안 보였음).
+  const pdCorridor = clamp(1 / (1 + 0.13 * Math.abs(decMm)), 0.28, 1);
   const pitchShift = f.oh * 2.0;                                   // deg/mm
   // OH 과다(+2mm 초과)는 원용부를 침범 — "OH는 높을수록 좋다"가 되지 않게
   // 원용 페널티를 준다(양면 트레이드오프). 부족(−)의 근용 페널티는 nearRoom이 담당.
@@ -117,8 +127,10 @@ export function computeZones(s) {
 
   return {
     distance, intermediate, near, distortion,
-    // PD 오차 → 좌우 콘이 어긋남. +(넓게 가공) = 바깥 발산, −(좁게 가공) =
-    // 안쪽 수렴 — 부호로 방향이 구분되며 둘 다 양안 겹침이 줄어든다.
-    eyeYawDeg: f.pdErr * 1.4,
+    // 편심 → 좌우 콘이 어긋남. +(광학중심이 동공 바깥) = 발산, −(안쪽) =
+    // 수렴 — 부호로 방향이 구분되며 둘 다 양안 겹침이 줄어든다.
+    // 프레임 유래 편심까지 합산돼 최대 ~27mm → ±22° 클램프(화면 이탈 방지).
+    eyeYawDeg: clamp(decMm * 1.4, -22, 22),
+    decMm,     // 가공 미보정 편심 (per eye, mm; + = 바깥) — HUD 표시용
   };
 }

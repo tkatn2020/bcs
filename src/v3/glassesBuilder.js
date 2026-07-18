@@ -215,6 +215,12 @@ export function createGlasses(anchors, opts = {}) {
     color: 0xcfe2ee, transparent: true, opacity: 0.16,
     roughness: 0.05, side: THREE.DoubleSide, depthWrite: false,
   });
+  // 아이포인트 십자(가공 전 기준) — 실제 누진렌즈의 피팅 크로스 마킹처럼
+  // 렌즈 위 광학중심 자리를 표시. 동공과 어긋난 만큼이 곧 미보정 편심.
+  const crossMat = new THREE.MeshBasicMaterial({
+    color: 0xe11d48, transparent: true, opacity: 0.85,
+    depthWrite: false, side: THREE.DoubleSide,
+  });
 
   const mapCanvas = document.createElement('canvas');
   mapCanvas.width = MAP_W; mapCanvas.height = MAP_H;
@@ -288,6 +294,18 @@ export function createGlasses(anchors, opts = {}) {
       remapUVs(zonePlane.geometry);
       sideG.add(zonePlane);
       built.push(zonePlane);
+
+      // 아이포인트 십자 — 렌즈에 고정된 광학중심 자리. 로컬 (0, +2mm):
+      // 표준 피팅(oh 슬라이더 0)에서 동공과 정확히 일치하고(기본 −2mm 착용
+      // 바이어스 상쇄), 프레임 확대·PD·OH 조정 시 동공에서 벌어지는 양이
+      // fittingModel의 편심(decMm)·oh와 픽셀 단위로 일치한다.
+      for (const [w, h] of [[0.004, 0.0004], [0.0004, 0.004]]) {
+        const bar = new THREE.Mesh(new THREE.PlaneGeometry(w, h), crossMat);
+        bar.position.set(0, 0.002, 0.0012);
+        bar.renderOrder = 7;
+        sideG.add(bar);
+        built.push(bar);
+      }
 
       // Nose pad (코받침) — thin metal arm from the lower-inner rim border to a
       // small pad resting on the nose side. Parented to sideG → inherits wrap/
