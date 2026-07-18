@@ -139,8 +139,11 @@ function mountEduHud(root) {
 
   let baseline = null;
   function row(label, val, unit, delta, biggerIsGood) {
+    // biggerIsGood=null → 중립(회색 Δ): 방향이 양면적인 지표(예: 시선 하강 —
+    // 누진대↑의 대가이기도, VD↑로 콘이 위를 향하는 증상이기도)엔 판정 없이 값만.
+    const color = biggerIsGood == null ? '#9aa3b5' : ((delta > 0) === biggerIsGood ? GOOD : BAD);
     const d = Math.abs(delta) < 0.05 ? '' :
-      `<span style="color:${(delta > 0) === biggerIsGood ? GOOD : BAD};font-weight:700"> ${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}</span>`;
+      `<span style="color:${color};font-weight:700"> ${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}</span>`;
     return `<div style="display:flex;justify-content:space-between">
       <span>${label}</span><span style="color:#fff;font-weight:700;font-variant-numeric:tabular-nums">${val.toFixed(1)}${unit}${d}</span></div>`;
   }
@@ -153,7 +156,7 @@ function mountEduHud(root) {
       row('원용 시야', spec.distance.h * 2, '°', spec.distance.h * 2 - b.distance.h * 2, true) +
       row('중간 시야', spec.intermediate.h * 2, '°', spec.intermediate.h * 2 - b.intermediate.h * 2, true) +
       row('근용 시야', spec.near.h * 2, '°', spec.near.h * 2 - b.near.h * 2, true) +
-      row('근용 시선 하강', Math.abs(spec.near.pitch), '°', Math.abs(spec.near.pitch) - Math.abs(b.near.pitch), false) +
+      row('근용 시선 하강', Math.abs(spec.near.pitch), '°', Math.abs(spec.near.pitch) - Math.abs(b.near.pitch), null) +
       row('왜곡 노출', (spec.distortion.exposure ?? 1) * 100, '%', ((spec.distortion.exposure ?? 1) - (b.distortion.exposure ?? 1)) * 100, false);
   }
   return {

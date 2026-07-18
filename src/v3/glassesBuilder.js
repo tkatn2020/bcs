@@ -144,8 +144,12 @@ function drawZoneMap(ctx, spec) {
   if (!spec) return;
 
   const cx = MAP_W / 2;
-  const corrNorm = Math.min(1.5, spec.intermediate.h / 11);
-  const nearNorm = Math.min(1.4, Math.max(0.2, spec.near.h / 15));
+  // 존맵은 렌즈에 새겨진 '설계 속성' 뷰 — 착용자 체감 요인(OH·경사·안면각·
+  // 편심·VD)이 섞이면 OH만 올려도 렌즈 위 통로가 넓어져 보여 '코리도 폭은
+  // 누진면 속성' 교육과 모순된다. 설계 전용 폭(spec.lensDesign)을 우선 사용.
+  const ld = spec.lensDesign;
+  const corrNorm = Math.min(1.5, (ld ? ld.corrH : spec.intermediate.h) / 11);
+  const nearNorm = Math.min(1.4, Math.max(0.2, (ld ? ld.nearH : spec.near.h) / 15));
   // Distortion trade-off (fittingModel §14.1): frame size drives BOTH the
   // exposed wing AREA and the gradient DENSITY.
   const dist = spec.distortion || { area: 1, density: 1 };
