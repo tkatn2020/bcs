@@ -93,9 +93,9 @@ const initial = {
   },
   // 두상 조정 (얼굴 메시 변형 — 광학 무관, 시각/피팅 물리). 귀는 좌우 대칭.
   v3head: {
-    earY: 0,       // 양쪽 귀 상하 (mm, + = 위) — base=왼쪽
+    earY: 7,       // 양쪽 귀 상하 (mm, + = 위) — base=왼쪽. 기본 7mm (사용자 캘리브레이션)
     earZ: 0,       // 양쪽 귀 앞뒤 (mm, + = 앞/눈쪽, − = 뒤/뒤통수) — base=왼쪽
-    earY_R: 0, earYAsym: 0,   // 좌우 비대칭 (_R = 오른쪽)
+    earY_R: 7, earYAsym: 0,   // 좌우 비대칭 (_R = 오른쪽)
     earZ_R: 0, earZAsym: 0,
     faceWidth: 0,     // 옆통수(측두부) 폭 (mm, + = 넓게) — base=왼쪽
     faceWidth_R: 0, faceWidthAsym: 0,   // 좌우 비대칭 (_R = 오른쪽)

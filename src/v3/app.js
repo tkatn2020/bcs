@@ -258,8 +258,12 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   let lastSpec = null;
   // 두상 변형 변경 감지 — 광학/프레임 슬라이더 변경 시 불필요한 재변형/리빌드 방지.
   const earKeyOf = (h) => `${h?.earY || 0},${h?.earZ || 0},${h?.earY_R || 0},${h?.earZ_R || 0},${h?.earYAsym || 0},${h?.earZAsym || 0}`;
-  let lastHeadKey = null;   // null → 최초 apply에서 deform 실행(기본 콧대 오프셋 반영). 귀는 earKey 불변이라 리핏은 안 됨.
-  let lastEarKey = earKeyOf(state.v3head);
+  let lastHeadKey = null;   // null → 최초 apply에서 deform 실행(기본 콧대 오프셋 반영).
+  // 초기 랜드마크는 rest(변형 전) 메시에서 측정됐으므로 기준도 rest(전부 0).
+  // 귀 기본값이 0이 아니면(현재 earY 7) 첫 apply에서 earKey가 달라져 변형된
+  // 메시로 재측정 + 템플 리핏이 자동으로 돈다 — 이걸 현재 state로 시드하면
+  // 다리가 rest 귀 높이에 남아 기본 상태부터 귀에서 뜬다.
+  let lastEarKey = earKeyOf({});
 
   function apply(s, animate) {
     const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
