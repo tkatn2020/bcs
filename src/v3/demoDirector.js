@@ -24,7 +24,10 @@ const buildPhases = (spec) => {
   ];
 };
 const TOTAL_S = 8.0;
-const DEMO_CAM = { pos: new THREE.Vector3(0.78, 0.14, 0.62), tgt: new THREE.Vector3(0.02, -0.1, 0.35) };
+// 카메라: 눈높이 살짝 아래의 근접 정면 3/4 — 시선이 아래로 내려가는 동안
+// 동공(눈알 회전)이 계속 보이는 각도(사용자 요청). 측면·원거리였던 이전
+// 앵글은 시선 라인 위주라 눈동자가 안 보였다.
+const DEMO_CAM = { pos: new THREE.Vector3(0.31, -0.03, 0.53), tgt: new THREE.Vector3(0.03, -0.03, 0.05) };
 
 export function createDemoDirector({ stage, zones, mannequin, eyes, morphMesh, onFitChange, onTargetsOn, onZonesOn, getFit, getSpec }) {
   // Gaze line — thin additive beam from pupil midpoint to the active target.

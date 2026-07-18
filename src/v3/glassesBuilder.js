@@ -324,9 +324,13 @@ export function createGlasses(anchors, opts = {}) {
         // 패드 A는 뿌리보다 낮은 콧대 옆면 위치에 얹힌다(뿌리와 높이 분리 → 긴 암).
         const dropRad = THREE.MathUtils.degToRad(58);
         const padY = -p.lensH * 0.15 - 0.0070;                 // 패드 기본 높이
+        // 전후(padArm)는 z(앞뒤)만 움직인다 — 상하는 기본 암(물리 −10mm)이
+        // 만들던 오프셋으로 동결(사용자 요청: 전후 조정 시 패드 높이 불변,
+        // 상하는 padVertical 전담). 기본 위치는 변경 전과 동일.
+        const armRefY = 0.010 * Math.sin(dropRad);
         const A = new THREE.Vector3(
           rootX - side * 0.0015 + side * p.padSpacing,          // 좌우 간격(안쪽=코)
-          padY - p.padArm * Math.sin(dropRad) + p.padVertical,  // 상하 + 길이
+          padY + armRefY + p.padVertical,                       // 상하 (padArm 무관)
           Math.min(-0.001, -(0.0085 + p.padArm * Math.cos(dropRad))),  // 코쪽(뒤). 극단값서 림 앞으로 안 나가게 클램프
         );
         const mid = new THREE.Vector3(
