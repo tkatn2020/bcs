@@ -33,8 +33,8 @@ const CSS = `
   .v3-btn.on { background: #e8ecf4; color: #10131a; border-color: #e8ecf4; }
   .v3-btn.warn { border-color: rgba(239,68,68,0.55); color: #f0a0a0; }
 
-  .v3-panel { top: 330px; right: 14px; width: 250px; padding: 12px 14px;
-    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 422px);
+  .v3-panel { top: 296px; right: 14px; width: 250px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 388px);
     overflow-y: auto; scrollbar-gutter: stable; }
   .v3-presetbar { position: fixed; z-index: 10; top: 78px; right: 14px; width: 250px;
     padding: 10px 14px; border-radius: 14px;
@@ -131,10 +131,6 @@ const EDU_CASES = [
     fit: { bSize: 38 } },
   { label: '긴 누진대·작은 테', desc: '작은 프레임에 긴 누진대 → 근용이 잘림 (피팅높이 부족)',
     fit: { bSize: 21 }, top: { corridor: 14 } },
-  { label: '귀 비대칭 고객', desc: '오른쪽 귀가 낮은 고객 → 다리 좌우 비대칭 조정 연습',
-    head: { earYAsym: 1, earY: 0, earY_R: -6 } },
-  { label: '낮은 콧대 고객', desc: '낮은 콧대 → 코받침(간격·전후) 조정 연습',
-    head: { noseBridge: -6 } },
 ];
 
 export function mountControls(root, { stage, getDemo, setCaption } = {}) {
@@ -196,6 +192,11 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       <button class="v3-btn" data-zone="intermediate">중간</button>
       <button class="v3-btn" data-zone="near">근거리</button>
       <button class="v3-btn" data-toggle="targets">타깃</button>
+    </div>
+    <div class="v3-sec">기준선 (정렬 확인)</div>
+    <div class="v3-mini">
+      <button class="v3-btn" data-guide-arm>＋ 선 배치</button>
+      <button class="v3-btn" data-guide-clear>모두 지우기</button>
     </div>
     <div class="v3-sec">광학 피팅 (라벨 더블탭 = 표준 복귀)</div>
     ${SLIDERS.map((sl) => `
@@ -282,6 +283,39 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
   `;
   root.appendChild(panel);
 
+  // ── 기준선(정렬 확인) — '선 배치' 모드에서 화면 클릭 지점마다 수직·수평선
+  // 한 쌍을 놓는다(수평 정렬·좌우 높이차 확인용 자). 배치 모드 동안은 오버레이가
+  // 캔버스 입력을 가로채 카메라/핸들과 충돌하지 않는다(패널은 z-index가 높아
+  // 계속 조작 가능). '모두 지우기'로 전체 삭제. 화면(px) 고정 — 카메라를 돌려도
+  // 자처럼 제자리에 남는 게 의도.
+  const guideLayer = document.createElement('div');
+  Object.assign(guideLayer.style, {
+    position: 'fixed', inset: '0', zIndex: 5, pointerEvents: 'none', cursor: 'crosshair',
+  });
+  root.appendChild(guideLayer);
+  const guideArmBtn = panel.querySelector('[data-guide-arm]');
+  guideArmBtn.addEventListener('click', () => {
+    const on = !guideArmBtn.classList.contains('on');
+    guideArmBtn.classList.toggle('on', on);
+    guideLayer.style.pointerEvents = on ? 'auto' : 'none';
+    cap(on ? '기준선: 원하는 위치를 클릭하면 수직·수평선이 놓입니다 (다시 누르면 배치 종료)' : '');
+  });
+  panel.querySelector('[data-guide-clear]').addEventListener('click', () => {
+    guideLayer.replaceChildren();
+  });
+  guideLayer.addEventListener('click', (e) => {
+    const mk = (st) => {
+      const d = document.createElement('div');
+      Object.assign(d.style, {
+        position: 'fixed', pointerEvents: 'none',
+        background: 'rgba(56,189,248,0.7)', boxShadow: '0 0 3px rgba(56,189,248,0.45)',
+      }, st);
+      guideLayer.appendChild(d);
+    };
+    mk({ left: e.clientX + 'px', top: '0', width: '1px', height: '100vh' });
+    mk({ left: '0', top: e.clientY + 'px', width: '100vw', height: '1px' });
+  });
+
   // ── 상단 개별 패널: 피팅 프리셋 (자주 쓰는 기능 — 스크롤 없이 즉시 접근) ──
   const presetBar = document.createElement('div');
   presetBar.className = 'v3-presetbar';
@@ -298,7 +332,7 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       <button class="v3-btn" data-preset-save="2">3 저장</button>
     </div>
     <div class="v3-sec">교육 케이스</div>
-    ${[0, 1, 2].map((r) => `<div class="v3-mini">${EDU_CASES.slice(r * 2, r * 2 + 2)
+    ${Array.from({ length: Math.ceil(EDU_CASES.length / 2) }, (_, r) => `<div class="v3-mini">${EDU_CASES.slice(r * 2, r * 2 + 2)
       .map((c, i) => `<button class="v3-btn" data-educase="${r * 2 + i}" title="${c.desc}">${c.label}</button>`)
       .join('')}</div>`).join('')}
   `;

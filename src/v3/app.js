@@ -313,6 +313,8 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     }
 
     group.rotation.x = THREE.MathUtils.degToRad(f.headPitch || 0);
+    // 머리 기울임(roll, + = 아바타 오른쪽 어깨 방향) — 시각 전용, 광학 무관
+    group.rotation.z = THREE.MathUtils.degToRad(f.headRoll || 0);
     for (const [zone, on] of Object.entries(s.v3view?.zones || {})) {
       zones.setVisible(zone, on);
     }

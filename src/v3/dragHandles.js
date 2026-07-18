@@ -4,6 +4,7 @@
 // 드래그를 전면 대체 — 어디를 잡아야 뭐가 되는지 명확, 카메라 조작과 겹치지
 // 않음):
 //   · 이마(고개)      → 세로 드래그(아래=숙임) = 고개 숙임/들기 (headPitch −12°~+28°, +=숙임)
+//   · 정수리(기울임)  → 가로 드래그 = 머리 좌우 기울임 (headRoll ±15°, 정면 시점만 노출)
 //   · 양쪽 다리(VD)   → 머리 정면축 드래그 = 정점간거리 (0~20mm, 좌·우 2개)
 //   · 브릿지(OH)      → 세로 드래그 = 피팅 높이 (OH, ±4mm)
 //   · 핸들 더블탭     → 그 항목만 표준 복귀 (빈 공간은 순수 카메라 회전/팬)
@@ -123,6 +124,23 @@ export function attachDragHandles({ stage, glassesGroup, headMesh, getFit, onFit
         return `고개 ${p >= 0 ? '숙임' : '들기'} ${Math.abs(p).toFixed(0)}°`;
       },
       reset: () => { onFitChange({ headPitch: 0 }); return '고개 표준 복귀'; },
+    },
+    {
+      // 정수리 살짝 위 — 이마(고개) 핸들과 화면상 겹치지 않게 띄운다.
+      // 얼굴 정면 시점에서만 노출(faceMin 0.55 ≈ ±56° 콘) — 측면에선 가로
+      // 드래그가 롤이 아니라 요처럼 읽혀 오조작을 부른다.
+      id: 'roll', el: mkHandle('기울임 ↔'), faceMin: 0.55,
+      anchor: () => headMesh.localToWorld(_v.set(0, 0.104, -0.018)),
+      normal: () => dirWorld(headMesh, 0, 0.25, 1),
+      drag: (f0, dx) => {
+        // 드래그 방향으로 정수리가 따라온다: 화면 오른쪽(+dx) = 월드 +x =
+        // 정수리가 아바타 왼쪽으로 = rotation.z 음수 → 부호 반전.
+        // headRoll + = 아바타 오른쪽 어깨 쪽 기울임(rotation.z 양수).
+        const r = clamp((f0.headRoll || 0) - dx * 0.18, -15, 15);
+        onFitChange({ headRoll: Math.round(r) });
+        return `머리 기울임 ${r === 0 ? '없음' : (r > 0 ? '오른쪽 ' : '왼쪽 ') + Math.abs(r).toFixed(0) + '°'}`;
+      },
+      reset: () => { onFitChange({ headRoll: 0 }); return '기울임 표준 복귀'; },
     },
     // VD는 양쪽 관자놀이(다리 위)에 각각 — 좌/우 어느 쪽을 봐도 잡을 수 있게.
     // 둘 다 같은 vd 파라미터를 조정. 다리 중간에 얹어 측면에서 렌즈와 안 겹침.

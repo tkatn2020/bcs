@@ -24,7 +24,7 @@ const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const rad2deg = (r) => (r * 180) / Math.PI;
 
 export const STANDARD_FIT = {
-  vd: 12, panto: 8, wrap: 5, pdErr: 0, oh: 0, bSize: 26, shape: 'square', headPitch: 0,
+  vd: 12, panto: 8, wrap: 5, pdErr: 0, oh: 0, bSize: 26, shape: 'square', headPitch: 0, headRoll: 0,
 };
 
 // Baseline half-angles at BP30 · ADD +2.00 · corridor 12mm · standard fit
