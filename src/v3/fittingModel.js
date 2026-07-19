@@ -137,12 +137,16 @@ export function computeZones(s) {
   // |pAt12|가 커질 수 있다 — tan 특이점(90°)의 소리 없는 부호 반전 방지.
   const eyePitch = (pAt12) => rad2deg(Math.atan(Math.tan((clamp(pAt12, -85, 85) * Math.PI) / 180) * 25 / (f.vd + 13)));
 
+  // rawD/rawN(캡 이전 곱)과 capD/capN(개구 한계 배율)을 분리해 두면 요인
+  // 분해(HUD 드릴다운)가 화면 값과 정확히 일치한다: h = raw × cap × 사후항.
+  const rawD = BASE.distance.h * (0.45 + 0.55 * gradeScale) * vdFactor * distFit * wrapFactor * frameFactor;
+  const capD = Math.min(1, (apertureH * 0.95) / rawD);
   const distance = {
     // distOh(원용 침범)는 개구 캡 '밖'에서 곱한다 — 캡 안에 두면 기저값이
     // 이미 캡에 물려 있어 oh +3.5mm까지 페널티가 화면에 안 나타나고 interOh
     // 이득만 보이는 비대칭이 생긴다(리뷰 2026-07-19). 침범은 프레임 개구와
     // 무관한 착용자 체감 손실이라 캡 이후가 물리적으로도 맞다.
-    h: Math.min(BASE.distance.h * (0.45 + 0.55 * gradeScale) * vdFactor * distFit * wrapFactor * frameFactor, apertureH * 0.95) * distOh,
+    h: rawD * capD * distOh,
     v: Math.min(BASE.distance.v * vdFactor * distFit * frameFactor, apertureV) * distOh,
     pitch: eyePitch(BASE.distance.pitch + pitchShift * 0.35),
     len: BASE.distance.len,
@@ -154,12 +158,14 @@ export function computeZones(s) {
     pitch: eyePitch(BASE.intermediate.pitch - nearPitchShift * 0.5 + pitchShift),
     len: BASE.intermediate.len,
   };
+  const rawN = BASE.near.h * gradeScale * nearAdd * vdFactor * nearFit * nearRoom * pdCorridor * Math.sqrt(wrapFactor) * Math.sqrt(frameFactor);
+  const capN = Math.min(1, (apertureH * 0.85) / rawN);
   const near = {
     // 안면각은 근용에 √(절반 가중) — 수렴 시선의 사선 통과라 영향은 있지만
     // 주 피해는 원용 주변부(임상 위계: wrap 과다→원용, panto 부족→근용)라
     // 풀계수를 주면 화면상 위계가 역전된다(리뷰 2026-07-19).
     // shp.nearCut: 원형·티어드롭은 바닥이 좁아 근용 영역이 형상만으로 잘린다.
-    h: Math.min(BASE.near.h * gradeScale * nearAdd * vdFactor * nearFit * nearRoom * pdCorridor * Math.sqrt(wrapFactor) * Math.sqrt(frameFactor), apertureH * 0.85) * shp.nearCut,
+    h: rawN * capN * shp.nearCut,
     v: BASE.near.v * (0.75 + 0.25 * nearAdd) * nearRoom * vdFactor,
     pitch: eyePitch(BASE.near.pitch - nearPitchShift + pitchShift),
     len: BASE.near.len * clamp(nearRoom + 0.15, 0.5, 1),
@@ -200,5 +206,58 @@ export function computeZones(s) {
     // 프레임 유래 편심까지 합산돼 최대 ~27mm → ±22° 클램프(화면 이탈 방지).
     eyeYawDeg: clamp(decMm * 1.4, -22, 22),
     decMm,     // 가공 미보정 편심 (per eye, mm; + = 바깥) — HUD 표시용
+    // 요인 분해(HUD 드릴다운) — m = 그 지표에 곱해진 배율(1 = 무영향),
+    // v = 가산 성분. ctrl = 해당 조절 UI 키(클릭 시 하이라이트; 설계 축은 없음).
+    // 곱 지표는 h = Π(m)·BASE 가 화면 값과 정확히 일치하도록 위 수식의 항을
+    // 그대로 재사용한다(별도 근사 금지).
+    breakdown: {
+      dec: [
+        { label: 'PD 오차', v: f.pdErr, unit: 'mm', ctrl: 'pdErr' },
+        { label: '프레임 유래(가공 미보정)', v: 31 * (f.bSize - 26) / 26, unit: 'mm', ctrl: 'bSize' },
+      ],
+      distance: [
+        { label: '설계 등급', m: 0.45 + 0.55 * gradeScale },
+        { label: '정점간거리', m: vdFactor, ctrl: 'vd' },
+        { label: '경사각', m: distFit, ctrl: 'panto' },
+        { label: '안면각', m: wrapFactor, ctrl: 'wrap' },
+        { label: '프레임 크기', m: frameFactor, ctrl: 'bSize' },
+        { label: '개구 한계(프레임·형상)', m: capD, ctrl: 'bSize' },
+        { label: 'OH 원용 침범', m: distOh, ctrl: 'oh' },
+      ],
+      intermediate: [
+        { label: '설계 등급', m: gradeScale },
+        { label: '누진대·ADD(Minkwitz)', m: mink },
+        { label: '정점간거리', m: vdFactor, ctrl: 'vd' },
+        { label: '안면각', m: wrapFactor, ctrl: 'wrap' },
+        { label: '광학중심 편심', m: pdCorridor, ctrl: 'pdErr' },
+        { label: '경사각', m: interFit, ctrl: 'panto' },
+        { label: 'OH 체감(시선 깊이)', m: interOh, ctrl: 'oh' },
+      ],
+      near: [
+        { label: '설계 등급', m: gradeScale },
+        { label: 'ADD', m: nearAdd },
+        { label: '정점간거리', m: vdFactor, ctrl: 'vd' },
+        { label: '경사각', m: nearFit, ctrl: 'panto' },
+        { label: '높이 여유(OH·프레임·누진대)', m: nearRoom, ctrl: 'oh' },
+        { label: '광학중심 편심', m: pdCorridor, ctrl: 'pdErr' },
+        { label: '안면각', m: Math.sqrt(wrapFactor), ctrl: 'wrap' },
+        { label: '프레임 크기', m: Math.sqrt(frameFactor), ctrl: 'bSize' },
+        { label: '개구 한계(프레임·형상)', m: capN, ctrl: 'bSize' },
+        { label: '형상 하부 잘림', m: shp.nearCut, ctrl: 'shape' },
+      ],
+      nearPitch: [
+        { label: '누진대 길이', v: nearPitchShift, unit: '°' },
+        { label: 'OH(존 지도 이동)', v: -pitchShift, unit: '°', ctrl: 'oh' },
+        { label: 'VD 기하(재계산)', v: Math.abs(near.pitch) - Math.abs(clamp(BASE.near.pitch - nearPitchShift + pitchShift, -85, 85)), unit: '°', ctrl: 'vd' },
+      ],
+      exposure: [
+        { label: '프레임 크기', m: frameScale, ctrl: 'bSize' },
+        { label: '형상 날개 잘림', m: shp.wing, ctrl: 'shape' },
+        { label: '정점간거리', m: (f.vd + 13) / 25, ctrl: 'vd' },
+        { label: '설계 구배(ADD/누진대)', m: minkGrad / (2.0 / 12) },
+        { label: '설계 등급(수차 재분배)', m: gradeCyl },
+        { label: '기울기 비점수차(경사·안면각)', m: tiltAstig, ctrl: 'panto' },
+      ],
+    },
   };
 }

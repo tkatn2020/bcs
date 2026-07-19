@@ -113,56 +113,158 @@ function mountCredit(root) {
   root.appendChild(div);
 }
 
-// ── 교육 HUD (C1) — 파생 광학 지표를 숫자로, 표준 피팅 대비 Δ를 색으로 ──
-// "모든 변수의 얻는 것·잃는 것이 한눈에": 콘 형상만으로는 미세한 대가
-// (예: 누진대↑ 시 근용 시선 −2.4°)가 안 보이므로 숫자 층을 추가한다.
-// + 교육 캡션(C2): 마지막으로 조작한 변수의 원리 한 줄.
+// ── 교육 HUD (C1+인터랙티브) — 숫자 + 불릿 게이지 + 요인 분해 드릴다운 ──
+// 행마다: 값/Δ 위에 게이지 바(회색 채움 = 현재, 흰 틱 = 표준, 표준↔현재
+// 구간 = 이득 초록/손실 주황, 변화는 CSS 트랜지션으로 흐른다).
+// · 행 hover = 해당 존 콘 강조(setZoneHover로 주입 — 데모 setEmphasis 재사용)
+// · 행 클릭 = 요인 분해(spec.breakdown): 어떤 조정이 이 지표를 깎고/올리는지
+// · 분해 항목 클릭 = 해당 슬라이더 위치 플래시(v3:flash-control 이벤트)
 function mountEduHud(root) {
+  const GOOD = '#7dd490', BAD = '#f0a35e', NEUT = '#9aa3b5';
+  // 게이지 정규화 범위 = 모델 관측 범위(교육 케이스 전수 기준) — 표시 전용.
+  // better: true=클수록 좋음 / false=작을수록 좋음 / null=양면적(중립 회색).
+  const METRICS = [
+    { key: 'dec', label: '광학중심 편심', unit: 'mm', min: 0, max: 20, better: false, zone: null,
+      val: (s) => s.decMm ?? 0, bar: (s) => Math.abs(s.decMm ?? 0),
+      delta: (s, b) => Math.abs(s.decMm ?? 0) - Math.abs(b.decMm ?? 0) },
+    { key: 'distance', label: '원용 시야', unit: '°', min: 30, max: 100, better: true, zone: 'distance', val: (s) => s.distance.h * 2 },
+    { key: 'intermediate', label: '중간 시야', unit: '°', min: 5, max: 35, better: true, zone: 'intermediate', val: (s) => s.intermediate.h * 2 },
+    { key: 'near', label: '근용 시야', unit: '°', min: 3, max: 45, better: true, zone: 'near', val: (s) => s.near.h * 2 },
+    { key: 'nearPitch', label: '근용 시선 하강', unit: '°', min: 20, max: 45, better: null, zone: 'near', val: (s) => Math.abs(s.near.pitch) },
+    { key: 'exposure', label: '왜곡 노출', unit: '%', min: 30, max: 250, better: false, zone: null, val: (s) => (s.distortion.exposure ?? 1) * 100 },
+  ];
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .v3hud-row { cursor: pointer; border-radius: 7px; margin: 0 -4px; padding: 0 4px; }
+    .v3hud-row:hover { background: rgba(255,255,255,0.05); }
+    .v3hud-top { display: flex; justify-content: space-between; align-items: baseline; }
+    .v3hud-bar { position: relative; height: 3px; border-radius: 2px;
+      background: rgba(255,255,255,0.08); margin: 2px 0 6px; }
+    .v3hud-fill, .v3hud-seg { position: absolute; top: 0; height: 100%; border-radius: 2px;
+      transition: left .25s ease, width .25s ease, background .25s ease; }
+    .v3hud-fill { left: 0; background: rgba(207,214,228,0.35); }
+    .v3hud-tick { position: absolute; top: -2px; width: 2px; height: 7px; background: #fff;
+      border-radius: 1px; transition: left .25s ease; }
+    .v3hud-det { margin: 0 0 7px; padding: 5px 8px; background: rgba(255,255,255,0.05);
+      border-radius: 7px; font-size: 10.5px; }
+    .v3hud-det-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+    .v3hud-det-row[data-ctrl] { cursor: pointer; }
+    .v3hud-det-row[data-ctrl]:hover { color: #fff; }
+    .v3hud-det-empty { color: #8b93a7; }
+  `;
+  document.head.appendChild(style);
+
   const el = document.createElement('div');
   Object.assign(el.style, {
     position: 'fixed', left: '14px', bottom: '64px', zIndex: 10, width: '236px',
     padding: '10px 12px', borderRadius: '12px',
     background: 'rgba(16,19,26,0.74)', backdropFilter: 'blur(10px)',
     fontFamily: "'Pretendard', system-ui, sans-serif", fontSize: '11.5px',
-    color: '#cfd6e4', userSelect: 'none', pointerEvents: 'none', lineHeight: '1.55',
+    color: '#cfd6e4', userSelect: 'none', pointerEvents: 'auto', lineHeight: '1.55',
   });
   el.innerHTML = `
-    <div style="font-size:10px;letter-spacing:.12em;color:#8b93a7;font-weight:800;margin-bottom:4px">광학 성능 (표준 대비)</div>
+    <div style="font-size:10px;letter-spacing:.12em;color:#8b93a7;font-weight:800;margin-bottom:4px">광학 성능 (표준 대비 · 행 클릭 = 요인)</div>
     <div data-hud-rows></div>
-    <div data-hud-cap style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08);
+    <div data-hud-cap style="margin-top:2px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08);
       color:#f5d9a0;font-size:11px;min-height:14px"></div>
   `;
   root.appendChild(el);
   const rowsEl = el.querySelector('[data-hud-rows]');
   const capEl = el.querySelector('[data-hud-cap]');
-  const GOOD = '#7dd490', BAD = '#f0a35e';
 
   let baseline = null;
-  function row(label, val, unit, delta, biggerIsGood) {
-    // biggerIsGood=null → 중립(회색 Δ): 방향이 양면적인 지표(예: 시선 하강 —
-    // 누진대↑의 대가이기도, VD↑로 콘이 위를 향하는 증상이기도)엔 판정 없이 값만.
-    const color = biggerIsGood == null ? '#9aa3b5' : ((delta > 0) === biggerIsGood ? GOOD : BAD);
-    const d = Math.abs(delta) < 0.05 ? '' :
-      `<span style="color:${color};font-weight:700"> ${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}</span>`;
-    return `<div style="display:flex;justify-content:space-between">
-      <span>${label}</span><span style="color:#fff;font-weight:700;font-variant-numeric:tabular-nums">${val.toFixed(1)}${unit}${d}</span></div>`;
+  let lastSpec = null;
+  let openKey = null;
+  let zoneHover = null;
+
+  // 행 구조는 1회만 생성 — innerHTML 재생성 대신 스타일만 갱신해야 게이지
+  // 트랜지션이 살아있고 hover/클릭 리스너가 유지된다.
+  const rows = new Map();
+  for (const mt of METRICS) {
+    const r = document.createElement('div');
+    r.className = 'v3hud-row';
+    r.innerHTML = `
+      <div class="v3hud-top"><span>${mt.label}</span>
+        <span style="font-variant-numeric:tabular-nums"><span data-v style="color:#fff;font-weight:700"></span><span data-d style="font-weight:700"></span></span></div>
+      <div class="v3hud-bar"><div class="v3hud-fill"></div><div class="v3hud-seg"></div><div class="v3hud-tick"></div></div>
+      <div class="v3hud-det" style="display:none"></div>`;
+    rowsEl.appendChild(r);
+    rows.set(mt.key, {
+      mt, el: r,
+      v: r.querySelector('[data-v]'), d: r.querySelector('[data-d]'),
+      fill: r.querySelector('.v3hud-fill'), seg: r.querySelector('.v3hud-seg'),
+      tick: r.querySelector('.v3hud-tick'), det: r.querySelector('.v3hud-det'),
+    });
+    r.addEventListener('pointerenter', () => { if (zoneHover && mt.zone) zoneHover(mt.zone); });
+    r.addEventListener('pointerleave', () => { if (zoneHover) zoneHover(null); });
+    r.addEventListener('click', (e) => {
+      const fr = e.target.closest('[data-ctrl]');
+      if (fr) {   // 분해 항목 클릭 → 해당 조절 UI 플래시 (행 토글 안 함)
+        window.dispatchEvent(new CustomEvent('v3:flash-control', { detail: { ctrl: fr.dataset.ctrl } }));
+        return;
+      }
+      openKey = openKey === mt.key ? null : mt.key;   // 아코디언(한 행만)
+      for (const [k, row] of rows) row.det.style.display = k === openKey ? '' : 'none';
+      if (lastSpec) renderDetail(mt.key);
+    });
   }
+
+  // 분해 항목 → 표시행. m = 배율(±%), v = 가산(mm·°). 무영향(≈0)은 숨김.
+  function fmtEntry(e, mt) {
+    if (e.m !== undefined) {
+      const pct = (e.m - 1) * 100;
+      if (Math.abs(pct) < 0.5) return null;
+      const good = mt.better == null ? null : (pct > 0) === mt.better;
+      return { impact: Math.abs(pct), color: good == null ? NEUT : good ? GOOD : BAD,
+               text: `${pct > 0 ? '+' : '−'}${Math.abs(pct).toFixed(0)}%`, e };
+    }
+    if (Math.abs(e.v) < 0.05) return null;
+    return { impact: Math.abs(e.v), color: mt.key === 'dec' ? BAD : NEUT,
+             text: `${e.v > 0 ? '+' : '−'}${Math.abs(e.v).toFixed(1)}${e.unit || ''}`, e };
+  }
+  function renderDetail(key) {
+    const row = rows.get(key);
+    const list = (lastSpec?.breakdown?.[key] || [])
+      .map((e) => fmtEntry(e, row.mt)).filter(Boolean)
+      .sort((a, b) => b.impact - a.impact);
+    row.det.innerHTML = list.length
+      ? list.map((x) => `<div class="v3hud-det-row"${x.e.ctrl ? ` data-ctrl="${x.e.ctrl}" title="클릭: 조절 위치 표시"` : ''}>
+          <span>${x.e.label}</span><span style="color:${x.color};font-weight:700;white-space:nowrap">${x.text}</span></div>`).join('')
+      : `<div class="v3hud-det-empty">표준 상태 — 영향 요인 없음</div>`;
+  }
+
+  const pctOf = (mt, v) => Math.max(0, Math.min(100, ((v - mt.min) / (mt.max - mt.min)) * 100));
   function update(spec) {
     if (!baseline) return;
-    const b = baseline;
-    rowsEl.innerHTML =
-      // 편심은 원인, 아래 지표는 결과 — 맨 위에. 값은 부호(방향), Δ는 |벗어남|.
-      row('광학중심 편심', spec.decMm ?? 0, 'mm', Math.abs(spec.decMm ?? 0) - Math.abs(b.decMm ?? 0), false) +
-      row('원용 시야', spec.distance.h * 2, '°', spec.distance.h * 2 - b.distance.h * 2, true) +
-      row('중간 시야', spec.intermediate.h * 2, '°', spec.intermediate.h * 2 - b.intermediate.h * 2, true) +
-      row('근용 시야', spec.near.h * 2, '°', spec.near.h * 2 - b.near.h * 2, true) +
-      row('근용 시선 하강', Math.abs(spec.near.pitch), '°', Math.abs(spec.near.pitch) - Math.abs(b.near.pitch), null) +
-      row('왜곡 노출', (spec.distortion.exposure ?? 1) * 100, '%', ((spec.distortion.exposure ?? 1) - (b.distortion.exposure ?? 1)) * 100, false);
+    lastSpec = spec;
+    for (const [, row] of rows) {
+      const mt = row.mt;
+      const cur = mt.val(spec), std = mt.val(baseline);
+      const delta = mt.delta ? mt.delta(spec, baseline) : cur - std;
+      row.v.textContent = cur.toFixed(1) + mt.unit;
+      if (Math.abs(delta) < 0.05) row.d.textContent = '';
+      else {
+        row.d.textContent = ` ${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}`;
+        row.d.style.color = mt.better == null ? NEUT : ((delta > 0) === mt.better ? GOOD : BAD);
+      }
+      const bCur = mt.bar ? mt.bar(spec) : cur;
+      const bStd = mt.bar ? mt.bar(baseline) : std;
+      const pCur = pctOf(mt, bCur), pStd = pctOf(mt, bStd);
+      row.fill.style.width = Math.min(pCur, pStd) + '%';
+      row.seg.style.left = Math.min(pCur, pStd) + '%';
+      row.seg.style.width = Math.abs(pCur - pStd) + '%';
+      const segGood = mt.better == null ? null : (bCur > bStd) === mt.better;
+      row.seg.style.background = segGood == null ? NEUT : segGood ? GOOD : BAD;
+      row.tick.style.left = `calc(${pStd}% - 1px)`;
+    }
+    if (openKey) renderDetail(openKey);
   }
   return {
     update,
     setBaseline(spec) { baseline = spec; },
     caption(text) { capEl.textContent = text || ''; },
+    setZoneHover(cb) { zoneHover = cb; },
   };
 }
 
@@ -219,6 +321,9 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     getFit: () => ({ ...STANDARD_FIT, ...(state.v3fit || {}) }),
     getSpec: () => lastSpec,
   });
+
+  // HUD 행 hover → 해당 존 콘 강조 (데모 재생 중엔 데모의 강조가 우선)
+  hud.setZoneHover((zone) => { if (!demo.playing) zones.setEmphasis(zone); });
 
   // ── state → scene ──
   function glassesParams(f, fr, hd) {

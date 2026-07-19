@@ -32,6 +32,11 @@ const CSS = `
     background: transparent; color: #cfd6e4; font-size: 12px; font-weight: 700; cursor: pointer; }
   .v3-btn.on { background: #e8ecf4; color: #10131a; border-color: #e8ecf4; }
   .v3-btn.warn { border-color: rgba(239,68,68,0.55); color: #f0a0a0; }
+  .v3-flash { animation: v3flash 1.4s ease; border-radius: 8px; }
+  @keyframes v3flash {
+    0%, 55% { background: rgba(56,189,248,0.20); box-shadow: 0 0 0 2px rgba(56,189,248,0.45); }
+    100% { background: transparent; box-shadow: none; }
+  }
 
   .v3-panel { top: 186px; right: 14px; width: 250px; padding: 12px 14px;
     display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh - 278px);
@@ -288,6 +293,25 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       v3view: { zones: { distance: true, intermediate: true, near: true }, targets: false },
     });
     cap('표준 피팅 — 기준 상태 복귀');
+  });
+
+  // ── HUD 요인 분해 → 조절 UI 플래시 — HUD에서 요인을 클릭하면 그 요인을
+  // 조절하는 슬라이더/버튼 행이 빛나며 스크롤로 노출("이걸 고치면 회복").
+  window.addEventListener('v3:flash-control', (e) => {
+    const k = e.detail?.ctrl;
+    if (!k) return;
+    let target = null;
+    if (k === 'shape') target = panel.querySelector('[data-shape]')?.closest('.v3-mini');
+    else {
+      const input = panel.querySelector(`[data-fit="${k}"]`) || panel.querySelector(`[data-frame="${k}"]`);
+      target = input?.closest('.v3-row');
+    }
+    if (!target) return;
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    target.classList.remove('v3-flash');
+    void target.offsetWidth;   // 연속 클릭 시 애니메이션 재시작
+    target.classList.add('v3-flash');
+    setTimeout(() => target.classList.remove('v3-flash'), 1500);
   });
 
   // ── 기준선(정렬 확인) — '선 배치' 모드에서 화면 클릭 지점마다 수직·수평선
