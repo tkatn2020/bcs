@@ -112,6 +112,20 @@ function superellipsePts(w, h, nTop, nBottom, dropBottom = 1, count = 64) {
   return pts;
 }
 
+// 외곽선에서 높이 y가 지나는 최대 x(edge) — 형상 무관 실측. 브릿지·엔드
+// 피스를 박스(사각) 가정 좌표(lensW/2+rimT)에 붙이면 원형·보스턴·애비에이터
+// 처럼 그 높이의 테두리가 안쪽으로 물러난 형상에서 연결부가 공중에 뜬다.
+function edgeXAtY(pts, y) {
+  let best = -Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    if ((a.y - y) * (b.y - y) <= 0 && a.y !== b.y) {
+      best = Math.max(best, a.x + (b.x - a.x) * ((y - a.y) / (b.y - a.y)));
+    }
+  }
+  return best === -Infinity ? null : best;
+}
+
 function lensOutline(p) {
   switch (p.shape) {
     case 'round':   return superellipsePts(p.lensW * 0.92, p.lensH, 2, 2);
@@ -363,7 +377,10 @@ export function createGlasses(anchors, opts = {}) {
       // 실제 panto/wrap은 부모 회전이 얹으므로 서로 독립(템플 조정≠경사/안면각).
       // Structure: endpiece(hinge) → temple BODY(측두부 밀착·밴딩·경사·간격)
       //            → ear top → drop(고정 이어피스, 길이만 templeLen).
-      const hx = p.lensW / 2 + p.rimT;
+      // 힌지 x = 그 높이(힌지선 + 엔드피스 오프셋)의 '실측' 림 바깥 edge —
+      // 박스 가정이면 곡선 형상에서 엔드피스·다리가 림에서 떨어진다(형상
+      // 무관 실측, 사각은 기존과 ~0.06mm 차이). 0.5mm 묻어 용접.
+      const hx = (edgeXAtY(outerPts, hingeY + p.endpiece) ?? (p.lensW / 2 + p.rimT)) - 0.0005;
       const groupOffsetY = anchorMid.y + p.oh;
       const groupOffsetZ = anchorMid.z + effZ();
       const headX = p.headSideX || (() => 0.072);   // 측두부 옆면 x(z, side)
@@ -477,7 +494,11 @@ export function createGlasses(anchors, opts = {}) {
 
     // 브릿지 = 렌즈 사이 실제 간격. 프런트 전체가 강체 스케일이므로 간격도
     // 프레임 크기에 자연 비례(큰 테=큰 브릿지)하고 항상 림에 붙어 있다.
-    const innerGap = 2 * frameHalf - p.lensW - p.rimT * 2;
+    // 간격은 힌지선 높이에서 '실측한' 림 안쪽 edge 기준(형상 무관) — 박스
+    // (lensW/2+rimT) 계산이면 곡선 형상에서 그 높이 테두리가 물러나 브릿지가
+    // 공중에 뜬다. 양끝 0.8mm씩 림에 묻어 용접.
+    const eBr = edgeXAtY(outerOutline(p), hingeY) ?? (p.lensW / 2 + p.rimT);
+    const innerGap = 2 * (frameHalf - eBr) + 0.0016;
     const bridge = new THREE.Mesh(
       new THREE.BoxGeometry(Math.max(innerGap, 0.005), 0.0028, 0.0018),
       frameMat,
