@@ -385,6 +385,38 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
     }
   });
 
+  // ── 코받침 → VD·OH 라이트스루(사용자 결정 2026-07-19) ──
+  // 코받침 조정은 프레임 위치 이동과 물리적으로 같은 축이다. 예전(B-2)처럼
+  // 숨은 파생값(eff)으로 광학에만 반영하면 "코받침 전후를 늘렸는데 VD 슬라
+  // 이더는 그대로"라는 이중 장부가 생긴다 — 이제 코받침을 움직이면 VD·OH
+  // 슬라이더 값 자체가 함께 이동하고, 이후 VD/OH 조정은 그 위에 투명하게
+  // 누적된다. 코받침이 꺼져 있으면(padOn=0) 물리 접점이 없으므로 연동 없음.
+  // 슬라이더 입력과 더블탭 복귀가 모두 이 경로를 지나야 장부가 안 갈라진다.
+  const PAD_COUPLE = {
+    padVertical: { oh: -0.8 },              // 패드 위로 = 프레임 내려앉음
+    padSpacing: { oh: -0.5, vd: -0.4 },     // 넓힘 = 내려앉고 가까워짐
+    padArm: { vd: 0.4 },                    // 전후 연장 = 프레임 밀어냄
+  };
+  function padWrite(key, newVal) {
+    const prev = state.v3frame[key] ?? 0;
+    const dv = newVal - prev;
+    const patch = { v3frame: { [key]: newVal } };
+    const c = PAD_COUPLE[key];
+    if (c && state.v3frame.padOn && dv) {
+      const cur = { ...STANDARD_FIT, ...state.v3fit };
+      const fitP = {};
+      // 0.01 단위 유지 — 0.1로 반올림하면 왕복(조정→복귀)에서 잔차가 쌓인다.
+      if (c.vd) fitP.vd = Math.round(Math.min(20, Math.max(5, cur.vd + dv * c.vd)) * 100) / 100;
+      if (c.oh) fitP.oh = Math.round(Math.min(8, Math.max(-8, cur.oh + dv * c.oh)) * 100) / 100;
+      patch.v3fit = fitP;
+      const parts = [];
+      if (fitP.vd !== undefined) parts.push(`정점간거리 → ${fitP.vd}mm`);
+      if (fitP.oh !== undefined) parts.push(`OH → ${fitP.oh >= 0 ? '+' : ''}${fitP.oh}mm`);
+      cap(`코받침 조정 = 프레임 이동: ${parts.join(' · ')} 함께 반영`);
+    }
+    update(patch);
+  }
+
   panel.addEventListener('input', (e) => {
     const key = e.target.dataset?.fit;
     if (key) {
@@ -394,16 +426,12 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
     }
     const fkey = e.target.dataset?.frame;
     if (fkey) {
-      update({ v3frame: { [fkey]: Number(e.target.value) } });
-      // 코받침 → 광학 실반영량(B-2)을 캡션으로 — 물리→광학 인과를 눈에 보이게
-      if (fkey === 'padVertical' || fkey === 'padSpacing' || fkey === 'padArm') {
-        const fr = state.v3frame;
-        const padOh = fr.padOn ? -fr.padVertical * 0.8 - fr.padSpacing * 0.5 : 0;
-        const padVd = fr.padOn ? -fr.padSpacing * 0.4 + fr.padArm * 0.4 : 0;
-        const sg = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
-        cap(`코받침 조정 → 광학 실반영: OH ${sg(padOh)}mm · 정점간거리 ${sg(padVd)}mm`);
-      } else if (fkey === 'templeAngle' || fkey === 'templeAngle_R') {
-        cap('다리 경사각: 실제 조제에선 경사각(panto)을 바꾸는 1차 수단 — 본 앱에선 광학과 독립(경사각 슬라이더로 재현)');
+      if (PAD_COUPLE[fkey]) padWrite(fkey, Number(e.target.value));
+      else {
+        update({ v3frame: { [fkey]: Number(e.target.value) } });
+        if (fkey === 'templeAngle' || fkey === 'templeAngle_R') {
+          cap('다리 경사각: 실제 조제에선 경사각(panto)을 바꾸는 1차 수단 — 본 앱에선 광학과 독립(경사각 슬라이더로 재현)');
+        }
       }
     }
     const hkey = e.target.dataset?.head;
@@ -425,7 +453,9 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
     const fkey = e.target.dataset?.freset;
     if (fkey) {
       const std = [...FRAME_SLIDERS, ...PAD_SLIDERS].find((s) => s.key === fkey.replace(/_R$/, ''))?.std ?? 0;
-      update({ v3frame: { [fkey]: std } });
+      // 코받침 키는 라이트스루 경로로 — 복귀도 VD·OH를 함께 되돌린다
+      if (PAD_COUPLE[fkey]) padWrite(fkey, std);
+      else update({ v3frame: { [fkey]: std } });
     }
     const hkey = e.target.dataset?.hreset;
     if (hkey) {

@@ -379,15 +379,11 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   function apply(s, animate) {
     const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
     const fr = { ...STANDARD_FRAME, ...(s.v3frame || {}) };
-    // ── B-2 커플링: 코받침 조정 → 광학 (피팅 물리 조정이 광학을 흔든다) ──
-    // 패드 위(+) = 프레임 내려앉음 = OH↓ · 간격 넓힘(+) = 내려앉고 가까워짐 =
-    // OH↓·VD↓ · 전후(+) = 프레임 밀어냄 = VD↑. 파생값(eff)을 존 계산과 렌더
-    // 양쪽에 동일하게 넣어 화면·광학이 일관되게 움직인다(패드는 코에 앵커).
-    // (다리 경사각 등 템플 조정은 사용자 명시 결정으로 광학 독립 유지.)
-    const padOh = fr.padOn ? -fr.padVertical * 0.8 - fr.padSpacing * 0.5 : 0;
-    const padVd = fr.padOn ? -fr.padSpacing * 0.4 + fr.padArm * 0.4 : 0;
-    const eff = { ...f, oh: f.oh + padOh, vd: Math.min(24, Math.max(5, f.vd + padVd)) };
-    const spec = computeZones({ ...s, v3fit: eff });
+    // 코받침 → VD·OH 커플링은 라이트스루로 이전(2026-07-19, controls.js
+    // padWrite): 코받침을 움직이면 v3fit.vd/oh 값 자체가 함께 갱신되므로
+    // 여기서는 파생값 없이 f를 그대로 쓴다 — 슬라이더 표시·광학·렌더가
+    // 단일 장부. (다리 경사각 등 템플 조정은 사용자 결정으로 광학 독립.)
+    const spec = computeZones({ ...s, v3fit: f });
 
     // 등급 고스트 (D6): 등급이 바뀔 때 이전 존을 흰색 잔상으로 남긴다
     if (animate && s.grade !== lastGrade && lastSpec) {
@@ -398,7 +394,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
 
     zones.update(spec, animate);
     hud.update(spec);
-    glasses.setParams(glassesParams(eff, fr, s.v3head || {}));
+    glasses.setParams(glassesParams(f, fr, s.v3head || {}));
     glasses.updateZoneSpec(spec);
 
     // 두상 변형 (귀 위치·콧대) — v3head 변경 시에만.
