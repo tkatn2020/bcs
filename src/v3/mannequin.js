@@ -22,11 +22,6 @@ export function mannequinMaterial() {
     roughness: 0.34,
     clearcoat: 1.0,
     clearcoatRoughness: 0.18,
-    // 하단 시점 내부 차광(2026-07-19): facecap은 두께 없는 열린 껍데기라
-    // FrontSide면 아래서 내부가 관통돼 보인다. 양면 렌더로 안쪽 벽도 같은
-    // 피부 재질로 — 두 쉘 접합부 헤어라인 틈이 정상 시점에서 어두운 선으로
-    // 두드러지지 않도록 별도 다크 이너셸 대신 동일 재질 양면을 쓴다.
-    side: THREE.DoubleSide,
   });
 }
 
@@ -291,67 +286,6 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
       if (morphMesh) {
         headMesh = bakeHeadMesh(morphMesh, group);
         restPositions = headMesh.geometry.attributes.position.array.slice();
-
-        // ── 하단 차광 캡(2026-07-19, 사용자 승인) — 목 구멍 상부의 어두운
-        // 수평 타원판. 아래 시점에서 구강·눈알 뒷면·밝은 내부 대신 "그림자
-        // 진 밑면"으로 읽히게 한다. unlit(MeshBasicMaterial)이라 환경광에
-        // 반응하지 않고, 구멍보다 크게 만들어 가장자리가 셸 안에 숨는다.
-        // 외형(정상 시점)은 불변 — 과거 실패한 '보이는 목 만들기'와 달리
-        // 내부 차광만 담당. group 자식이라 headPitch/headRoll 자동 추종.
-        // (폴백 버스트는 닫힌 스캔이라 이 블록에 안 들어옴.)
-        // 실측(2026-07-19): 구멍은 경사 — 뒤통수 쉘 하단 rim y≈−60mm, 턱 앞
-        // 벽은 −114mm까지. 캡은 y −60mm(전 둘레에 벽이 존재하는 최저 높이).
-        // ⚠️ 타원 근사는 금지 — 단면이 머리형(앞 좁고 옆·뒤 넓음)이라 타원이
-        // 좁은 턱 앞·볼 옆 벽을 뚫고 나가 정면에서 어두운 선이 비친다(실패
-        // 확인). 대신 θ별 벽 반경을 실측한 프로파일 − 4mm 여유로 캡 외곽을
-        // 만든다 — 어느 방향에서도 벽 안쪽에 정확히 들어간다.
-        const CAP_Y = -0.060, CAP_CZ = -0.02, CAP_MARGIN = 0.004, NB = 64;
-        const hp = headMesh.geometry.attributes.position;
-        const rBins = new Array(NB).fill(0);
-        for (let i = 0; i < hp.count; i++) {
-          if (Math.abs(hp.getY(i) - CAP_Y) < 0.005) {
-            const dx = hp.getX(i), dz = hp.getZ(i) - CAP_CZ;
-            const bi = Math.floor(((Math.atan2(dz, dx) + Math.PI) / (2 * Math.PI)) * NB) % NB;
-            rBins[bi] = Math.max(rBins[bi], Math.hypot(dx, dz));
-          }
-        }
-        for (let i = 0; i < NB; i++) {           // 빈 θ빈은 이웃 보간
-          if (!rBins[i]) {
-            let a = i, b = i;
-            while (!rBins[a % NB]) a++;
-            while (!rBins[(b + NB) % NB]) b--;
-            rBins[i] = (rBins[a % NB] + rBins[(b + NB) % NB]) / 2;
-          }
-        }
-        for (let k = 0; k < 2; k++) {            // 3점 이동평균 ×2 (저폴리 요철 완화)
-          const s = rBins.slice();
-          for (let i = 0; i < NB; i++) rBins[i] = (s[(i + NB - 1) % NB] + s[i] + s[(i + 1) % NB]) / 3;
-        }
-        const capShape = new THREE.Shape();
-        for (let i = 0; i <= NB; i++) {
-          const th = ((i % NB) / NB) * 2 * Math.PI - Math.PI;
-          const r = Math.max(0.005, rBins[i % NB] - CAP_MARGIN);
-          const x = r * Math.cos(th), z = CAP_CZ + r * Math.sin(th);
-          if (i === 0) capShape.moveTo(x, z); else capShape.lineTo(x, z);
-        }
-        const cap = new THREE.Mesh(
-          new THREE.ShapeGeometry(capShape),
-          new THREE.MeshBasicMaterial({ color: 0x24272e, side: THREE.DoubleSide }),
-        );
-        cap.rotation.x = Math.PI / 2;   // Shape(x, z평면값을 y로 작성) → 수평으로
-        cap.position.y = CAP_Y;
-        cap.name = 'underCap';
-        group.add(cap);
-
-        // 구강(이빨/잇몸) 메시 숨김 — 캡(−60mm)보다 아래(−69mm)까지 내려와
-        // 밑에서 보인다. 입은 항상 다물려 있어 정상 시점 영향 없음(332da93 방식).
-        // bake 후 root에 남은 메시 = 눈알(피벗 안) + 구강뿐이라 눈알만 제외.
-        const eyeMeshes = new Set();
-        if (eyePivots) {
-          eyePivots.left.traverse((o) => { if (o.isMesh) eyeMeshes.add(o); });
-          eyePivots.right.traverse((o) => { if (o.isMesh) eyeMeshes.add(o); });
-        }
-        root.traverse((o) => { if (o.isMesh && !eyeMeshes.has(o)) o.visible = false; });
       }
 
       resolve({
