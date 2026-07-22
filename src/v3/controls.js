@@ -127,7 +127,7 @@ const CAM_PRESETS = [
 const fitPresets = [null, null, null];
 
 
-export function mountControls(root, { stage, getDemo, setCaption } = {}) {
+export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {}) {
   const cap = (t) => { if (setCaption) setCaption(t); };
   const style = document.createElement('style');
   style.textContent = CSS;
@@ -185,6 +185,9 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       <button class="v3-btn" data-zone="distance">원거리</button>
       <button class="v3-btn" data-zone="intermediate">중간</button>
       <button class="v3-btn" data-zone="near">근거리</button>
+    </div>
+    <div class="v3-mini">
+      <button class="v3-btn" data-multiview>▣ 시야 멀티뷰 (정면·하단·측면)</button>
     </div>
     <div class="v3-sec">기준선 (정렬 확인)</div>
     <div class="v3-mini">
@@ -481,6 +484,14 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       const k = zone.dataset.zone;
       update({ v3view: { zones: { [k]: !state.v3view.zones[k] } } });
     }
+    const mv = e.target.closest('[data-multiview]');
+    if (mv && getMulti) {
+      const multi = getMulti();
+      if (multi) {
+        multi.toggle();
+        mv.classList.toggle('on', multi.isOpen);
+      }
+    }
     const padBtn = e.target.closest('[data-padon]');
     if (padBtn) update({ v3frame: { padOn: state.v3frame.padOn ? 0 : 1 } });
     const cam = e.target.closest('[data-cam]');
@@ -557,6 +568,10 @@ export function mountControls(root, { stage, getDemo, setCaption } = {}) {
       b.classList.toggle('on', b.dataset.shape === f.shape));
     panel.querySelectorAll('[data-zone]').forEach((b) =>
       b.classList.toggle('on', !!s.v3view?.zones?.[b.dataset.zone]));
+    // 멀티뷰 버튼 — 팝업 X로 닫으면 존 복원(=state 변경)이 refresh를 부르므로
+    // 여기서 isOpen에 동기화하면 버튼 클릭·X 닫기 양쪽이 일관.
+    const mvBtn = panel.querySelector('[data-multiview]');
+    if (mvBtn && getMulti) mvBtn.classList.toggle('on', !!getMulti()?.isOpen);
     // 피팅 프리셋: 채워진 슬롯은 강조(불러오기 가능), 빈 슬롯은 흐리게
     fitPresets.forEach((snap, i) => {
       const b = presetBar.querySelector(`[data-preset-load="${i}"]`);

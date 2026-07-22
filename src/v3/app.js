@@ -9,6 +9,7 @@ import { createGlasses } from './glassesBuilder.js';
 import { createHeadDeform } from './headDeform.js';
 import { createVisionZones } from './visionZones.js';
 import { createTargets } from './targets.js';
+import { createMultiView } from './multiView.js';
 import { createDemoDirector } from './demoDirector.js';
 import { computeZones, STANDARD_FIT } from './fittingModel.js';
 import { attachDragHandles } from './dragHandles.js';
@@ -445,12 +446,26 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     onFitChange: (patch) => update({ v3fit: patch }),
   });
 
-  mountControls(document.body, { stage, getDemo: () => demo, setCaption: hud.caption });
+  // 시야 멀티뷰 팝업(좌상단) — 같은 scene을 정면·하단·측면 3각도로 동시 렌더.
+  // 열면 시야존을 전역으로 켜(메인+팝업 동시 표시), 닫으면 직전 상태 복원.
+  const multi = createMultiView({ scene: stage.scene });
+  let zonesSnapshot = null;
+  multi.setOnToggle((isOpen) => {
+    if (isOpen) {
+      zonesSnapshot = { ...(state.v3view?.zones || {}) };
+      update({ v3view: { zones: { distance: true, intermediate: true, near: true } } });
+    } else if (zonesSnapshot) {
+      update({ v3view: { zones: zonesSnapshot } });
+      zonesSnapshot = null;
+    }
+  });
+
+  mountControls(document.body, { stage, getDemo: () => demo, getMulti: () => multi, setCaption: hud.caption });
   mountCredit(document.body);
 
   Object.assign(window.__v3, {
     mannequin: { group, anchors, morphMesh, eyes, headMesh },
-    glasses, zones, targets, demo, deformer,
+    glasses, zones, targets, demo, deformer, multi,
   });
 }).catch((err) => {
   console.error('Mannequin load failed:', err);
