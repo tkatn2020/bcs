@@ -306,6 +306,12 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
 
   const zones = createVisionZones(anchors);
   group.add(zones.group);
+  // 시야 콘을 레이어 1로 분리 — 멀티뷰 '정면·피팅' 카메라만 콘을 빼고(렌즈
+  // 존맵만 보이게), 나머지 카메라(메인·하단·측면)는 레이어 1을 켜서 콘을
+  // 본다. 존 표시 토글(mesh.visible)은 그대로 유지 — 레이어는 per-camera
+  // 필터라 공유 상태를 안 건드리고 정면 뷰만 콘 제외(race 없음).
+  zones.group.traverse((o) => { if (o.isMesh) o.layers.set(1); });
+  stage.camera.layers.enable(1);
 
   const targets = createTargets(stage.scene);
 

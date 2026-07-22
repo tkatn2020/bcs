@@ -13,10 +13,12 @@
 
 import * as THREE from 'three';
 
+// cones: 시야 콘 표시 여부(레이어 1 활성). '정면·피팅'은 렌즈 존맵(누진
+// 변화)만 보여야 하므로 콘 끔 — 안경 클로즈업으로 확대.
 const VIEWS = [
-  { key: 'front',  label: '정면 · 피팅',      pos: [0.02, 0.02, 0.55], tgt: [0, 0, 0] },
-  { key: 'bottom', label: '하단 · 시야 수렴',  pos: [0.0, -0.34, 0.44], tgt: [0, -0.05, 0.08] },
-  { key: 'side',   label: '측면 · 시야 분출',  pos: [0.50, 0.05, 0.24], tgt: [0, -0.02, 0.18] },
+  { key: 'front',  label: '정면 · 렌즈 누진',  pos: [0.015, -0.018, 0.165], tgt: [0, -0.02, 0.05], cones: false },
+  { key: 'bottom', label: '하단 · 시야 수렴',  pos: [0.0, -0.34, 0.44],  tgt: [0, -0.05, 0.08],  cones: true },
+  { key: 'side',   label: '측면 · 시야 분출',  pos: [0.50, 0.05, 0.24],  tgt: [0, -0.02, 0.18],  cones: true },
 ];
 
 const PANEL_W = 208;   // 팝업 내부 canvas 폭(px)
@@ -84,6 +86,8 @@ export function createMultiView({ scene }) {
     const c = new THREE.PerspectiveCamera(35, aspect, 0.01, 50);
     c.position.set(...v.pos);
     c.lookAt(...v.tgt);
+    // 콘은 레이어 1(app.js에서 분리) — 표시할 뷰만 레이어 1 활성.
+    if (v.cones) c.layers.enable(1);
     return c;
   });
 
