@@ -13,12 +13,13 @@
 
 import * as THREE from 'three';
 
-// cones: 시야 콘 표시 여부(레이어 1 활성). '정면·피팅'은 렌즈 존맵(누진
-// 변화)만 보여야 하므로 콘 끔 — 안경 클로즈업으로 확대.
+// cones: 시야 콘 표시(레이어 1). face: 아바타 얼굴 표시(레이어 2, app.js에서
+// 분리). '정면·렌즈누진'은 렌즈 존맵만(콘 끔)·안경 클로즈업, '시야콘'은
+// 얼굴을 빼고 콘만(원·중·근 변화 집중), '측면'은 얼굴+콘.
 const VIEWS = [
-  { key: 'front',  label: '정면 · 렌즈 누진',  pos: [0.015, -0.018, 0.165], tgt: [0, -0.02, 0.05], cones: false },
-  { key: 'bottom', label: '하단 · 시야 수렴',  pos: [0.0, -0.34, 0.44],  tgt: [0, -0.05, 0.08],  cones: true },
-  { key: 'side',   label: '측면 · 시야 분출',  pos: [0.50, 0.05, 0.24],  tgt: [0, -0.02, 0.18],  cones: true },
+  { key: 'front', label: '정면 · 렌즈 누진',  pos: [0.015, -0.005, 0.165], tgt: [0, 0, 0.05],     cones: false, face: true },
+  { key: 'cones', label: '원·중·근 시야콘',   pos: [0.0, -0.28, 0.48],     tgt: [0, 0.12, 0.16],  cones: true,  face: false },
+  { key: 'side',  label: '측면 · 시야 분출',  pos: [0.50, 0.05, 0.24],     tgt: [0, -0.02, 0.18], cones: true,  face: true },
 ];
 
 const PANEL_W = 208;   // 팝업 내부 canvas 폭(px)
@@ -86,8 +87,9 @@ export function createMultiView({ scene }) {
     const c = new THREE.PerspectiveCamera(35, aspect, 0.01, 50);
     c.position.set(...v.pos);
     c.lookAt(...v.tgt);
-    // 콘은 레이어 1(app.js에서 분리) — 표시할 뷰만 레이어 1 활성.
+    // 콘=레이어1, 얼굴=레이어2 (app.js에서 분리) — 표시할 뷰만 활성.
     if (v.cones) c.layers.enable(1);
+    if (v.face) c.layers.enable(2);
     return c;
   });
 
