@@ -91,7 +91,12 @@ export function computeZones(s) {
   // 안면각 5±2°)를 벗어난 총 이탈량만큼 주변부 수차가 커져 착용자의 왜곡
   // 체감(exposure)이 증가. 시야 폭 페널티(distFit·wrapFactor 등)와 별개 축.
   const tiltDev = wrapDev + pantoLow + pantoHigh;
-  const tiltAstig = clamp(1 + tiltDev * 0.02, 1, 1.5);
+  // ⚠️ Martin tilt 법칙: 기울기 유발 비점수차 ≈ D·sin²θ — 크기가 렌즈 도수
+  // D에 정비례한다. 같은 경사·안면각 이탈이라도 강한 가입도(ADD↑)일수록
+  // 유발 비점이 커야 한다("강한 가입도 + steep 경사 = 왜곡 급증", 2026-07-23
+  // 교차결합 감사). SPH 입력이 없어 add를 도수 프록시로: add 2.0에서 계수
+  // 1(현행 무변), 3.0에서 이탈민감도 ×1.2, 0.75에서 ×0.75.
+  const tiltAstig = clamp(1 + tiltDev * 0.02 * (0.6 + 0.4 * add / 2.0), 1, 1.6);
   // 가공 미보정 편심(per eye, mm) = PD 오차 + 프레임 유래(박스 중앙 이탈).
   // 31 = 모델 반동공거리 mm — FRAME_BASE.lensW(0.046·26/31)와 같은 앵커.
   const decMm = f.pdErr + 31 * (f.bSize - 26) / 26;
@@ -204,7 +209,10 @@ export function computeZones(s) {
     // 편심 → 좌우 콘이 어긋남. +(광학중심이 동공 바깥) = 발산, −(안쪽) =
     // 수렴 — 부호로 방향이 구분되며 둘 다 양안 겹침이 줄어든다.
     // 프레임 유래 편심까지 합산돼 최대 ~27mm → ±22° 클램프(화면 이탈 방지).
-    eyeYawDeg: clamp(decMm * 1.4, -22, 22),
+    // ⚠️ 편심 각도는 눈회전점 거리(VD+13)에 반비례 — 먼 VD일수록 같은 편심이
+    // 작은 요각(발산)을 이룬다(atan(dec/(vd+13))). pitch·개구캡과 동일한
+    // 25/(vd+13) 기하로 대칭(2026-07-23 교차결합 감사). VD12에서 항등.
+    eyeYawDeg: clamp(decMm * 1.4 * 25 / (f.vd + 13), -22, 22),
     decMm,     // 가공 미보정 편심 (per eye, mm; + = 바깥) — HUD 표시용
     // 요인 분해(HUD 드릴다운) — m = 그 지표에 곱해진 배율(1 = 무영향),
     // v = 가산 성분. ctrl = 해당 조절 UI 키(클릭 시 하이라이트; 설계 축은 없음).
@@ -256,7 +264,7 @@ export function computeZones(s) {
         { label: '정점간거리', m: (f.vd + 13) / 25, ctrl: 'vd' },
         { label: '설계 구배(ADD/누진대)', m: minkGrad / (2.0 / 12) },
         { label: '설계 등급(수차 재분배)', m: gradeCyl },
-        { label: '기울기 비점수차(경사·안면각)', m: tiltAstig, ctrl: 'panto' },
+        { label: '기울기 비점수차(경사·안면각×도수)', m: tiltAstig, ctrl: 'panto' },
       ],
     },
   };
