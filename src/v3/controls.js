@@ -187,7 +187,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       <button class="v3-btn" data-zone="near">근거리</button>
     </div>
     <div class="v3-mini">
-      <button class="v3-btn" data-multiview>▣ 시야 멀티뷰 (정면·시야콘·측면)</button>
+      <button class="v3-btn" data-multiview>▣ 시야 멀티뷰 (정면·측면)</button>
     </div>
     <div class="v3-sec">기준선 (정렬 확인)</div>
     <div class="v3-mini">
