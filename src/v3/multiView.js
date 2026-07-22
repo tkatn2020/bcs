@@ -17,11 +17,13 @@ import * as THREE from 'three';
 // 분리). '정면·렌즈누진'은 렌즈 존맵만(콘 끔)·안경 클로즈업, '측면'은 얼굴+콘.
 const VIEWS = [
   { key: 'front', label: '정면 · 렌즈 누진',  pos: [0.015, -0.005, 0.165], tgt: [0, 0, 0.05],     cones: false, face: true },
-  { key: 'side',  label: '측면 · 시야 분출',  pos: [0.60, 0.02, 0.08],     tgt: [0, 0.02, 0.22],  cones: true,  face: true },
+  { key: 'side',  label: '측면 · 시야 분출',  pos: [0.48, 0.02, 0.13],     tgt: [0, 0.02, 0.27],  cones: true,  face: true },
 ];
 
-const PANEL_W = 272;   // 팝업 내부 canvas 폭(px) — 2뷰로 줄어든 만큼 확대
-const VIEW_H = 172;    // 뷰 하나 높이(px)
+// 와이드 비율(~1.9) — 측면 뷰의 시야콘이 좌측으로 넓게 분출하는 첨부
+// 이미지 비율에 맞춘다(좁으면 콘이 크롭됨). 정면(안경)도 가로가 길어 적합.
+const PANEL_W = 296;   // 팝업 내부 canvas 폭(px)
+const VIEW_H = 154;    // 뷰 하나 높이(px) → aspect ~1.92
 const GAP = 3;         // 뷰 사이 갭(px)
 
 export function createMultiView({ scene }) {
