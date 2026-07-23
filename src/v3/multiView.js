@@ -32,7 +32,7 @@ const PANEL_W = 296;   // 팝업 내부 canvas 폭(px)
 const VIEW_H = 154;    // 뷰 하나 높이(px) → aspect ~1.92
 const GAP = 3;         // 뷰 사이 갭(px)
 
-export function createMultiView({ scene }) {
+export function createMultiView({ scene, coneMeshes = [] }) {
   // ── DOM ──
   const style = document.createElement('style');
   style.textContent = `
@@ -103,6 +103,12 @@ export function createMultiView({ scene }) {
   let running = false;
   function frame() {
     if (!running) return;
+    // 측면 뷰는 시야콘 '항상 켜짐' 고정 — 메인의 존 토글(mesh.visible)과 분리.
+    // 렌더 직전 콘을 강제 표시(정면 뷰는 레이어1 미활성이라 어차피 제외),
+    // 렌더 후 원상복구. 이 블록이 동기 실행이라 메인 렌더러(별도 rAF)는 중간에
+    // 끼어들 수 없어 메인 뷰로 새지 않는다(race 없음).
+    const savedVis = coneMeshes.map((m) => m.visible);
+    coneMeshes.forEach((m) => { m.visible = true; });
     renderer.clear();
     for (let i = 0; i < VIEWS.length; i++) {
       // 뷰포트 y는 아래에서 위로 — 첫 뷰(정면)를 맨 위에 두려면 역순 배치.
@@ -111,6 +117,7 @@ export function createMultiView({ scene }) {
       renderer.setScissor(0, y, PANEL_W, VIEW_H);
       renderer.render(scene, cams[i]);
     }
+    coneMeshes.forEach((m, i) => { m.visible = savedVis[i]; });   // 메인 토글 상태 복원
     requestAnimationFrame(frame);
   }
 

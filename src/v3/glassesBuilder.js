@@ -488,7 +488,22 @@ export function createGlasses(anchors, opts = {}) {
         new THREE.TubeGeometry(curve, 40, 0.0014, 8),
         frameMat,
       );
-      sideG.add(temple);   // 프런트와 한 몸 → panto/wrap 함께 회전
+      // 다리는 경사각(frontG panto)과 회전 분리(사용자 결정 2026-07-23): 경사각을
+      // 조정하면 프런트(렌즈)만 기울고 다리는 귀에 안착한 채 그대로 — 실제 안경의
+      // pantoscopic tilt(다리는 수평, 프런트가 기욺)에 부합. frontG(실제 panto)
+      // 대신 'REF 경사각 고정 + 실제 안면각' 홀더(frontRefG·sideWrapG)에 붙인다.
+      // group 자식이라 프레임 상하(OH/VD = group.position)는 그대로 상속하고,
+      // 안면각(sideWrapG.rotation.y)만 따라간다. 힌지는 경사각 회전축(힌지선)
+      // 근처라 프런트가 기울어도 연결이 크게 벌어지지 않는다.
+      const frontRefG = new THREE.Group();
+      frontRefG.position.copy(frontGp);
+      frontRefG.rotation.x = refPantoRad;   // REF 경사각 고정(실제 panto 무관)
+      const sideWrapG = new THREE.Group();
+      sideWrapG.position.copy(sideGp);
+      sideWrapG.rotation.y = side * wrapRad;   // 실제 안면각(sideG와 동일)
+      frontRefG.add(sideWrapG);
+      sideWrapG.add(temple);
+      group.add(frontRefG);   // 리빌드 시 group.children 정리로 함께 제거
       built.push(temple);
     }
 

@@ -461,19 +461,11 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     onFitChange: (patch) => update({ v3fit: patch }),
   });
 
-  // 시야 멀티뷰 팝업(좌상단) — 같은 scene을 정면·하단·측면 3각도로 동시 렌더.
-  // 열면 시야존을 전역으로 켜(메인+팝업 동시 표시), 닫으면 직전 상태 복원.
-  const multi = createMultiView({ scene: stage.scene });
-  let zonesSnapshot = null;
-  multi.setOnToggle((isOpen) => {
-    if (isOpen) {
-      zonesSnapshot = { ...(state.v3view?.zones || {}) };
-      update({ v3view: { zones: { distance: true, intermediate: true, near: true } } });
-    } else if (zonesSnapshot) {
-      update({ v3view: { zones: zonesSnapshot } });
-      zonesSnapshot = null;
-    }
-  });
+  // 시야 멀티뷰 팝업(좌상단) — 같은 scene을 정면·측면 각도로 동시 렌더.
+  // 측면 뷰는 시야콘 '항상 켜짐' 고정(coneMeshes를 렌더 직전 강제 표시) —
+  // 메인 화면의 존 토글과 완전 분리(사용자 결정 2026-07-23). 그래서 팝업
+  // 열기가 메인 존 상태를 건드리지 않는다(예전 전역 강제 켬 제거).
+  const multi = createMultiView({ scene: stage.scene, coneMeshes: zones.coneMeshes });
 
   mountControls(document.body, { stage, getDemo: () => demo, getMulti: () => multi, setCaption: hud.caption });
   mountCredit(document.body);

@@ -72,7 +72,7 @@ const SLIDERS = [
   { key: 'vd',    label: '정점간거리', min: 5,   max: 20, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd,
     edu: '정점간거리: 멀수록 착용 여유↑ · 시야각↓ · 왜곡 노출↑' },
   { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto,
-    edu: '경사각: 부족→근용 손실 · 과다→원용 손실+왜곡↑ · OH와 같은 수직축(steep↑ 원용 침범, OH↓로 보상 = 2°당 1mm)' },
+    edu: '경사각: 프레임 상하 이동(steep=위로 OH↑·VD↓ / flat=아래로 OH↓·VD↑) + 사선 비점수차(부족→근용·과다→원용 손실)' },
   { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap,
     edu: '안면각: 표준(5°)에서 벗어날수록 주변부 수차·시야 왜곡↑' },
   { key: 'pdErr', label: 'PD 오차',    min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,
@@ -293,7 +293,8 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     resetFitting();
     update({
       corridor: 12, add: 2.0,
-      v3view: { zones: { distance: true, intermediate: true, near: true }, targets: false },
+      // 시야콘 꺼짐이 기준(멀티뷰 측면 뷰가 항상 콘을 보여주므로 메인은 off 기본).
+      v3view: { zones: { distance: false, intermediate: false, near: false }, targets: false },
     });
     cap('표준 피팅 — 기준 상태 복귀');
   });
@@ -420,12 +421,37 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     update(patch);
   }
 
+  // ── 경사각 → OH·정점간거리 라이트스루(사용자 결정 2026-07-23) ──
+  // 경사각을 스팁하게 하면 안경 전면부가 코 위쪽(좁은 콧대)으로 올라앉아 OH↑·
+  // VD↓(가까움), 플랫하게 하면 코 아래쪽(넓은 콧볼)으로 내려앉아 OH↓·VD↑(멀어짐).
+  // 코받침(프레임의 일부)은 group.position(OH/VD)에 실려 자동으로 함께 이동한다.
+  // 코받침 라이트스루와 동일 델타 방식 — 표준(panto 8)에서 무변, 왕복 잔차
+  // 방지 위해 0.01 단위. (경사각의 사선 비점수차 효과 nearFit·distFit·tiltAstig는
+  // 별개로 유지; 원용 침범은 이제 실제 OH 상승이 담당해 ohEquiv 제거.)
+  const PANTO_OH = 0.5, PANTO_VD = -0.2;   // 1°당: OH +0.5mm(steep 높이), VD -0.2mm(steep 가까이)
+  function pantoWrite(newVal) {
+    const prev = state.v3fit?.panto ?? STANDARD_FIT.panto;
+    const dv = newVal - prev;
+    const patch = { v3fit: { panto: newVal } };
+    if (dv) {
+      const cur = { ...STANDARD_FIT, ...state.v3fit };
+      const oh = Math.round(Math.min(8, Math.max(-8, cur.oh + dv * PANTO_OH)) * 100) / 100;
+      const vd = Math.round(Math.min(20, Math.max(5, cur.vd + dv * PANTO_VD)) * 100) / 100;
+      patch.v3fit.oh = oh; patch.v3fit.vd = vd;
+      cap(`경사각 = 프레임 상하 이동: OH → ${oh >= 0 ? '+' : ''}${oh}mm · 정점간거리 → ${vd}mm 함께 반영`);
+    }
+    update(patch);
+  }
+
   panel.addEventListener('input', (e) => {
     const key = e.target.dataset?.fit;
     if (key) {
-      update({ v3fit: { [key]: Number(e.target.value) } });
-      const sl = SLIDERS.find((x) => x.key === key);
-      if (sl?.edu) cap(sl.edu);
+      if (key === 'panto') pantoWrite(Number(e.target.value));
+      else {
+        update({ v3fit: { [key]: Number(e.target.value) } });
+        const sl = SLIDERS.find((x) => x.key === key);
+        if (sl?.edu) cap(sl.edu);
+      }
     }
     const fkey = e.target.dataset?.frame;
     if (fkey) {
@@ -452,7 +478,11 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   });
   panel.addEventListener('dblclick', (e) => {
     const key = e.target.dataset?.reset;
-    if (key) update({ v3fit: { [key]: SLIDERS.find((s) => s.key === key).std } });
+    if (key) {
+      const std = SLIDERS.find((s) => s.key === key).std;
+      if (key === 'panto') pantoWrite(std);   // 복귀도 OH·VD를 함께 되돌린다
+      else update({ v3fit: { [key]: std } });
+    }
     const fkey = e.target.dataset?.freset;
     if (fkey) {
       const std = [...FRAME_SLIDERS, ...PAD_SLIDERS].find((s) => s.key === fkey.replace(/_R$/, ''))?.std ?? 0;

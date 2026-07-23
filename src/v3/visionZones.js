@@ -178,5 +178,7 @@ export function createVisionZones(anchors) {
     for (const zone of ZONES) cones[zone][0].material.dispose();
   }
 
-  return { group, update, setVisible, setEmphasis, showGhost, dispose };
+  // 정규 콘 6개(고스트 제외) — 멀티뷰가 측면 뷰에서 항상 켜기 위해 참조.
+  const coneMeshes = ZONES.flatMap((z) => cones[z]);
+  return { group, coneMeshes, update, setVisible, setEmphasis, showGhost, dispose };
 }
