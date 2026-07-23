@@ -72,7 +72,7 @@ const SLIDERS = [
   { key: 'vd',    label: '정점간거리', min: 5,   max: 20, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd,
     edu: '정점간거리: 멀수록 착용 여유↑ · 시야각↓ · 왜곡 노출↑' },
   { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto,
-    edu: '경사각: 부족하면 근용 손실 · 과다하면 원용 손실 (표준 8~12°)' },
+    edu: '경사각: 부족→근용 손실 · 과다→원용 손실+왜곡↑ · OH와 같은 수직축(steep↑ 원용 침범, OH↓로 보상 = 2°당 1mm)' },
   { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap,
     edu: '안면각: 표준(5°)에서 벗어날수록 주변부 수차·시야 왜곡↑' },
   { key: 'pdErr', label: 'PD 오차',    min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,

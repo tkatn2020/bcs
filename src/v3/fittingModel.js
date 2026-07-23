@@ -104,14 +104,23 @@ export function computeZones(s) {
   // 감소해야 'PD 보정 → 회복'이 전 구간에서 보인다(선형+바닥 0.45는 4mm에
   // 서 포화돼 보정 효과가 안 보였음).
   const pdCorridor = clamp(1 / (1 + 0.13 * Math.abs(decMm)), 0.28, 1);
-  const pitchShift = f.oh * 2.0;                                   // deg/mm
+  const pitchShift = f.oh * 2.0;                // deg/mm (raw OH — 시선각은 대상거리 주도라 panto 미포함)
+  // 경사각↔OH '2°당 OC 1mm' 보상 법칙(사용자 결정 2026-07-23, 성능 페널티
+  // 형태): 경사각을 표준(8°)보다 올리면 OC/존이 시축 대비 위로 이동한 것과
+  // 등가(2°=oh 1mm). 이 유효 OH(ohEquiv)를 '원용 침범(distOh)' 항에만 써서
+  // '경사각 steep → 원용 침범 → OH를 낮춰 보상'을 시연한다. ⚠️ near.pitch·
+  // 근용/중간 폭엔 안 넣음 — 근용 하강각·클리어존 폭은 경사각이 아니라 대상
+  // 거리·비점축이 결정(감사 Q1 결론). 보상(OH↓)은 nearRoom(raw oh)의 근용
+  // 여유를 깎으므로 '원용 회복 vs 근용 손실' 트레이드오프가 창발. panto 8에서
+  // ohEquiv=oh(회귀 0). 계수 0.5mm/°.
+  const ohEquiv = f.oh + (f.panto - 8) * 0.5;
   // OH 과다(+2mm 초과)는 원용부를 침범 — "OH는 높을수록 좋다"가 되지 않게
   // 원용 페널티를 준다(양면 트레이드오프). 부족(−)의 근용 페널티는 nearRoom이 담당.
   // 원용 침범: OH가 0에서 올라가는 순간부터 누진 시작부가 정면 시선에
   // 다가와 원용이 완만히 흐려진다(0.025/mm) — 예전 '+2mm까지 무대가'
   // 구간은 interOh·nearRoom 이득만 남아 "무조건 2mm 높게"로 학습되는
   // 함정이었다(리뷰 2026-07-19). +2mm 초과부터 본격 침범(합산 0.05/mm).
-  const distOh = clamp(1 - Math.max(0, f.oh) * 0.025 - Math.max(0, f.oh - 2) * 0.025, 0.55, 1);
+  const distOh = clamp(1 - Math.max(0, ohEquiv) * 0.025 - Math.max(0, ohEquiv - 2) * 0.025, 0.55, 1);
   // 착용자 체감 중간 시야(헤더 OH 항 참조): OH ±1mm당 ∓4.5%. 상한 1.25 —
   // OH 과다 시 근용부가 정면까지 침범해 '중간 창'이 무한정 넓어지진 않는다
   // (그 대가는 distOh가 담당). OH 0 = 1 → 표준 회귀 무변.
@@ -230,7 +239,7 @@ export function computeZones(s) {
         { label: '안면각', m: wrapFactor, ctrl: 'wrap' },
         { label: '프레임 크기', m: frameFactor, ctrl: 'bSize' },
         { label: '개구 한계(프레임·형상)', m: capD, ctrl: 'bSize' },
-        { label: 'OH 원용 침범', m: distOh, ctrl: 'oh' },
+        { label: 'OH·경사각 원용 침범', m: distOh, ctrl: 'oh' },
       ],
       intermediate: [
         { label: '설계 등급', m: gradeScale },
