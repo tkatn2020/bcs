@@ -549,16 +549,21 @@ export function createGlasses(anchors, opts = {}) {
 
   function applyFit() {
     group.position.set(anchorMid.x, anchorMid.y + p.oh, anchorMid.z + effZ());
-    // Pantoscopic tilt swings the FRONT about the hinge line (+x = normal down)
-    if (frontG) frontG.rotation.x = THREE.MathUtils.degToRad(p.pantoDeg);
-    // 옆면 간격 좌우차 → 프레임 요(좁힌 쪽 림 전방)·롤(좁힌 쪽 림 상승) —
-    // 시각 전용(사용자 결정 2026-07-23). side>0=+x=아바타 왼쪽=templeGap(base),
-    // −x=오른쪽=templeGap_R. 대칭이면 앱이 _R=base를 전달해 차이 0 = 회전 0.
-    // 부호: R_y에서 +x 렌즈 z' = −x·sinθ → 왼쪽 좁힘(diff<0)일 때 θ<0 = 전방 ✓
-    //       R_z에서 +x 렌즈 y' = +x·sinθ → 왼쪽 좁힘일 때 θ>0 = 상승 ✓
+    // 옆면 간격 좌우차 → 프런트 요(넓힌 쪽 림 밀착·좁힌 쪽 전방)+롤(넓힌 쪽 하강)
+    // — 시각 전용. ⚠️ 이 회전은 frontG(전면부)에만 건다: group에 걸면 다리까지
+    // 돌아 조정 안 한 쪽 다리 뒤끝이 귀에서 전방으로 떠(공중 부양) '반대쪽이
+    // 벌어졌다'로 읽힌다(2026-07-24 사용자 리포트). 다리는 귀 안착 유지, 힌지
+    // 접합부의 소폭 어긋남 = 실제 힌지 유격에 부합.
+    // side>0=+x=아바타 왼쪽=templeGap(base). 대칭이면 앱이 _R=base 전달 = 차이 0.
+    // 부호: R_y에서 +x 렌즈 z' = −x·sinθ → 왼쪽 넓힘(diff>0)일 때 θ>0 = 밀착 ✓
+    //       R_z에서 +x 렌즈 y' = +x·sinθ → 왼쪽 넓힘일 때 θ<0 = 하강 ✓
     const gapDiffMm = (p.templeGap - p.templeGap_R) * 1000;
-    group.rotation.y = THREE.MathUtils.degToRad(clamp(gapDiffMm * 0.6, -10, 10));
-    group.rotation.z = THREE.MathUtils.degToRad(clamp(-gapDiffMm * 0.4, -6, 6));
+    // x = pantoscopic tilt: swings the FRONT about the hinge line (+x = normal down)
+    if (frontG) frontG.rotation.set(
+      THREE.MathUtils.degToRad(p.pantoDeg),
+      THREE.MathUtils.degToRad(clamp(gapDiffMm * 0.6, -10, 10)),
+      THREE.MathUtils.degToRad(clamp(-gapDiffMm * 0.4, -6, 6)),
+    );
   }
 
   function setParams(patch) {
