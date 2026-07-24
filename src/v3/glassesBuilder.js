@@ -534,13 +534,20 @@ export function createGlasses(anchors, opts = {}) {
     // 간격은 힌지선 높이에서 '실측한' 림 안쪽 edge 기준(형상 무관) — 박스
     // (lensW/2+rimT) 계산이면 곡선 형상에서 그 높이 테두리가 물러나 브릿지가
     // 공중에 뜬다. 양끝 0.8mm씩 림에 묻어 용접.
+    // ⚠️ 좌우 렌즈는 단안 PD로 **독립 배치**될 수 있다(halfOf) — 브릿지를 대칭
+    // 가정(2×frameHalf, 중심 0)으로 만들면 한쪽만 편심했을 때 반대쪽 림에서
+    // 떨어지거나 파고든다(2026-07-25 사용자 리포트). 각 렌즈의 안쪽 edge를
+    // 실제로 이어 주고, 브릿지 중심도 두 edge의 중점에 둔다.
     const eBr = edgeXAtY(outerOutline(p), hingeY) ?? (p.lensW / 2 + p.rimT);
-    const innerGap = 2 * (frameHalf - eBr) + 0.0016;
+    const innerL = halfOf(1) - eBr;        // 왼쪽(+x) 림 안쪽 edge까지 거리
+    const innerR = halfOf(-1) - eBr;       // 오른쪽(−x) 〃 (부호 없는 거리)
+    const innerGap = innerL + innerR + 0.0016;   // 양끝 0.8mm씩 묻어 용접
     const bridge = new THREE.Mesh(
       new THREE.BoxGeometry(Math.max(innerGap, 0.005), 0.0028, 0.0018),
       frameMat,
     );
-    bridge.position.set(0, 0, 0);          // hinge height in frontG frame
+    // 대칭이면 innerL=innerR → 중심 0(기존과 비트 동일)
+    bridge.position.set((innerL - innerR) / 2, 0, 0);   // hinge height in frontG frame
     frontG.add(bridge);
     built.push(bridge);
 
