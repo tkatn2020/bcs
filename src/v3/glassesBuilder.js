@@ -480,7 +480,9 @@ export function createGlasses(anchors, opts = {}) {
       //    90=수직 하향. 귀모임각(earConverge): 드롭(꺾임 이후)만 옆으로 기울여 끝을
       //    안쪽(모아짐, +)/바깥(벌어짐, −)으로 — earTop(꺾임점)·몸통은 고정, 드롭만
       //    회전. cc로 드롭 길이 유지(하강 성분 축소, 옆 성분 추가 = 순수 옆기울기).
-      const dropLen = Math.max(0.004, 0.020 + p.templeLen);
+      // 기준 드롭 길이 25mm — 표시 0mm가 곧 이 기준이다(사용자 캘리브레이션
+      // 2026-07-25: 기존 20mm보다 +5mm 길게. 슬라이더 표시값·범위는 그대로).
+      const dropLen = Math.max(0.004, 0.025 + p.templeLen);
       const dropRad = THREE.MathUtils.degToRad(clamp(180 - earTipAngle, 0, 90));
       const convRad = THREE.MathUtils.degToRad(earConverge);
       const cc = Math.cos(convRad);
