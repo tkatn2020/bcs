@@ -437,14 +437,16 @@ export function createGlasses(anchors, opts = {}) {
       // ⚠️ 끝점(귀 안착)에는 **캘리브레이션 바이어스만** 넣는다 — 사용자 조정
       // templeAngle까지 끝점에 실으면 다리 끝이 실측 귀에서 벗어난다(±20°에서
       // ±43mm 이탈 = 다리가 귀를 뚫거나 공중에 뜸, 2026-07-25 감사 A-3).
-      // 착용 중인 얼굴이므로 귀 접점은 불변식이고, 다리를 굽힌 물리적 결과는
-      // 프런트 회전(controls.js templeAngleWrite → 경사각)으로 나타난다.
+      // 착용 중인 얼굴이므로 귀 접점은 불변식이다.
       const angleRad = THREE.MathUtils.degToRad(angleBias);
       const earTopY = (ear.y - groupOffsetY) - bodyRun * Math.tan(angleRad);
-      // 다리 경사각의 '형상' 표현: 양끝(힌지·귀)이 고정된 채 힌지에서 뻗어나가는
-      // 각도가 바뀌므로 몸통이 활처럼 휜다 — t(1−t)는 t=0에서 기울기 최대(=굽힌
-      // 각도), t=1에서 귀로 수렴. 실제로 굽혀 조정한 다리 모습과 같다.
-      const tiltAmp = -bodyRun * Math.tan(THREE.MathUtils.degToRad(templeAngle));
+      // ⚠️ 다리 몸통은 **직선**이다 — 실제 다리는 힌지에서 꺾일 뿐 휘지 않는다
+      // (2026-07-25 사용자 리포트: 활꼴 표현은 틀렸음). templeAngle은 여기서
+      // 형상에 직접 쓰이지 않고, 귀를 축으로 한 다리 회전 = 힌지(프레임) 상하
+      // 이동으로 나타난다: controls.templeAngleWrite가 OH를 2.1mm/°(=bodyRun
+      // 120mm × tan1°)로 밀면 프레임과 함께 힌지가 오르내리고, 귀 끝이 고정된
+      // 이 직선의 기울기가 그만큼 바뀐다. (templeAngle이 GEO_KEYS에 남아 있어
+      // 조정 시 리빌드가 돌고, 그때 earTopY가 새 OH로 재계산돼 귀에 다시 안착.)
 
       // 3) 몸통 곡선 — hinge → 귀 상단. 양끝(hinge·귀)은 고정, 중간만 측두부
       //    곡률로 밴딩(bow=0 at 양끝, 최대 at 중앙). 밴딩 0=직선, 90=관자놀이
@@ -465,7 +467,7 @@ export function createGlasses(anchors, opts = {}) {
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
         const x = side * (straightX + sag * 4 * t * (1 - t));
-        const y = hinge.y + (earTopY - hinge.y) * t + tiltAmp * t * (1 - t);
+        const y = hinge.y + (earTopY - hinge.y) * t;   // 직선(휘지 않음)
         bodyPts.push(new THREE.Vector3(x, y, z));
       }
       const earTop = bodyPts[bodyPts.length - 1];
@@ -567,11 +569,17 @@ export function createGlasses(anchors, opts = {}) {
     // 부호: R_y에서 +x 렌즈 z' = −x·sinθ → 왼쪽 넓힘(diff>0)일 때 θ>0 = 밀착 ✓
     //       R_z에서 +x 렌즈 y' = +x·sinθ → 왼쪽 넓힘일 때 θ<0 = 하강 ✓
     const gapDiffMm = (p.templeGap - p.templeGap_R) * 1000;
+    // 좌우 다리 경사각 차이 → 프레임 기욺: 더 굽힌 쪽 힌지가 2.1mm/° 더 올라가고,
+    // 힌지 간 거리(약 110mm)를 지렛대로 프레임이 그쪽으로 기운다(≈1°/°). 짝다리
+    // 조정이 안경을 비뚤게 만드는 실제 현상. side>0=+x=아바타 왼쪽=base 이고,
+    // R_z에서 +x 렌즈 y' = +x·sinθ 이므로 왼쪽을 더 굽히면(diff>0) θ>0 = 왼쪽 상승.
+    const angleDiffDeg = (p.templeAngle ?? 0) - (p.templeAngle_R ?? 0);
+    const rollDeg = clamp(-gapDiffMm * 0.4, -6, 6) + clamp(angleDiffDeg * 1.0, -8, 8);
     // x = pantoscopic tilt: swings the FRONT about the hinge line (+x = normal down)
     if (frontG) frontG.rotation.set(
       THREE.MathUtils.degToRad(p.pantoDeg),
       THREE.MathUtils.degToRad(clamp(gapDiffMm * 0.6, -10, 10)),
-      THREE.MathUtils.degToRad(clamp(-gapDiffMm * 0.4, -6, 6)),
+      THREE.MathUtils.degToRad(rollDeg),
     );
   }
 

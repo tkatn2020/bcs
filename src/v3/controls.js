@@ -470,19 +470,27 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   // 경사각이 변하고 그 결과 프레임이 올라가 광학이 달라진다"는 실제 인과 사슬이
   // 그대로 재현된다. ⚠️ 반대 방향(panto 슬라이더 → 다리 회전)은 여전히 분리 —
   // 다리는 귀에 안착한 채 프런트만 기운다(6af424c 사용자 결정).
+  // 다리는 **직선**이고 귀 접점이 고정이므로, 힌지에서 나가는 각도를 1° 바꾸면
+  // 힌지(=프레임)가 bodyRun(힌지→귀 실측 120mm) × tan1° ≈ 2.1mm 오르내린다.
+  // 그래서 다리 경사각은 실무에서 매우 강력한 조정이고, 몇 도만 굽혀도 안경
+  // 높이가 크게 변한다. OH가 한계(±8mm)에 닿으면 프레임이 더는 못 올라가므로
+  // 다리 기울기도 그 지점에서 포화한다 — 물리적으로 정직한 한계.
   const TEMPLE_PANTO = 1.0;   // 다리 1°당 경사각 1°
+  const TEMPLE_OH = 2.1;      // 다리 1°당 프레임 2.1mm (귀 지렛대)
   function templeAngleWrite(key, newVal) {
     const prev = state.v3frame[key] ?? 0;
     const dv = newVal - prev;
     if (!dv) { update({ v3frame: { [key]: newVal } }); return; }
-    // 비대칭이면 한쪽만 굽힌 것 = 프레임 회전 기여는 절반(나머지 절반은 기욺)
+    // 비대칭이면 한쪽만 굽힌 것 = 프레임 상하 기여는 절반(나머지 절반은
+    // 좌우 힌지 높이차 = 프레임 기욺으로, glassesBuilder.applyFit이 담당)
     const factor = state.v3frame.templeAngleAsym ? 0.5 : 1;
     const cur = { ...STANDARD_FIT, ...state.v3fit };
     const panto = ledger('panto', cur.panto + dv * TEMPLE_PANTO * factor);
-    const oh = ledger('oh', cur.oh + dv * TEMPLE_PANTO * factor * PANTO_OH);
+    const oh = ledger('oh', cur.oh + dv * TEMPLE_OH * factor);
     const vd = ledger('vd', cur.vd + dv * TEMPLE_PANTO * factor * PANTO_VD);
     const o = fitLimit('oh', oh);
-    cap(`다리 경사각 = 경사각을 만드는 물리 수단: 경사각 → ${fitLimit('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영`);
+    const asymNote = state.v3frame.templeAngleAsym ? ' (비대칭: 더 굽힌 쪽이 올라가 프레임이 기욺)' : '';
+    cap(`다리 경사각 = 경사각을 만드는 물리 수단: 경사각 → ${fitLimit('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영${asymNote}`);
     update({ v3frame: { [key]: newVal }, v3fit: { panto, oh, vd } });
   }
 
