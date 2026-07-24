@@ -443,6 +443,28 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     update(patch);
   }
 
+  // ── 옆면 간격 → 정점간거리 라이트스루(사용자 결정 2026-07-23) ──
+  // 두상은 앞으로 갈수록 좁아진다 — 간격을 좁히면 다리가 두상 앞쪽에 걸려
+  // 프레임 전체가 앞으로 밀려나고(얼굴에서 멀어짐 = VD↑), 넓히면 뒤로 들어와
+  // 밀착(VD↓). 다리 자체는 피부에서 멈추고(glassesBuilder 클램프) 그 물리
+  // 반응이 VD로 나타난다. 계수: 양쪽 1mm 좁힘 → VD +0.5mm, 비대칭 모드에서
+  // 한쪽만 조정 시 절반. 비대칭 좌우차의 요·롤은 glassesBuilder.applyFit 담당.
+  const GAP_VD = -0.5;
+  function gapWrite(key, newVal) {
+    const prev = state.v3frame[key] ?? 0;
+    const dv = newVal - prev;
+    const patch = { v3frame: { [key]: newVal } };
+    if (dv) {
+      const factor = state.v3frame.templeGapAsym ? 0.5 : 1;
+      const cur = { ...STANDARD_FIT, ...state.v3fit };
+      const vd = Math.round(Math.min(20, Math.max(5, cur.vd + dv * GAP_VD * factor)) * 100) / 100;
+      patch.v3fit = { vd };
+      const asymNote = state.v3frame.templeGapAsym ? ' (비대칭: 좁힌 쪽 림 전방+상승)' : '';
+      cap(`옆면 간격 = 프레임 전후 이동: 정점간거리 → ${vd}mm 함께 반영${asymNote}`);
+    }
+    update(patch);
+  }
+
   panel.addEventListener('input', (e) => {
     const key = e.target.dataset?.fit;
     if (key) {
@@ -456,6 +478,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const fkey = e.target.dataset?.frame;
     if (fkey) {
       if (PAD_COUPLE[fkey]) padWrite(fkey, Number(e.target.value));
+      else if (fkey === 'templeGap' || fkey === 'templeGap_R') gapWrite(fkey, Number(e.target.value));
       else {
         update({ v3frame: { [fkey]: Number(e.target.value) } });
         if (fkey === 'templeAngle' || fkey === 'templeAngle_R') {
@@ -486,8 +509,9 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const fkey = e.target.dataset?.freset;
     if (fkey) {
       const std = [...FRAME_SLIDERS, ...PAD_SLIDERS].find((s) => s.key === fkey.replace(/_R$/, ''))?.std ?? 0;
-      // 코받침 키는 라이트스루 경로로 — 복귀도 VD·OH를 함께 되돌린다
+      // 코받침·옆면 간격 키는 라이트스루 경로로 — 복귀도 VD(·OH)를 함께 되돌린다
       if (PAD_COUPLE[fkey]) padWrite(fkey, std);
+      else if (fkey === 'templeGap' || fkey === 'templeGap_R') gapWrite(fkey, std);
       else update({ v3frame: { [fkey]: std } });
     }
     const hkey = e.target.dataset?.hreset;

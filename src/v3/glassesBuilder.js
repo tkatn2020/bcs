@@ -420,7 +420,14 @@ export function createGlasses(anchors, opts = {}) {
       // 프레임 커스텀 templeGap 위에 더해진다. side>0=아바타 왼쪽, side<0=오른쪽.
       // (2026-07-16 재캘리: 기준 간격을 기존보다 +1mm — 표시 0 = 기존 1mm 상태)
       const gapBias = side > 0 ? 0.0035 : 0.006;
-      const earRestX = headX(earTopZ, side) + templeGap + gapBias + faceWidth;   // 측두부 표면 (+ 옆면 간격 + 옆통수 폭)
+      // 다리는 피부를 뚫을 수 없다(사용자 결정 2026-07-23) — 간격을 좁혀도
+      // 센터라인이 표면 위 최소 1.8mm(튜브 반경 1.4mm + 여유 0.4mm)에서 멈추고,
+      // 물리 반응은 프레임 전방 이동(controls의 gap→VD 라이트스루)으로 나타난다.
+      // ⚠️ 바닥은 반드시 튜브 반경보다 커야 함 — 센터라인 기준 0.8mm였을 땐
+      // 튜브 표면이 피부에 0.6mm 파고들었다. faceWidth는 표면 자체를 넓히는
+      // 항이라 클램프 밖(표면 기준)에 더한다.
+      const gapOff = Math.max(templeGap + gapBias, 0.0018);
+      const earRestX = headX(earTopZ, side) + faceWidth + gapOff;   // 측두부 표면 (+ 옆면 간격 + 옆통수 폭)
       const bodyRun = Math.abs(earTopZ - hinge.z);
       // 비대칭 두상 보정 — 좌우 귀 접합부에 정확히 맞닿도록 실측 조정.
       // 좌표계: 아바타가 +z를 바라봐 side>0(+x)=아바타 왼쪽, side<0(−x)=아바타
@@ -442,7 +449,7 @@ export function createGlasses(anchors, opts = {}) {
       // 전 구간 일정한 곡률의 매끈한 커브, 밴딩 90°면 중앙이 표면에 닿는다.
       const zMid = (hinge.z + earTopZ) / 2;
       const chordMidX = (Math.abs(hinge.x) + earRestX) / 2;
-      const surfMidX = headX(zMid, side) + templeGap + gapBias + faceWidth;
+      const surfMidX = headX(zMid, side) + faceWidth + gapOff;   // 동일 클램프(침투 금지)
       const sag = bendFrac * (surfMidX - chordMidX);
       for (let i = 0; i <= N; i++) {
         const t = i / N;
@@ -544,6 +551,14 @@ export function createGlasses(anchors, opts = {}) {
     group.position.set(anchorMid.x, anchorMid.y + p.oh, anchorMid.z + effZ());
     // Pantoscopic tilt swings the FRONT about the hinge line (+x = normal down)
     if (frontG) frontG.rotation.x = THREE.MathUtils.degToRad(p.pantoDeg);
+    // 옆면 간격 좌우차 → 프레임 요(좁힌 쪽 림 전방)·롤(좁힌 쪽 림 상승) —
+    // 시각 전용(사용자 결정 2026-07-23). side>0=+x=아바타 왼쪽=templeGap(base),
+    // −x=오른쪽=templeGap_R. 대칭이면 앱이 _R=base를 전달해 차이 0 = 회전 0.
+    // 부호: R_y에서 +x 렌즈 z' = −x·sinθ → 왼쪽 좁힘(diff<0)일 때 θ<0 = 전방 ✓
+    //       R_z에서 +x 렌즈 y' = +x·sinθ → 왼쪽 좁힘일 때 θ>0 = 상승 ✓
+    const gapDiffMm = (p.templeGap - p.templeGap_R) * 1000;
+    group.rotation.y = THREE.MathUtils.degToRad(clamp(gapDiffMm * 0.6, -10, 10));
+    group.rotation.z = THREE.MathUtils.degToRad(clamp(-gapDiffMm * 0.4, -6, 6));
   }
 
   function setParams(patch) {
