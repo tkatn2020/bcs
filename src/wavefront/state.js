@@ -89,7 +89,8 @@ const initial = {
     earTipAngle_R: 118, earTipAngleAsym: 0,
     earConverge_R: 0,   earConvergeAsym: 0,
     // 코받침(코패드)
-    padOn: 1,         // 표시 (1/0)
+    padOn: 1,         // 상시 1 — 표시 토글 UI 제거(2026-07-25). 코받침은 흘러내림
+                      // 지지의 핵심 축이라 끌 수 있으면 안 된다(slipSim 참조).
     padSpacing: 0,    // 좌우 간격 (mm, + = 넓게)
     padVertical: 0,   // 상하 위치 (mm, + = 위)
     padArm: 0,        // 코받침 전후 표시값 (물리 = 표시 − 10; 표준 표시 0 = 물리 -10)

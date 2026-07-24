@@ -104,15 +104,24 @@ function earNoseOpts(m, anchors) {
 }
 
 function mountCredit(root) {
-  const div = document.createElement('div');
-  div.textContent = '3D head: “Face Cap” sample via three.js examples (CC-BY) · fallback scan © Lee Perry-Smith / Infinite Realities';
-  Object.assign(div.style, {
+  const wrap = document.createElement('div');
+  Object.assign(wrap.style, {
     position: 'fixed', left: '12px', bottom: '8px', zIndex: 9,
-    fontSize: '9.5px', color: 'rgba(255,255,255,0.34)',
-    fontFamily: "'Pretendard', system-ui, sans-serif",
-    pointerEvents: 'none', letterSpacing: '0.02em',
+    fontFamily: "'Pretendard', system-ui, sans-serif", letterSpacing: '0.02em',
+    display: 'flex', flexDirection: 'column', gap: '3px',
+    pointerEvents: 'none',   // 링크만 auto로 되살린다(캔버스 조작 방해 금지)
   });
-  root.appendChild(div);
+  // 문의 창구 — 사내 교육용이지만 주소가 외부로 공유될 수 있어, 그때
+  // 연락이 닿도록 노출한다(사용자 요청 2026-07-25).
+  const contact = document.createElement('div');
+  contact.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.55)';
+  contact.innerHTML = '문의 · 제휴 <a href="mailto:Joel2@breezm.com" '
+    + 'style="color:#f5b64e;text-decoration:none;pointer-events:auto">Joel2@breezm.com</a>';
+  const credit = document.createElement('div');
+  credit.textContent = '3D head: “Face Cap” sample via three.js examples (CC-BY) · fallback scan © Lee Perry-Smith / Infinite Realities';
+  credit.style.cssText = 'font-size:9.5px;color:rgba(255,255,255,0.34)';
+  wrap.append(contact, credit);
+  root.appendChild(wrap);
 }
 
 // ── 교육 HUD (C1+인터랙티브) — 숫자 + 불릿 게이지 + 요인 분해 드릴다운 ──

@@ -251,9 +251,6 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       </div>
     `).join('')}
     <div class="v3-sec">코받침</div>
-    <div class="v3-mini">
-      <button class="v3-btn" data-padon>코받침 표시</button>
-    </div>
     ${PAD_SLIDERS.map((sl) => `
       <div class="v3-row">
         <label data-freset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
@@ -633,8 +630,6 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
         mv.classList.toggle('on', multi.isOpen);
       }
     }
-    const padBtn = e.target.closest('[data-padon]');
-    if (padBtn) update({ v3frame: { padOn: state.v3frame.padOn ? 0 : 1 } });
     const cam = e.target.closest('[data-cam]');
     if (cam && stage) {
       const c = CAM_PRESETS.find((x) => x.id === cam.dataset.cam);
@@ -694,7 +689,6 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       num.textContent = `${val}${sl.unit}`;
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
     }
-    panel.querySelector('[data-padon]').classList.toggle('on', !!fr.padOn);
     // 좌우 비대칭 (frame): 체크박스·오른쪽 서브행 표시·프라이머리 라벨(좌 표기)
     for (const sl of FRAME_SLIDERS.filter((x) => x.asym)) {
       const flag = !!fr[`${sl.key}Asym`];

@@ -84,7 +84,7 @@ export function createSlipSim({ cap } = {}) {
       if (phase !== 'slipping') { phase = 'slipping'; say('안경이 흘러내립니다… (귀 고정력 부족)'); }
     } else if (phase === 'slipping' && (deficit <= STOP_EPS || slipF >= S_MAX)) {
       phase = 'stopped';
-      if (slipF >= S_MAX) say(`코받침 지지 없음 — 코끝(${S_MAX}mm)까지 흘러내렸습니다`);
+      if (slipF >= S_MAX) say(`코받침 지지가 부족해 코끝(${S_MAX}mm)까지 흘러내렸습니다 — 간격을 좁혀 보세요`);
       else if (pitch > START_PITCH && padOn) say(`코받침이 받쳐 ${slipState.toFixed(1)}mm에서 멈췄습니다`);
       // 고개를 들어 멈춘 경우는 조용히 (흘러내린 상태는 유지 — 실제 안경과 동일)
     }
