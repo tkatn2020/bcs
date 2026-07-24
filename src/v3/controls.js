@@ -93,8 +93,14 @@ const FRAME_SLIDERS = [
   { key: 'templeLen',   label: '다리 길이',   min: -20, max: 20, step: 1,   unit: 'mm', std: 0 },
   { key: 'templeGap',   label: '옆면 간격',   min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,   asym: true },
   { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 20,  asym: true },
-  { key: 'earTipAngle', label: '귀팁각',      min: 90,  max: 180, step: 2,  unit: '°',  std: 118, asym: true },
-  { key: 'earConverge', label: '귀모임각',    min: -25, max: 25, step: 1,   unit: '°',  std: 0,   asym: true },
+  // 이 둘은 '고정력(retention)' 조정 — 안경 위치를 옮기는 게 아니라 제자리에
+  // 붙잡아 두는 역할이라 광학 커플이 없다. 다만 앱이 착용 위치를 고정으로
+  // 가정해(중력·마찰·미끄러짐 모델 없음) 펴도 흘러내리지 않으므로, 그 한계를
+  // 캡션으로 정직하게 고지한다(2026-07-25 감사 B-6).
+  { key: 'earTipAngle', label: '귀팁각',      min: 90,  max: 180, step: 2,  unit: '°',  std: 118, asym: true,
+    edu: '귀팁각: 안경이 앞으로 흘러내리지 않게 잡는 1차 고정 — 펼수록(180°=직선) 걸리는 데가 없어 유지력↓ · 실제로는 흘러내려 VD↑·OH↓ (본 앱은 착용 위치가 고정된 상태로 가정)' },
+  { key: 'earConverge', label: '귀모임각',    min: -25, max: 25, step: 1,   unit: '°',  std: 0,   asym: true,
+    edu: '귀모임각: 귀 뒤(유양돌기) 밀착도 — 접촉 압력 분포와 좌우 흔들림을 잡는다. 과하면 압박통, 부족하면 헐거움 (본 앱은 착용 위치가 고정된 상태로 가정)' },
   { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
 ];
 
@@ -548,7 +554,12 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       if (PAD_COUPLE[fkey]) padWrite(fkey, Number(e.target.value));
       else if (fkey === 'templeGap' || fkey === 'templeGap_R') gapWrite(fkey, Number(e.target.value));
       else if (fkey === 'templeAngle' || fkey === 'templeAngle_R') templeAngleWrite(fkey, Number(e.target.value));
-      else update({ v3frame: { [fkey]: Number(e.target.value) } });
+      else {
+        update({ v3frame: { [fkey]: Number(e.target.value) } });
+        // 라이트스루가 없는 프레임 조정은 자체 교육 캡션으로(있는 것만)
+        const sl = FRAME_SLIDERS.find((x) => x.key === fkey.replace(/_R$/, ''));
+        if (sl?.edu) cap(sl.edu);
+      }
     }
     const hkey = e.target.dataset?.head;
     if (hkey) update({ v3head: { [hkey]: Number(e.target.value) } });
