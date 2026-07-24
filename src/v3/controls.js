@@ -5,6 +5,7 @@
 import { state, update, subscribe, resetFitting } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
 import { STANDARD_FIT, fitLimit } from './fittingModel.js';
+import { pushUpGlasses } from './slipSim.js';
 
 const CSS = `
   .v3-top, .v3-bottom, .v3-panel {
@@ -98,9 +99,9 @@ const FRAME_SLIDERS = [
   // 가정해(중력·마찰·미끄러짐 모델 없음) 펴도 흘러내리지 않으므로, 그 한계를
   // 캡션으로 정직하게 고지한다(2026-07-25 감사 B-6).
   { key: 'earTipAngle', label: '귀팁각',      min: 90,  max: 180, step: 2,  unit: '°',  std: 118, asym: true,
-    edu: '귀팁각: 안경이 앞으로 흘러내리지 않게 잡는 1차 고정 — 펼수록(180°=직선) 걸리는 데가 없어 유지력↓ · 실제로는 흘러내려 VD↑·OH↓ (본 앱은 착용 위치가 고정된 상태로 가정)' },
+    edu: '귀팁각: 안경이 흘러내리지 않게 잡는 1차 고정 — 고개를 숙이면 ~132°부터 흘러내리기 시작(코받침이 받쳐줌), 150° 이상은 그립 0 · 표준 118°' },
   { key: 'earConverge', label: '귀모임각',    min: -25, max: 25, step: 1,   unit: '°',  std: 0,   asym: true,
-    edu: '귀모임각: 귀 뒤(유양돌기) 밀착도 — 접촉 압력 분포와 좌우 흔들림을 잡는다. 과하면 압박통, 부족하면 헐거움 (본 앱은 착용 위치가 고정된 상태로 가정)' },
+    edu: '귀모임각: 귀 뒤(유양돌기) 밀착도 — 벌어질수록(−) 그립 감쇠(−25°=60%↓)해 더 쉽게 흘러내리고, 모을수록(+) 강화. 과하면 압박통' },
   { key: 'endpiece',    label: '엔드피스 높이', min: -6, max: 6,  step: 0.5, unit: 'mm', std: 0 },
 ];
 
@@ -308,10 +309,17 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   resetBar.innerHTML = `
     <div class="v3-mini">
       <button class="v3-btn warn" data-resetall>전체 기본값 복귀 (표준 피팅)</button>
+      <button class="v3-btn" data-pushup style="display:none">안경 밀어 올리기</button>
     </div>
   `;
   root.appendChild(resetBar);
   resetBar.addEventListener('click', (e) => {
+    // 흘러내린 안경 원위치 — slipSim이 쌓은 슬립을 정확 역산(잔차 0)
+    if (e.target.closest('[data-pushup]')) {
+      pushUpGlasses();
+      cap('안경을 제자리로 밀어 올림 — 흘러내린 만큼 OH·VD 원복');
+      return;
+    }
     if (!e.target.closest('[data-resetall]')) return;
     resetFitting();
     update({
@@ -655,6 +663,11 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     bottom.querySelectorAll('[data-corr]').forEach((b) =>
       b.classList.toggle('on', Number(b.dataset.corr) === s.corridor));
     const f = s.v3fit || {};
+    // 흘러내림 중/후에만 '밀어 올리기' 노출 + 현재 슬립량 표시
+    const pushBtn = resetBar.querySelector('[data-pushup]');
+    const slipNow = f.slip || 0;
+    pushBtn.style.display = slipNow > 0 ? '' : 'none';
+    if (slipNow > 0) pushBtn.textContent = `안경 밀어 올리기 (${slipNow.toFixed(1)}mm)`;
     const rVar = (sl) => ({ ...sl, key: sl.key + '_R' });   // 오른쪽 슬라이더(std/unit 상속)
     for (const sl of [...SLIDERS, ...SLIDERS.filter((x) => x.asym).map(rVar)]) {
       const input = panel.querySelector(`[data-fit="${sl.key}"]`);

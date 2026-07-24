@@ -14,6 +14,7 @@ import { createDemoDirector } from './demoDirector.js';
 import { computeZones, STANDARD_FIT, fitLimit } from './fittingModel.js';
 import { attachDragHandles } from './dragHandles.js';
 import { mountControls } from './controls.js';
+import { createSlipSim } from './slipSim.js';
 import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.02, 0.02, 0.55], tgt: [0, 0, 0] };   // 정면 시점(첫 화면·더블탭 리셋 기본)
@@ -475,12 +476,15 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   // 열기가 메인 존 상태를 건드리지 않는다(예전 전역 강제 켬 제거).
   const multi = createMultiView({ scene: stage.scene, coneMeshes: zones.coneMeshes });
 
+  // 흘러내림 시뮬 — 고개 숙임 × 귀 고정력 × 코받침 지지 (slipSim.js 헤더 참조)
+  const slipSim = createSlipSim({ cap: hud.caption });
+
   mountControls(document.body, { stage, getDemo: () => demo, getMulti: () => multi, setCaption: hud.caption });
   mountCredit(document.body);
 
   Object.assign(window.__v3, {
     mannequin: { group, anchors, morphMesh, eyes, headMesh },
-    glasses, zones, targets, demo, deformer, multi,
+    glasses, zones, targets, demo, deformer, multi, slipSim,
   });
 }).catch((err) => {
   console.error('Mannequin load failed:', err);

@@ -65,6 +65,7 @@ const initial = {
     bSize: 26,       // 렌즈 B치수 (10~40mm, 표준 26)
     shape: 'square', // 'square' | 'round' | 'boston' | 'aviator'
     headPitch: 0,    // 고개 끄덕임 (deg, + = 숙임/아래 — group.rotation.x 기준. 데모/타깃은 별도 캘리브레이션)
+    slip: 0,         // 흘러내림 누적(mm, slipSim 전용 — 광학은 안 읽음. 리셋 시 v3fit 통째 교체로 자동 0)
   },
   // View toggles
   v3view: {

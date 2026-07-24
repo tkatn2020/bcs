@@ -35,7 +35,7 @@ const rad2deg = (r) => (r * 180) / Math.PI;
 
 export const STANDARD_FIT = {
   vd: 12, panto: 8, wrap: 5, pdErr: 0, pdErr_R: 0, pdErrAsym: 0,
-  oh: 0, bSize: 26, shape: 'square', headPitch: 0, headRoll: 0,
+  oh: 0, bSize: 26, shape: 'square', headPitch: 0, headRoll: 0, slip: 0,
 };
 
 // 피팅 값의 물리 한계. ⚠️ 라이트스루 '장부'(state.v3fit.oh/vd)는 이 밖으로
