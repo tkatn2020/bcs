@@ -87,10 +87,15 @@ export function createVisionZones(anchors) {
       const baseDir = new THREE.Vector3(0, Math.sin(pitchRad), Math.cos(pitchRad)).normalize();
       const sx = Math.tan(THREE.MathUtils.degToRad(z.h)) * z.len;
       const sz = Math.tan(THREE.MathUtils.degToRad(z.v)) * z.len;
+      // 비측 인셋 = 폭주(2026-07-25): 가까운 존일수록 시선이 코쪽으로 모인다 —
+      // 누진 근용부가 설계상 코쪽에 놓이는 이유. 편심 발산(바깥)과 정확히 반대
+      // 방향 축이라 같은 자리에서 부호만 뒤집어 합성한다. 둘이 겹치면 "올바른
+      // 인셋 vs 편심으로 깨진 양안 겹침"이 한 화면에서 대비된다.
+      const insetRad = THREE.MathUtils.degToRad(z.inset || 0);
       coneSet[zone].forEach((mesh, i) => {
         // PD error: eyes diverge outward (left −yaw, right +yaw) → the
         // additive overlap between L/R cones visibly shrinks.
-        const dir = baseDir.clone().applyAxisAngle(Y_AXIS, i === 0 ? -yawRad : yawRad);
+        const dir = baseDir.clone().applyAxisAngle(Y_AXIS, i === 0 ? insetRad - yawRad : yawRad - insetRad);
         mesh.quaternion.setFromUnitVectors(DOWN, dir);
         mesh.scale.set(sx, z.len, sz);
         // Apex starts just past the lens plane — the "field through the lens"
@@ -115,6 +120,7 @@ export function createVisionZones(anchors) {
         v: a[zone].v + (b[zone].v - a[zone].v) * t,
         pitch: a[zone].pitch + (b[zone].pitch - a[zone].pitch) * t,
         len: a[zone].len + (b[zone].len - a[zone].len) * t,
+        inset: (a[zone].inset || 0) + ((b[zone].inset || 0) - (a[zone].inset || 0)) * t,
       };
     }
     return out;

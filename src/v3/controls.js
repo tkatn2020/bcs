@@ -4,7 +4,7 @@
 
 import { state, update, subscribe, resetFitting } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
-import { STANDARD_FIT } from './fittingModel.js';
+import { STANDARD_FIT, fitLimit } from './fittingModel.js';
 
 const CSS = `
   .v3-top, .v3-bottom, .v3-panel {
@@ -396,9 +396,20 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   // 슬라이더 값 자체가 함께 이동하고, 이후 VD/OH 조정은 그 위에 투명하게
   // 누적된다. 코받침이 꺼져 있으면(padOn=0) 물리 접점이 없으므로 연동 없음.
   // 슬라이더 입력과 더블탭 복귀가 모두 이 경로를 지나야 장부가 안 갈라진다.
+  // ⚠️ 장부(state.v3fit.oh/vd)는 **클램프하지 않는다** — 물리 한계는 소비 지점
+  // (fittingModel·glassesParams·아래 캡션 표시)에서만 적용. 장부를 미리 클램프하면
+  // 포화된 뒤 되돌릴 때 역연산이 깨져 표준으로 복귀해도 잔차가 남는다(경사각을
+  // −15로 밀었다 8로 되돌리면 OH +3.5mm 잔류 = 물리적으로 불가능한 상태였음,
+  // 2026-07-25 감사 A-2). LEDGER는 폭주만 막는 넉넉한 안전 리밋.
+  const LEDGER = { oh: 40, vd: 60, panto: 60 };
+  const ledger = (k, v) => Math.round(Math.max(-LEDGER[k], Math.min(LEDGER[k], v)) * 100) / 100;
   const PAD_COUPLE = {
     padVertical: { oh: -0.8 },              // 패드 위로 = 프레임 내려앉음
-    padSpacing: { oh: -0.5, vd: -0.4 },     // 넓힘 = 내려앉고 가까워짐
+    // 코는 아래로 갈수록 넓어지는 쐐기 — 패드를 수평 1mm 벌리면 하강량은
+    // 1/tan(비강각 ~29°) ≈ 1.8mm. 즉 좌우 간격이 상하 위치(−0.8)보다 **강한**
+    // 높이 레버이고, 실무에서 "흘러내림"의 1차 원인이자 1차 조정 수단이다.
+    // (2026-07-25 감사 A-1: 기존 −0.5는 위계가 거꾸로였다.)
+    padSpacing: { oh: -1.8, vd: -0.4 },     // 넓힘 = 내려앉고 가까워짐
     padArm: { vd: 0.4 },                    // 전후 연장 = 프레임 밀어냄
   };
   function padWrite(key, newVal) {
@@ -410,12 +421,12 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       const cur = { ...STANDARD_FIT, ...state.v3fit };
       const fitP = {};
       // 0.01 단위 유지 — 0.1로 반올림하면 왕복(조정→복귀)에서 잔차가 쌓인다.
-      if (c.vd) fitP.vd = Math.round(Math.min(20, Math.max(5, cur.vd + dv * c.vd)) * 100) / 100;
-      if (c.oh) fitP.oh = Math.round(Math.min(8, Math.max(-8, cur.oh + dv * c.oh)) * 100) / 100;
+      if (c.vd) fitP.vd = ledger('vd', cur.vd + dv * c.vd);
+      if (c.oh) fitP.oh = ledger('oh', cur.oh + dv * c.oh);
       patch.v3fit = fitP;
       const parts = [];
-      if (fitP.vd !== undefined) parts.push(`정점간거리 → ${fitP.vd}mm`);
-      if (fitP.oh !== undefined) parts.push(`OH → ${fitP.oh >= 0 ? '+' : ''}${fitP.oh}mm`);
+      if (fitP.vd !== undefined) parts.push(`정점간거리 → ${fitLimit('vd', fitP.vd)}mm`);
+      if (fitP.oh !== undefined) { const o = fitLimit('oh', fitP.oh); parts.push(`OH → ${o >= 0 ? '+' : ''}${o}mm`); }
       cap(`코받침 조정 = 프레임 이동: ${parts.join(' · ')} 함께 반영`);
     }
     update(patch);
@@ -428,19 +439,51 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   // 코받침 라이트스루와 동일 델타 방식 — 표준(panto 8)에서 무변, 왕복 잔차
   // 방지 위해 0.01 단위. (경사각의 사선 비점수차 효과 nearFit·distFit·tiltAstig는
   // 별개로 유지; 원용 침범은 이제 실제 OH 상승이 담당해 ohEquiv 제거.)
-  const PANTO_OH = 0.5, PANTO_VD = -0.2;   // 1°당: OH +0.5mm(steep 높이), VD -0.2mm(steep 가까이)
+  // ⚠️ VD 계수: 경사각은 코받침/브릿지 접점을 축으로 한 **회전**이라, 광학중심
+  // (정면 시선점)에서 잰 정점간거리는 틸트를 줘도 거의 변하지 않는다 — 기존
+  // −0.2mm/°는 무시할 수준을 유의미한 커플로 과장했다(2026-07-25 감사 A-4).
+  // 프레임이 코의 좁은 쪽으로 올라앉으며 생기는 잔여분만 남긴다.
+  const PANTO_OH = 0.5, PANTO_VD = -0.05;
   function pantoWrite(newVal) {
     const prev = state.v3fit?.panto ?? STANDARD_FIT.panto;
     const dv = newVal - prev;
     const patch = { v3fit: { panto: newVal } };
     if (dv) {
       const cur = { ...STANDARD_FIT, ...state.v3fit };
-      const oh = Math.round(Math.min(8, Math.max(-8, cur.oh + dv * PANTO_OH)) * 100) / 100;
-      const vd = Math.round(Math.min(20, Math.max(5, cur.vd + dv * PANTO_VD)) * 100) / 100;
+      const oh = ledger('oh', cur.oh + dv * PANTO_OH);
+      const vd = ledger('vd', cur.vd + dv * PANTO_VD);
       patch.v3fit.oh = oh; patch.v3fit.vd = vd;
-      cap(`경사각 = 프레임 상하 이동: OH → ${oh >= 0 ? '+' : ''}${oh}mm · 정점간거리 → ${vd}mm 함께 반영`);
+      const o = fitLimit('oh', oh);
+      // ⚠️ 이 앱의 경사각 커플은 '프레임이 코 위에서 재위치하는 물리'다 —
+      // 조제의 보상 법칙("경사각 1°당 광학중심 0.5mm 하강")과 크기가 우연히
+      // 같지만 서로 다른 개념이므로 캡션에서 구분해 둔다.
+      cap(`경사각 = 프레임 상하 이동: OH → ${o >= 0 ? '+' : ''}${o}mm · 정점간거리 → ${fitLimit('vd', vd)}mm 함께 반영`
+        + ' (별개로 조제에선 경사각만큼 광학중심을 낮추는 보상이 필요)');
     }
     update(patch);
+  }
+
+  // ── 다리 경사각 → 경사각(panto) 라이트스루(사용자 결정 2026-07-25) ──
+  // 실제 조제에서 경사각을 만드는 1차 수단이 바로 다리를 힌지에서 굽히는 것이다.
+  // 다리 끝을 아래로 굽히면(+) 착용 시 귀 접점은 고정이므로 프런트가 회전해
+  // 경사각이 커진다 — 거의 1:1. panto가 다시 OH·VD를 구동하므로 "다리를 굽혔더니
+  // 경사각이 변하고 그 결과 프레임이 올라가 광학이 달라진다"는 실제 인과 사슬이
+  // 그대로 재현된다. ⚠️ 반대 방향(panto 슬라이더 → 다리 회전)은 여전히 분리 —
+  // 다리는 귀에 안착한 채 프런트만 기운다(6af424c 사용자 결정).
+  const TEMPLE_PANTO = 1.0;   // 다리 1°당 경사각 1°
+  function templeAngleWrite(key, newVal) {
+    const prev = state.v3frame[key] ?? 0;
+    const dv = newVal - prev;
+    if (!dv) { update({ v3frame: { [key]: newVal } }); return; }
+    // 비대칭이면 한쪽만 굽힌 것 = 프레임 회전 기여는 절반(나머지 절반은 기욺)
+    const factor = state.v3frame.templeAngleAsym ? 0.5 : 1;
+    const cur = { ...STANDARD_FIT, ...state.v3fit };
+    const panto = ledger('panto', cur.panto + dv * TEMPLE_PANTO * factor);
+    const oh = ledger('oh', cur.oh + dv * TEMPLE_PANTO * factor * PANTO_OH);
+    const vd = ledger('vd', cur.vd + dv * TEMPLE_PANTO * factor * PANTO_VD);
+    const o = fitLimit('oh', oh);
+    cap(`다리 경사각 = 경사각을 만드는 물리 수단: 경사각 → ${fitLimit('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영`);
+    update({ v3frame: { [key]: newVal }, v3fit: { panto, oh, vd } });
   }
 
   // ── 옆면 간격 → 정점간거리 라이트스루(사용자 결정 2026-07-23) ──
@@ -457,10 +500,10 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     if (dv) {
       const factor = state.v3frame.templeGapAsym ? 0.5 : 1;
       const cur = { ...STANDARD_FIT, ...state.v3fit };
-      const vd = Math.round(Math.min(20, Math.max(5, cur.vd + dv * GAP_VD * factor)) * 100) / 100;
+      const vd = ledger('vd', cur.vd + dv * GAP_VD * factor);
       patch.v3fit = { vd };
       const asymNote = state.v3frame.templeGapAsym ? ' (비대칭: 좁힌 쪽 림 전방+상승)' : '';
-      cap(`옆면 간격 = 프레임 전후 이동: 정점간거리 → ${vd}mm 함께 반영${asymNote}`);
+      cap(`옆면 간격 = 프레임 전후 이동: 정점간거리 → ${fitLimit('vd', vd)}mm 함께 반영${asymNote}`);
     }
     update(patch);
   }
@@ -479,12 +522,8 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     if (fkey) {
       if (PAD_COUPLE[fkey]) padWrite(fkey, Number(e.target.value));
       else if (fkey === 'templeGap' || fkey === 'templeGap_R') gapWrite(fkey, Number(e.target.value));
-      else {
-        update({ v3frame: { [fkey]: Number(e.target.value) } });
-        if (fkey === 'templeAngle' || fkey === 'templeAngle_R') {
-          cap('다리 경사각: 실제 조제에선 경사각(panto)을 바꾸는 1차 수단 — 본 앱에선 광학과 독립(경사각 슬라이더로 재현)');
-        }
-      }
+      else if (fkey === 'templeAngle' || fkey === 'templeAngle_R') templeAngleWrite(fkey, Number(e.target.value));
+      else update({ v3frame: { [fkey]: Number(e.target.value) } });
     }
     const hkey = e.target.dataset?.head;
     if (hkey) update({ v3head: { [hkey]: Number(e.target.value) } });
@@ -512,6 +551,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       // 코받침·옆면 간격 키는 라이트스루 경로로 — 복귀도 VD(·OH)를 함께 되돌린다
       if (PAD_COUPLE[fkey]) padWrite(fkey, std);
       else if (fkey === 'templeGap' || fkey === 'templeGap_R') gapWrite(fkey, std);
+      else if (fkey === 'templeAngle' || fkey === 'templeAngle_R') templeAngleWrite(fkey, std);
       else update({ v3frame: { [fkey]: std } });
     }
     const hkey = e.target.dataset?.hreset;

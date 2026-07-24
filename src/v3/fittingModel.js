@@ -37,6 +37,17 @@ export const STANDARD_FIT = {
   vd: 12, panto: 8, wrap: 5, pdErr: 0, oh: 0, bSize: 26, shape: 'square', headPitch: 0, headRoll: 0,
 };
 
+// 피팅 값의 물리 한계. ⚠️ 라이트스루 '장부'(state.v3fit.oh/vd)는 이 밖으로
+// 나갈 수 있고, 클램프는 **소비 지점에서만** 한다(광학 계산·3D 배치·캡션 표시).
+// 장부를 미리 클램프하면 포화된 뒤 되돌릴 때 역연산이 깨진다 — 경사각을 −15로
+// 밀었다 표준 8로 되돌리면 OH가 0이 아니라 +3.5mm로 남아 "표준 피팅인데 성능
+// 손실"이라는 물리적으로 불가능한 상태를 가르쳤다(2026-07-25 감사 A-2).
+export const FIT_LIMITS = { oh: [-8, 8], vd: [5, 20], panto: [-15, 15] };
+export const fitLimit = (key, v) => {
+  const lim = FIT_LIMITS[key];
+  return lim ? clamp(v, lim[0], lim[1]) : v;
+};
+
 // Baseline half-angles at BP30 · ADD +2.00 · corridor 12mm · standard fit
 const BASE = {
   distance:     { h: 38, v: 24, pitch: -2,  len: 1.5 },
@@ -64,7 +75,9 @@ export const FRAME_BASE = { lensW: 0.03858, lensH: 0.026, bSize: 26 };
 
 export function computeZones(s) {
   const g = getGrade(s.grade);
-  const f = { ...STANDARD_FIT, ...(s.v3fit || {}) };
+  // 장부(v3fit)는 미클램프 — 물리 한계는 여기 '소비 지점'에서 적용(FIT_LIMITS 주석 참조)
+  const fRaw = { ...STANDARD_FIT, ...(s.v3fit || {}) };
+  const f = { ...fRaw, oh: fitLimit('oh', fRaw.oh), vd: fitLimit('vd', fRaw.vd), panto: fitLimit('panto', fRaw.panto) };
   const gradeScale = g.clearZoneScale / 1.15;
   const add = clamp(s.add ?? 2.0, 0.75, 3.5);
   const corr = s.corridor ?? 12;
@@ -104,6 +117,13 @@ export function computeZones(s) {
   // 감소해야 'PD 보정 → 회복'이 전 구간에서 보인다(선형+바닥 0.45는 4mm에
   // 서 포화돼 보정 효과가 안 보였음).
   const pdCorridor = clamp(1 / (1 + 0.13 * Math.abs(decMm)), 0.28, 1);
+  // 안면각 유래 유효 편심(2026-07-25 감사 B-1): 렌즈를 감으면 정면 시선이
+  // 광학중심을 벗어나 수평 프리즘이 유발된다 — 랩 프레임을 조제할 때 광학중심을
+  // 코쪽으로 편심(실무 근사 2°당 1mm)하고 도수를 보상(as-worn Rx)하는 이유.
+  // Martin 기울기 비점수차(tiltAstig = 도수 변형 축)와는 별개인 '양안 정렬' 축.
+  // ⚠️ pdCorridor(통로 폭)에는 태우지 않는다 — wrapFactor가 이미 폭을 깎고 있어
+  // 이중 페널티가 된다. 콘 발산(eyeYaw)만 구동해 "PD 보정이 필요하다"를 보인다.
+  const wrapDec = (f.wrap - 5) * 0.5;                              // mm/° (표준 5°에서 0)
   const pitchShift = f.oh * 2.0;                // deg/mm, 존지도 수직이동
   // 경사각↔OH는 이제 controls.js의 '라이트스루'로 통합(사용자 결정 2026-07-23):
   // 경사각을 스팁하게 하면 실제 OH 값이 올라가(프레임이 코 위로 올라앉음) 아래
@@ -146,6 +166,13 @@ export function computeZones(s) {
   // |pAt12|가 커질 수 있다 — tan 특이점(90°)의 소리 없는 부호 반전 방지.
   const eyePitch = (pAt12) => rad2deg(Math.atan(Math.tan((clamp(pAt12, -85, 85) * Math.PI) / 180) * 25 / (f.vd + 13)));
 
+  // 비측 인셋 = 폭주(2026-07-25 감사 B-2): 가까운 곳을 볼수록 양안 시선이 코쪽으로
+  // 모인다 — 누진렌즈 근용부가 설계상 코쪽(약 2.5mm)에 놓이는 이유다. 콘을 아래로
+  // 평행 하강만 시키면 "왜 근용부가 코쪽에 있나"를 못 보여준다. 대상거리 대비
+  // 반동공거리의 순수 기하라 VD·프레임·설계와 무관(편심 발산과는 반대 방향 축).
+  const HALF_PD_MM = 31;                                     // FRAME_BASE와 같은 앵커
+  const convergeDeg = (distMm) => rad2deg(Math.atan(HALF_PD_MM / distMm));
+
   // rawD/rawN(캡 이전 곱)과 capD/capN(개구 한계 배율)을 분리해 두면 요인
   // 분해(HUD 드릴다운)가 화면 값과 정확히 일치한다: h = raw × cap × 사후항.
   const rawD = BASE.distance.h * (0.45 + 0.55 * gradeScale) * vdFactor * distFit * wrapFactor * frameFactor;
@@ -159,6 +186,7 @@ export function computeZones(s) {
     v: Math.min(BASE.distance.v * vdFactor * distFit * frameFactor, apertureV) * distOh,
     pitch: eyePitch(BASE.distance.pitch + pitchShift * 0.35),
     len: BASE.distance.len,
+    inset: 0,                                   // 원거리 = 시선 평행(폭주 없음)
   };
   const intermediate = {
     // corridor 폭은 프레임 크기와 무관 (Minkwitz — 누진면 속성)
@@ -166,6 +194,7 @@ export function computeZones(s) {
     v: BASE.intermediate.v * (0.7 + 0.3 * mink) * vdFactor,
     pitch: eyePitch(BASE.intermediate.pitch - nearPitchShift * 0.5 + pitchShift),
     len: BASE.intermediate.len,
+    inset: convergeDeg(650),                    // 중간거리 65cm 폭주
   };
   const rawN = BASE.near.h * gradeScale * nearAdd * vdFactor * nearFit * nearRoom * pdCorridor * Math.sqrt(wrapFactor) * Math.sqrt(frameFactor);
   const capN = Math.min(1, (apertureH * 0.85) / rawN);
@@ -178,6 +207,7 @@ export function computeZones(s) {
     v: BASE.near.v * (0.75 + 0.25 * nearAdd) * nearRoom * vdFactor,
     pitch: eyePitch(BASE.near.pitch - nearPitchShift + pitchShift),
     len: BASE.near.len * clamp(nearRoom + 0.15, 0.5, 1),
+    inset: convergeDeg(400),                    // 근거리 40cm 폭주 = 설계 인셋의 근거
   };
 
   // ── 주변부 왜곡(비점수차) 지표 ──
@@ -216,7 +246,8 @@ export function computeZones(s) {
     // ⚠️ 편심 각도는 눈회전점 거리(VD+13)에 반비례 — 먼 VD일수록 같은 편심이
     // 작은 요각(발산)을 이룬다(atan(dec/(vd+13))). pitch·개구캡과 동일한
     // 25/(vd+13) 기하로 대칭(2026-07-23 교차결합 감사). VD12에서 항등.
-    eyeYawDeg: clamp(decMm * 1.4 * 25 / (f.vd + 13), -22, 22),
+    // 편심 요각 — 가공 미보정 편심(decMm) + 안면각 유래 유효 편심(wrapDec).
+    eyeYawDeg: clamp((decMm + wrapDec) * 1.4 * 25 / (f.vd + 13), -22, 22),
     decMm,     // 가공 미보정 편심 (per eye, mm; + = 바깥) — HUD 표시용
     // 요인 분해(HUD 드릴다운) — m = 그 지표에 곱해진 배율(1 = 무영향),
     // v = 가산 성분. ctrl = 해당 조절 UI 키(클릭 시 하이라이트; 설계 축은 없음).

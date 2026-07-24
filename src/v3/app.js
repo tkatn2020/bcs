@@ -11,7 +11,7 @@ import { createVisionZones } from './visionZones.js';
 import { createTargets } from './targets.js';
 import { createMultiView } from './multiView.js';
 import { createDemoDirector } from './demoDirector.js';
-import { computeZones, STANDARD_FIT } from './fittingModel.js';
+import { computeZones, STANDARD_FIT, fitLimit } from './fittingModel.js';
 import { attachDragHandles } from './dragHandles.js';
 import { mountControls } from './controls.js';
 import { state, update, subscribe } from '../wavefront/state.js';
@@ -346,10 +346,12 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
     // 프레임 크기(bSize)는 상하좌우 전체 비례 스케일 (기준 31mm)
     const frameScale = f.bSize / 31;
     return {
-      vd: (f.vd - 5) / 1000,        // 표시값 − 5 = 물리 VD (표시 12 = 물리 7mm)
-      pantoDeg: f.panto,
+      // 라이트스루 장부는 미클램프라 여기(소비 지점)에서 물리 한계를 적용한다
+      // — 광학(computeZones)과 같은 클램프를 써야 3D 배치와 광학이 어긋나지 않는다.
+      vd: (fitLimit('vd', f.vd) - 5) / 1000,   // 표시값 − 5 = 물리 VD (표시 12 = 물리 7mm)
+      pantoDeg: fitLimit('panto', f.panto),
       wrapDeg: f.wrap,
-      oh: f.oh / 1000 - 0.002,      // keep the default −2mm fitting bias
+      oh: fitLimit('oh', f.oh) / 1000 - 0.002, // keep the default −2mm fitting bias
       pdErr: f.pdErr / 1000,
       lensW: 0.046 * frameScale,
       lensH: 0.031 * frameScale,

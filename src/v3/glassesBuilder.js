@@ -434,8 +434,17 @@ export function createGlasses(anchors, opts = {}) {
       // 오른쪽. 아바타 오른쪽 −1°, 왼쪽 +2°(끝 하향). 프레임 커스텀
       // templeAngle 위에 더해진다. + = 끝이 아래로.
       const angleBias = side > 0 ? 2 : -1;
-      const angleRad = THREE.MathUtils.degToRad(templeAngle + angleBias);
-      const earTopY = (ear.y - groupOffsetY) - bodyRun * Math.tan(angleRad);  // 경사각
+      // ⚠️ 끝점(귀 안착)에는 **캘리브레이션 바이어스만** 넣는다 — 사용자 조정
+      // templeAngle까지 끝점에 실으면 다리 끝이 실측 귀에서 벗어난다(±20°에서
+      // ±43mm 이탈 = 다리가 귀를 뚫거나 공중에 뜸, 2026-07-25 감사 A-3).
+      // 착용 중인 얼굴이므로 귀 접점은 불변식이고, 다리를 굽힌 물리적 결과는
+      // 프런트 회전(controls.js templeAngleWrite → 경사각)으로 나타난다.
+      const angleRad = THREE.MathUtils.degToRad(angleBias);
+      const earTopY = (ear.y - groupOffsetY) - bodyRun * Math.tan(angleRad);
+      // 다리 경사각의 '형상' 표현: 양끝(힌지·귀)이 고정된 채 힌지에서 뻗어나가는
+      // 각도가 바뀌므로 몸통이 활처럼 휜다 — t(1−t)는 t=0에서 기울기 최대(=굽힌
+      // 각도), t=1에서 귀로 수렴. 실제로 굽혀 조정한 다리 모습과 같다.
+      const tiltAmp = -bodyRun * Math.tan(THREE.MathUtils.degToRad(templeAngle));
 
       // 3) 몸통 곡선 — hinge → 귀 상단. 양끝(hinge·귀)은 고정, 중간만 측두부
       //    곡률로 밴딩(bow=0 at 양끝, 최대 at 중앙). 밴딩 0=직선, 90=관자놀이
@@ -456,7 +465,7 @@ export function createGlasses(anchors, opts = {}) {
         const z = hinge.z + (earTopZ - hinge.z) * t;
         const straightX = Math.abs(hinge.x) + (earRestX - Math.abs(hinge.x)) * t;  // hinge→귀 직선
         const x = side * (straightX + sag * 4 * t * (1 - t));
-        const y = hinge.y + (earTopY - hinge.y) * t;
+        const y = hinge.y + (earTopY - hinge.y) * t + tiltAmp * t * (1 - t);
         bodyPts.push(new THREE.Vector3(x, y, z));
       }
       const earTop = bodyPts[bodyPts.length - 1];
