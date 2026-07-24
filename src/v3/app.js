@@ -125,8 +125,12 @@ function mountEduHud(root) {
   // 게이지 정규화 범위 = 모델 관측 범위(교육 케이스 전수 기준) — 표시 전용.
   // better: true=클수록 좋음 / false=작을수록 좋음 / null=양면적(중립 회색).
   const METRICS = [
+    // 단안 PD로 좌우가 갈리면 평균 대신 '좌/우'를 그대로 보여준다 — 어느 눈이
+    // 얼마나 어긋났는지가 단안 처방의 핵심 정보라 평균으로 뭉개면 안 된다.
     { key: 'dec', label: '광학중심 편심', unit: 'mm', min: 0, max: 20, better: false, zone: null,
       val: (s) => s.decMm ?? 0, bar: (s) => Math.abs(s.decMm ?? 0),
+      fmt: (s) => (s.decL !== undefined && Math.abs(s.decL - s.decR) > 0.01)
+        ? `좌 ${s.decL.toFixed(1)} / 우 ${s.decR.toFixed(1)}mm` : null,
       delta: (s, b) => Math.abs(s.decMm ?? 0) - Math.abs(b.decMm ?? 0) },
     { key: 'distance', label: '원용 시야', unit: '°', min: 30, max: 100, better: true, zone: 'distance', val: (s) => s.distance.h * 2 },
     { key: 'intermediate', label: '중간 시야', unit: '°', min: 5, max: 35, better: true, zone: 'intermediate', val: (s) => s.intermediate.h * 2 },
@@ -243,7 +247,7 @@ function mountEduHud(root) {
       const mt = row.mt;
       const cur = mt.val(spec), std = mt.val(baseline);
       const delta = mt.delta ? mt.delta(spec, baseline) : cur - std;
-      row.v.textContent = cur.toFixed(1) + mt.unit;
+      row.v.textContent = (mt.fmt && mt.fmt(spec)) || (cur.toFixed(1) + mt.unit);
       if (Math.abs(delta) < 0.05) row.d.textContent = '';
       else {
         row.d.textContent = ` ${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}`;
@@ -353,6 +357,8 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       wrapDeg: f.wrap,
       oh: fitLimit('oh', f.oh) / 1000 - 0.002, // keep the default −2mm fitting bias
       pdErr: f.pdErr / 1000,
+      // 단안 PD — 비대칭이 꺼져 있으면 _R=base(차이 0 = 회귀 안전)
+      pdErr_R: (f.pdErrAsym ? (f.pdErr_R ?? f.pdErr) : f.pdErr) / 1000,
       lensW: 0.046 * frameScale,
       lensH: 0.031 * frameScale,
       cornerR: 0.008 * frameScale,

@@ -80,7 +80,13 @@ export function createVisionZones(anchors) {
   const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
   function applySpecTo(coneSet, spec) {
-    const yawRad = THREE.MathUtils.degToRad(spec.eyeYawDeg || 0);
+    // 단안 PD 지원: 눈마다 편심이 다를 수 있다(eyeYawL/R). anchors.left=−x=아바타
+    // 오른쪽이라 i=0에 R쪽 값을 준다 — 이름이 아니라 축으로 짝을 맞춰야 한다.
+    const yawFallback = spec.eyeYawDeg || 0;
+    const yawByIndex = [
+      THREE.MathUtils.degToRad(spec.eyeYawR ?? yawFallback),
+      THREE.MathUtils.degToRad(spec.eyeYawL ?? yawFallback),
+    ];
     for (const zone of ZONES) {
       const z = spec[zone];
       const pitchRad = THREE.MathUtils.degToRad(z.pitch);
@@ -95,6 +101,7 @@ export function createVisionZones(anchors) {
       coneSet[zone].forEach((mesh, i) => {
         // PD error: eyes diverge outward (left −yaw, right +yaw) → the
         // additive overlap between L/R cones visibly shrinks.
+        const yawRad = yawByIndex[i] ?? 0;
         const dir = baseDir.clone().applyAxisAngle(Y_AXIS, i === 0 ? insetRad - yawRad : yawRad - insetRad);
         mesh.quaternion.setFromUnitVectors(DOWN, dir);
         mesh.scale.set(sx, z.len, sz);
@@ -111,8 +118,11 @@ export function createVisionZones(anchors) {
   }
 
   function lerpSpec(a, b, t) {
+    const mix = (k) => (a[k] ?? a.eyeYawDeg ?? 0) + ((b[k] ?? b.eyeYawDeg ?? 0) - (a[k] ?? a.eyeYawDeg ?? 0)) * t;
     const out = {
-      eyeYawDeg: (a.eyeYawDeg || 0) + ((b.eyeYawDeg || 0) - (a.eyeYawDeg || 0)) * t,
+      eyeYawDeg: mix('eyeYawDeg'),
+      eyeYawL: mix('eyeYawL'),
+      eyeYawR: mix('eyeYawR'),
     };
     for (const zone of ZONES) {
       out[zone] = {

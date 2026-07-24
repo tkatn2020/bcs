@@ -70,13 +70,15 @@ const CSS = `
 
 const SLIDERS = [
   { key: 'vd',    label: '정점간거리', min: 5,   max: 20, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd,
-    edu: '정점간거리: 멀수록 착용 여유↑ · 시야각↓ · 왜곡 노출↑' },
+    edu: '정점간거리: 멀수록 착용 여유↑ · 시야각↓ · 왜곡 노출↑ (본 앱은 시야 기하만 — 실제 강도수(±4D↑)에선 유효도수까지 변해 재보정 필요)' },
   { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto,
     edu: '경사각: 프레임 상하 이동(steep=위로 OH↑·VD↓ / flat=아래로 OH↓·VD↑) + 사선 비점수차(부족→근용·과다→원용 손실)' },
   { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap,
     edu: '안면각: 표준(5°)에서 벗어날수록 주변부 수차·시야 왜곡↑' },
-  { key: 'pdErr', label: 'PD 오차',    min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,
-    edu: 'PD: 십자(광학중심)가 동공과 어긋난 만큼 통로 폭↓·양안 겹침↓ — 프레임 유래 편심과 합산' },
+  // PD는 원래 단안 측정(R 32 / L 30이 정상) — 누진은 좌우 각각의 단안 PD로
+  // 주문하고, 한쪽만 어긋나면 그 눈만 통로 정렬이 틀어진다. 그래서 좌우 개별 지원.
+  { key: 'pdErr', label: 'PD 오차',    min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true,
+    edu: 'PD: 십자(광학중심)가 동공과 어긋난 만큼 통로 폭↓·양안 겹침↓ — 프레임 유래 편심과 합산 (실제 PD는 단안 측정 — 좌우 개별 조정 가능)' },
   { key: 'oh',    label: 'OH 높이',    min: -8,  max: 8,  step: 0.5, unit: 'mm', std: 0,
     edu: 'OH: 낮으면 근용 도달 어려움 · 높으면 원용 침범 — 양쪽 다 대가' },
   { key: 'bSize', label: '프레임 크기', min: 10, max: 40, step: 1,   unit: 'mm', std: STANDARD_FIT.bSize,
@@ -85,7 +87,9 @@ const SLIDERS = [
 
 // 프레임 피팅 커스텀 — 광학 무관, 순수 다리 지오메트리 (state.v3frame)
 const FRAME_SLIDERS = [
-  { key: 'templeAngle', label: '다리 경사각', min: -20, max: 20, step: 1,   unit: '°',  std: 0,   asym: true },
+  // ±6° — 다리 1°가 프레임을 2.1mm 올리는 강력한 조정이라 실무 조정폭도 좁다.
+  // (기존 ±20°는 4°만 넘어도 OH 한계에 걸려 뒷구간이 통째로 무반응이었다.)
+  { key: 'templeAngle', label: '다리 경사각', min: -6, max: 6, step: 0.5, unit: '°',  std: 0,   asym: true },
   { key: 'templeLen',   label: '다리 길이',   min: -20, max: 20, step: 1,   unit: 'mm', std: 0 },
   { key: 'templeGap',   label: '옆면 간격',   min: -10, max: 10, step: 0.5, unit: 'mm', std: 0,   asym: true },
   { key: 'templeBend',  label: '다리 밴딩',   min: 0,   max: 90, step: 2,   unit: '°',  std: 20,  asym: true },
@@ -196,7 +200,20 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       <button class="v3-btn" data-guide-clear>모두 지우기</button>
     </div>
     <div class="v3-sec">광학 피팅 (라벨 더블탭 = 표준 복귀)</div>
-    ${SLIDERS.map((sl) => `
+    ${SLIDERS.map((sl) => sl.asym ? `
+      <div class="v3-row">
+        <label data-reset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-fit="${sl.key}">
+        <span class="num" data-num="${sl.key}"></span>
+        <input type="checkbox" class="v3-asym" data-asym="${sl.key}" title="좌우 개별 조정(단안)">
+      </div>
+      <div class="v3-row v3-sub hidden" data-subrow="${sl.key}">
+        <label data-reset="${sl.key}_R" title="더블탭: 표준 복귀">우 ${sl.label}</label>
+        <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-fit="${sl.key}_R">
+        <span class="num" data-num="${sl.key}_R"></span>
+        <span class="v3-cbpad"></span>
+      </div>
+    ` : `
       <div class="v3-row">
         <label data-reset="${sl.key}" title="더블탭: 표준 복귀">${sl.label}</label>
         <input type="range" min="${sl.min}" max="${sl.max}" step="${sl.step}" data-fit="${sl.key}">
@@ -541,15 +558,18 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const cb = e.target;
     if (cb?.type !== 'checkbox' || cb.dataset?.asym == null) return;
     const key = cb.dataset.asym;
-    const ns = HEAD_ASYM_KEYS.has(key) ? 'v3head' : 'v3frame';
+    // 네임스페이스 판별: 두상 → v3head, 광학(SLIDERS) → v3fit, 나머지 프레임 → v3frame
+    const ns = HEAD_ASYM_KEYS.has(key) ? 'v3head'
+             : (SLIDERS.some((s) => s.key === key) ? 'v3fit' : 'v3frame');
+    const cur = ns === 'v3fit' ? { ...STANDARD_FIT, ...state.v3fit } : state[ns];
     const patch = { [`${key}Asym`]: cb.checked ? 1 : 0 };
-    if (cb.checked) patch[`${key}_R`] = state[ns][key];
+    if (cb.checked) patch[`${key}_R`] = cur[key];
     update({ [ns]: patch });
   });
   panel.addEventListener('dblclick', (e) => {
     const key = e.target.dataset?.reset;
     if (key) {
-      const std = SLIDERS.find((s) => s.key === key).std;
+      const std = SLIDERS.find((s) => s.key === key.replace(/_R$/, ''))?.std ?? 0;
       if (key === 'panto') pantoWrite(std);   // 복귀도 OH·VD를 함께 되돌린다
       else update({ v3fit: { [key]: std } });
     }
@@ -624,16 +644,24 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     bottom.querySelectorAll('[data-corr]').forEach((b) =>
       b.classList.toggle('on', Number(b.dataset.corr) === s.corridor));
     const f = s.v3fit || {};
-    for (const sl of SLIDERS) {
+    const rVar = (sl) => ({ ...sl, key: sl.key + '_R' });   // 오른쪽 슬라이더(std/unit 상속)
+    for (const sl of [...SLIDERS, ...SLIDERS.filter((x) => x.asym).map(rVar)]) {
       const input = panel.querySelector(`[data-fit="${sl.key}"]`);
       const num = panel.querySelector(`[data-num="${sl.key}"]`);
-      const val = f[sl.key] ?? sl.std;
+      // 장부는 미클램프라 표시만 물리 한계로 자른다(FIT_LIMITS 주석 참조)
+      const val = fitLimit(sl.key.replace(/_R$/, ''), f[sl.key] ?? sl.std);
       if (document.activeElement !== input) input.value = val;
       num.textContent = `${val}${sl.unit}`;
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
     }
+    // 좌우 비대칭 (광학): 체크박스·서브행·프라이머리 라벨
+    for (const sl of SLIDERS.filter((x) => x.asym)) {
+      const flag = !!f[`${sl.key}Asym`];
+      panel.querySelector(`[data-asym="${sl.key}"]`).checked = flag;
+      panel.querySelector(`[data-subrow="${sl.key}"]`).classList.toggle('hidden', !flag);
+      panel.querySelector(`[data-reset="${sl.key}"]`).textContent = flag ? `좌 ${sl.label}` : sl.label;
+    }
     const fr = s.v3frame || {};
-    const rVar = (sl) => ({ ...sl, key: sl.key + '_R' });   // 오른쪽 슬라이더(std/unit 상속)
     for (const sl of [...FRAME_SLIDERS, ...PAD_SLIDERS, ...FRAME_SLIDERS.filter((x) => x.asym).map(rVar)]) {
       const input = panel.querySelector(`[data-frame="${sl.key}"]`);
       const num = panel.querySelector(`[data-fnum="${sl.key}"]`);

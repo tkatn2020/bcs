@@ -58,7 +58,9 @@ const initial = {
     vd: 12,          // 정점간거리 표시값 (물리 = 표시 − 5; 표준 표시 12 = 물리 7)
     panto: 8,        // 경사각 (0~15°, 표준 8~12)
     wrap: 5,         // 안면각 (0~15°, 표준 ~5)
-    pdErr: 0,        // PD 오차 (-4~+4mm)
+    pdErr: 0,        // PD 오차 (좌 = 아바타 왼쪽/+x; 실제 PD는 단안 측정)
+    pdErr_R: 0,      // 우(아바타 오른쪽/−x) — pdErrAsym일 때만 사용
+    pdErrAsym: 0,    // 단안(좌우 개별) 모드
     oh: 0,           // 피팅 높이 오프셋 (-4~+4mm)
     bSize: 26,       // 렌즈 B치수 (10~40mm, 표준 26)
     shape: 'square', // 'square' | 'round' | 'boston' | 'aviator'

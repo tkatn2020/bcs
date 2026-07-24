@@ -34,7 +34,8 @@ const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const rad2deg = (r) => (r * 180) / Math.PI;
 
 export const STANDARD_FIT = {
-  vd: 12, panto: 8, wrap: 5, pdErr: 0, oh: 0, bSize: 26, shape: 'square', headPitch: 0, headRoll: 0,
+  vd: 12, panto: 8, wrap: 5, pdErr: 0, pdErr_R: 0, pdErrAsym: 0,
+  oh: 0, bSize: 26, shape: 'square', headPitch: 0, headRoll: 0,
 };
 
 // 피팅 값의 물리 한계. ⚠️ 라이트스루 '장부'(state.v3fit.oh/vd)는 이 밖으로
@@ -112,7 +113,16 @@ export function computeZones(s) {
   const tiltAstig = clamp(1 + tiltDev * 0.02 * (0.6 + 0.4 * add / 2.0), 1, 1.6);
   // 가공 미보정 편심(per eye, mm) = PD 오차 + 프레임 유래(박스 중앙 이탈).
   // 31 = 모델 반동공거리 mm — FRAME_BASE.lensW(0.046·26/31)와 같은 앵커.
-  const decMm = f.pdErr + 31 * (f.bSize - 26) / 26;
+  // 단안 PD(2026-07-25 감사 B-3): PD는 원래 좌우 각각 재는 값(R 32 / L 30이
+  // 정상)이고, 누진은 단안 PD로 주문한다 — 한쪽만 어긋나면 **그 눈만** 통로
+  // 정렬이 틀어진다. 비대칭이 꺼져 있으면 앱이 _R=base를 쓰므로 차이 0(회귀 0).
+  // 존 폭(pdCorridor·near/inter h)은 단일 세트라 좌우 평균 편심으로 계산하고,
+  // 좌우 차이는 콘 방향(요각)에서 독립적으로 드러난다.
+  const pdErrL = f.pdErr;
+  const pdErrR = f.pdErrAsym ? (f.pdErr_R ?? f.pdErr) : f.pdErr;
+  const frameDec = 31 * (f.bSize - 26) / 26;                       // 프레임 유래(좌우 공통)
+  const decL = pdErrL + frameDec, decR = pdErrR + frameDec;
+  const decMm = (decL + decR) / 2;
   // 편심 → 통로 폭: 쌍곡선 감쇠 — 프레임 유래 편심(최대 ~17mm)까지 단조
   // 감소해야 'PD 보정 → 회복'이 전 구간에서 보인다(선형+바닥 0.45는 4mm에
   // 서 포화돼 보정 효과가 안 보였음).
@@ -246,8 +256,12 @@ export function computeZones(s) {
     // ⚠️ 편심 각도는 눈회전점 거리(VD+13)에 반비례 — 먼 VD일수록 같은 편심이
     // 작은 요각(발산)을 이룬다(atan(dec/(vd+13))). pitch·개구캡과 동일한
     // 25/(vd+13) 기하로 대칭(2026-07-23 교차결합 감사). VD12에서 항등.
-    // 편심 요각 — 가공 미보정 편심(decMm) + 안면각 유래 유효 편심(wrapDec).
+    // 편심 요각 — 가공 미보정 편심 + 안면각 유래 유효 편심. 단일 값은 좌우 평균
+    // (기존 소비처 호환), eyeYawL/R은 단안 PD가 다를 때 눈마다 독립적으로 벌어진다.
     eyeYawDeg: clamp((decMm + wrapDec) * 1.4 * 25 / (f.vd + 13), -22, 22),
+    eyeYawL: clamp((decL + wrapDec) * 1.4 * 25 / (f.vd + 13), -22, 22),
+    eyeYawR: clamp((decR + wrapDec) * 1.4 * 25 / (f.vd + 13), -22, 22),
+    decL, decR,
     decMm,     // 가공 미보정 편심 (per eye, mm; + = 바깥) — HUD 표시용
     // 요인 분해(HUD 드릴다운) — m = 그 지표에 곱해진 배율(1 = 무영향),
     // v = 가산 성분. ctrl = 해당 조절 UI 키(클릭 시 하이라이트; 설계 축은 없음).

@@ -35,7 +35,8 @@ export const FRAME_DEFAULTS = {
   pantoDeg: 8,       // pantoscopic tilt (−15~15)
   wrapDeg: 5,        // face-form angle (−15~15)
   oh: -0.002,        // fitting-height offset
-  pdErr: 0,          // per-lens horizontal offset error (m)
+  pdErr: 0,          // per-lens horizontal offset error (m) — side>0(아바타 왼쪽)
+  pdErr_R: 0,        // 아바타 오른쪽(−x). 앱이 대칭 시 base를 복사해 넘긴다.
   shape: 'square',   // 'square' | 'round' | 'boston' | 'aviator'
   noseClearance: 0.010,
   // 좌우 귀 지점 (실측, app.js). null이면 대칭 fallback 사용.
@@ -63,7 +64,7 @@ export const FRAME_DEFAULTS = {
 };
 
 const GEO_KEYS = [
-  'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'shape',
+  'lensW', 'lensH', 'cornerR', 'rimT', 'depth', 'wrapDeg', 'pdErr', 'pdErr_R', 'shape',
   'vd', 'oh', 'earR', 'earL', 'earY', 'earZ', 'noseClearance', 'headSideX',
   'templeAngle', 'templeLen', 'templeGap', 'templeBend', 'earTipAngle', 'endpiece',
   'templeAngle_R', 'templeGap_R', 'templeBend_R', 'earTipAngle_R', 'faceWidth', 'faceWidth_R',
@@ -279,6 +280,9 @@ export function createGlasses(anchors, opts = {}) {
     const refW26 = 0.046 * 26 / 31;
     const fscale = p.lensW / refW26;
     const frameHalf = pdHalf * fscale + p.pdErr;
+    // 단안 PD: 좌우 편심이 다르면 렌즈(=광학중심)도 좌우 다르게 벌어진다.
+    // side>0=+x=아바타 왼쪽=pdErr(base), side<0=오른쪽=pdErr_R.
+    const halfOf = (side) => pdHalf * fscale + (side > 0 ? p.pdErr : (p.pdErr_R ?? p.pdErr));
 
     frontG = new THREE.Group();
     frontG.position.set(0, hingeY, 0);     // pivot at the hinge line
@@ -286,7 +290,7 @@ export function createGlasses(anchors, opts = {}) {
 
     for (const side of [-1, 1]) {
       const sideG = new THREE.Group();
-      sideG.position.set(side * frameHalf, -hingeY, 0);
+      sideG.position.set(side * halfOf(side), -hingeY, 0);
       // Wrap: outer edges sweep BACK toward the temples (−wrap = 역랩)
       sideG.rotation.y = side * wrapRad;
       frontG.add(sideG);
@@ -403,7 +407,7 @@ export function createGlasses(anchors, opts = {}) {
       const refWrapRad = side * THREE.MathUtils.degToRad(TEMPLE_REF_WRAP);
       const sideW = refWrapRad;
       const Ex = side * hx, Ey = p.endpiece;   // (Ey relative to hinge line)
-      const fx = Ex * Math.cos(sideW) + side * frameHalf;
+      const fx = Ex * Math.cos(sideW) + side * halfOf(side);
       const fz = -Ex * Math.sin(sideW);
       const cp = Math.cos(refPantoRad), sp = Math.sin(refPantoRad);
       const hinge = new THREE.Vector3(
@@ -497,7 +501,7 @@ export function createGlasses(anchors, opts = {}) {
       const qUnPanto = new THREE.Quaternion().setFromAxisAngle(X_AXIS, refPantoRad).invert();
       const qUnWrap = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, refWrapRad).invert();
       const frontGp = new THREE.Vector3(0, hingeY, 0);
-      const sideGp = new THREE.Vector3(side * frameHalf, -hingeY, 0);
+      const sideGp = new THREE.Vector3(side * halfOf(side), -hingeY, 0);
       const toSideLocal = (pg) =>
         pg.sub(frontGp).applyQuaternion(qUnPanto).sub(sideGp).applyQuaternion(qUnWrap);
 
@@ -574,7 +578,16 @@ export function createGlasses(anchors, opts = {}) {
     // 조정이 안경을 비뚤게 만드는 실제 현상. side>0=+x=아바타 왼쪽=base 이고,
     // R_z에서 +x 렌즈 y' = +x·sinθ 이므로 왼쪽을 더 굽히면(diff>0) θ>0 = 왼쪽 상승.
     const angleDiffDeg = (p.templeAngle ?? 0) - (p.templeAngle_R ?? 0);
-    const rollDeg = clamp(-gapDiffMm * 0.4, -6, 6) + clamp(angleDiffDeg * 1.0, -8, 8);
+    // 좌우 귀 높이차 → 프레임 기욺(2026-07-25): 다리는 각자의 귀에 얹히므로,
+    // 한쪽 귀가 높으면 그쪽 프런트가 그대로 들려 안경이 비뚤어진다 — 짝귀 고객의
+    // 안경이 기우는 실제 현상이자 '귀 높이 보정'을 배우는 지점. 힌지 간격(약
+    // 110mm)을 지렛대로 한 순수 기하라 계수 없이 atan으로 구한다.
+    // earR=+x=아바타 왼쪽, earL=−x=오른쪽. 왼쪽 귀가 높으면 +x가 올라가야 하고
+    // R_z에서 +x 렌즈 y' = +x·sinθ 이므로 θ>0 — 부호 그대로.
+    const earDy = ((p.earR && p.earL) ? p.earR.y - p.earL.y : 0);
+    const earRollDeg = THREE.MathUtils.radToDeg(Math.atan2(earDy, 0.110));
+    const rollDeg = clamp(-gapDiffMm * 0.4, -6, 6) + clamp(angleDiffDeg * 1.0, -8, 8)
+                  + clamp(earRollDeg, -12, 12);
     // x = pantoscopic tilt: swings the FRONT about the hinge line (+x = normal down)
     if (frontG) frontG.rotation.set(
       THREE.MathUtils.degToRad(p.pantoDeg),
