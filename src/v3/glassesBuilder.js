@@ -257,6 +257,9 @@ export function createGlasses(anchors, opts = {}) {
 
   let built = [];
   let frontG = null;
+  // 다리 홀더 — applyFit이 프레임 회전(롤)에 맞춰 힌지를 추종시키려면
+  // 좌우 홀더와 그 기하(힌지 x, 힌지→귀 거리)를 알고 있어야 한다.
+  let templeHolders = [];
 
   // Nose clearance collapses as vd → 0 so the lens can truly reach the eye.
   const effClearance = () => p.noseClearance * Math.min(1, Math.max(0, p.vd / 0.012));
@@ -268,6 +271,7 @@ export function createGlasses(anchors, opts = {}) {
       m.removeFromParent();
     }
     built = [];
+    templeHolders = [];
     for (const c of [...group.children]) c.removeFromParent();
 
     const hingeY = p.lensH * 0.28;
@@ -529,6 +533,8 @@ export function createGlasses(anchors, opts = {}) {
       sideWrapG.add(temple);
       group.add(frontRefG);   // 리빌드 시 group.children 정리로 함께 제거
       built.push(temple);
+      // 프레임이 기울면(롤) 이 홀더를 힌지만큼 올려 연결을 유지한다(applyFit).
+      templeHolders.push({ g: frontRefG, side, hingeX: Math.abs(fx), bodyRun, baseY: frontGp.y });
     }
 
     // 브릿지 = 렌즈 사이 실제 간격. 프런트 전체가 강체 스케일이므로 간격도
@@ -603,6 +609,22 @@ export function createGlasses(anchors, opts = {}) {
       THREE.MathUtils.degToRad(clamp(gapDiffMm * 0.6, -10, 10)),
       THREE.MathUtils.degToRad(rollDeg),
     );
+
+    // ⚠️ 롤이 걸리면 좌우 힌지가 서로 반대로 오르내린다 — 다리 홀더는 프런트와
+    // 별개 노드(frontRefG)라 이를 모르고 제자리에 남아, 프레임이 기울수록 다리가
+    // 림에서 떨어져 공중에 뜬다(롤 14°에서 13mm+, 2026-07-25 사용자 리포트).
+    // 실제 안경은 힌지로 붙어 있으니 홀더를 힌지만큼 올리고(position.y), 귀 안착점은
+    // 그대로 남도록 다리를 그만큼 되기울인다(rotation.x) — 자유도 2개로 두 조건을
+    // 동시에 만족: 홀더 회전 중심(힌지선)에서 z=0인 힌지는 평행이동분만 받고,
+    // z=−bodyRun인 귀는 bodyRun·sinφ 만큼 되돌아온다.
+    const rollRad = THREE.MathUtils.degToRad(rollDeg);
+    const refPantoRad = THREE.MathUtils.degToRad(TEMPLE_REF_PANTO);
+    for (const h of templeHolders) {
+      const dy = h.side * h.hingeX * Math.sin(rollRad);        // 이 쪽 힌지의 상하 이동
+      const phi = Math.asin(clamp(-dy / h.bodyRun, -0.6, 0.6)); // 귀를 제자리로 되기울임
+      h.g.position.y = h.baseY + dy;
+      h.g.rotation.x = refPantoRad + phi;
+    }
   }
 
   function setParams(patch) {

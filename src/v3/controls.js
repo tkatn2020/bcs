@@ -430,7 +430,12 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   // −15로 밀었다 8로 되돌리면 OH +3.5mm 잔류 = 물리적으로 불가능한 상태였음,
   // 2026-07-25 감사 A-2). LEDGER는 폭주만 막는 넉넉한 안전 리밋.
   const LEDGER = { oh: 40, vd: 60, panto: 60 };
-  const ledger = (k, v) => Math.round(Math.max(-LEDGER[k], Math.min(LEDGER[k], v)) * 100) / 100;
+  // ⚠️ 0.0001 단위로 반올림한다(0.01이 아님) — 비대칭 모드의 절반 계수가
+  // 3~4자리 소수를 만든다(다리경사각 0.5° × 2.1 × 0.5 = 0.525). 0.01로 자르면
+  // 매 스텝 0.005씩 버려져 슬라이더를 되돌려도 OH 0.05·VD 12.02가 남는다
+  // (2026-07-25 사용자 리포트). 표시는 refresh가 소수 1자리로 정리한다.
+  const ledger = (k, v) => Math.round(Math.max(-LEDGER[k], Math.min(LEDGER[k], v)) * 1e4) / 1e4;
+  const disp = (k, v) => Math.round(fitLimit(k, v) * 10) / 10;   // 캡션 표시용(소수 1자리)
   const PAD_COUPLE = {
     padVertical: { oh: -0.8 },              // 패드 위로 = 프레임 내려앉음
     // 코는 아래로 갈수록 넓어지는 쐐기 — 패드를 수평 1mm 벌리면 하강량은
@@ -453,8 +458,8 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       if (c.oh) fitP.oh = ledger('oh', cur.oh + dv * c.oh);
       patch.v3fit = fitP;
       const parts = [];
-      if (fitP.vd !== undefined) parts.push(`정점간거리 → ${fitLimit('vd', fitP.vd)}mm`);
-      if (fitP.oh !== undefined) { const o = fitLimit('oh', fitP.oh); parts.push(`OH → ${o >= 0 ? '+' : ''}${o}mm`); }
+      if (fitP.vd !== undefined) parts.push(`정점간거리 → ${disp('vd', fitP.vd)}mm`);
+      if (fitP.oh !== undefined) { const o = disp('oh', fitP.oh); parts.push(`OH → ${o >= 0 ? '+' : ''}${o}mm`); }
       cap(`코받침 조정 = 프레임 이동: ${parts.join(' · ')} 함께 반영`);
     }
     update(patch);
@@ -481,11 +486,11 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       const oh = ledger('oh', cur.oh + dv * PANTO_OH);
       const vd = ledger('vd', cur.vd + dv * PANTO_VD);
       patch.v3fit.oh = oh; patch.v3fit.vd = vd;
-      const o = fitLimit('oh', oh);
+      const o = disp('oh', oh);
       // ⚠️ 이 앱의 경사각 커플은 '프레임이 코 위에서 재위치하는 물리'다 —
       // 조제의 보상 법칙("경사각 1°당 광학중심 0.5mm 하강")과 크기가 우연히
       // 같지만 서로 다른 개념이므로 캡션에서 구분해 둔다.
-      cap(`경사각 = 프레임 상하 이동: OH → ${o >= 0 ? '+' : ''}${o}mm · 정점간거리 → ${fitLimit('vd', vd)}mm 함께 반영`
+      cap(`경사각 = 프레임 상하 이동: OH → ${o >= 0 ? '+' : ''}${o}mm · 정점간거리 → ${disp('vd', vd)}mm 함께 반영`
         + ' (별개로 조제에선 경사각만큼 광학중심을 낮추는 보상이 필요)');
     }
     update(patch);
@@ -516,10 +521,32 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const panto = ledger('panto', cur.panto + dv * TEMPLE_PANTO * factor);
     const oh = ledger('oh', cur.oh + dv * TEMPLE_OH * factor);
     const vd = ledger('vd', cur.vd + dv * TEMPLE_PANTO * factor * PANTO_VD);
-    const o = fitLimit('oh', oh);
+    const o = disp('oh', oh);
     const asymNote = state.v3frame.templeAngleAsym ? ' (비대칭: 더 굽힌 쪽이 올라가 프레임이 기욺)' : '';
-    cap(`다리 경사각 = 경사각을 만드는 물리 수단: 경사각 → ${fitLimit('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영${asymNote}`);
+    cap(`다리 경사각 = 경사각을 만드는 물리 수단: 경사각 → ${disp('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영${asymNote}`);
     update({ v3frame: { [key]: newVal }, v3fit: { panto, oh, vd } });
+  }
+
+  // ── 귀 높이 → OH·경사각 라이트스루(사용자 결정 2026-07-25) ──
+  // 다리는 귀에 얹혀 있으므로 귀가 올라가면 다리 뒤끝이 그만큼 들리고, 강체인
+  // 다리를 통해 프레임 전체가 들어올려진다(OH↑). 동시에 코받침이 프레임 높이를
+  // 붙잡아 완전히 따라 올라가진 못하므로 프런트가 회전해 렌즈 하단이 얼굴 쪽으로
+  // 기운다 = 경사각↑. 귀가 낮으면 정반대(안경이 내려앉고 경사각↓).
+  // 계수는 다리 경사각과 같은 지렛대 기하: 귀 1mm ≈ 다리 기울기 atan(1/120)=0.48°
+  // → 경사각 0.5°/mm. OH는 절반만 실제 상승으로(나머지는 회전으로 흡수) 0.5mm/mm.
+  // 좌우 비대칭이면 평균만 반영 — 좌우 '차이'는 프레임 기욺이 담당(B-5, applyFit).
+  const EAR_PANTO = 0.5, EAR_OH = 0.5;
+  function earYWrite(key, newVal) {
+    const prev = state.v3head[key] ?? (HEAD_SLIDERS.find((s) => s.key === 'earY').std);
+    const dv = newVal - prev;
+    if (!dv) { update({ v3head: { [key]: newVal } }); return; }
+    const factor = state.v3head.earYAsym ? 0.5 : 1;
+    const cur = { ...STANDARD_FIT, ...state.v3fit };
+    const panto = ledger('panto', cur.panto + dv * EAR_PANTO * factor);
+    const oh = ledger('oh', cur.oh + dv * EAR_OH * factor);
+    const o = disp('oh', oh);
+    cap(`귀 높이 = 다리가 얹히는 지점: 안경이 들리며 경사각 → ${disp('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영`);
+    update({ v3head: { [key]: newVal }, v3fit: { panto, oh } });
   }
 
   // ── 옆면 간격 → 정점간거리 라이트스루(사용자 결정 2026-07-23) ──
@@ -539,7 +566,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       const vd = ledger('vd', cur.vd + dv * GAP_VD * factor);
       patch.v3fit = { vd };
       const asymNote = state.v3frame.templeGapAsym ? ' (비대칭: 좁힌 쪽 림 전방+상승)' : '';
-      cap(`옆면 간격 = 프레임 전후 이동: 정점간거리 → ${fitLimit('vd', vd)}mm 함께 반영${asymNote}`);
+      cap(`옆면 간격 = 프레임 전후 이동: 정점간거리 → ${disp('vd', vd)}mm 함께 반영${asymNote}`);
     }
     update(patch);
   }
@@ -567,7 +594,10 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       }
     }
     const hkey = e.target.dataset?.head;
-    if (hkey) update({ v3head: { [hkey]: Number(e.target.value) } });
+    if (hkey) {
+      if (hkey === 'earY' || hkey === 'earY_R') earYWrite(hkey, Number(e.target.value));
+      else update({ v3head: { [hkey]: Number(e.target.value) } });
+    }
   });
   // 좌우 비대칭 체크박스 — 플래그 토글. 켤 때 오른쪽(_R)을 현재 왼쪽값으로 시드.
   panel.addEventListener('change', (e) => {
@@ -601,7 +631,9 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const hkey = e.target.dataset?.hreset;
     if (hkey) {
       const std = HEAD_SLIDERS.find((s) => s.key === hkey.replace(/_R$/, ''))?.std ?? 0;
-      update({ v3head: { [hkey]: std } });
+      // 귀 높이는 라이트스루 경로로 — 복귀도 OH·경사각을 함께 되돌린다
+      if (hkey === 'earY' || hkey === 'earY_R') earYWrite(hkey, std);
+      else update({ v3head: { [hkey]: std } });
     }
   });
   // 형상 → 광학 원리 캡션 (같은 크기라도 실면적·잘림이 다르다)
@@ -670,7 +702,8 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
       // 장부는 미클램프라 표시만 물리 한계로 자른다(FIT_LIMITS 주석 참조)
       const val = fitLimit(sl.key.replace(/_R$/, ''), f[sl.key] ?? sl.std);
       if (document.activeElement !== input) input.value = val;
-      num.textContent = `${val}${sl.unit}`;
+      // 장부는 0.0001 정밀도라 라벨은 소수 1자리로 정리(12.0025 → 12)
+      num.textContent = `${Math.round(val * 10) / 10}${sl.unit}`;
       num.style.color = val === sl.std ? '#fff' : '#f5b64e';
     }
     // 좌우 비대칭 (광학): 체크박스·서브행·프라이머리 라벨
