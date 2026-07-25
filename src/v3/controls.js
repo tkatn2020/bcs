@@ -527,15 +527,18 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     update({ v3frame: { [key]: newVal }, v3fit: { panto, oh, vd } });
   }
 
-  // ── 귀 높이 → OH·경사각 라이트스루(사용자 결정 2026-07-25) ──
-  // 다리는 귀에 얹혀 있으므로 귀가 올라가면 다리 뒤끝이 그만큼 들리고, 강체인
-  // 다리를 통해 프레임 전체가 들어올려진다(OH↑). 동시에 코받침이 프레임 높이를
-  // 붙잡아 완전히 따라 올라가진 못하므로 프런트가 회전해 렌즈 하단이 얼굴 쪽으로
-  // 기운다 = 경사각↑. 귀가 낮으면 정반대(안경이 내려앉고 경사각↓).
-  // 계수는 다리 경사각과 같은 지렛대 기하: 귀 1mm ≈ 다리 기울기 atan(1/120)=0.48°
-  // → 경사각 0.5°/mm. OH는 절반만 실제 상승으로(나머지는 회전으로 흡수) 0.5mm/mm.
+  // ── 귀 높이 → 경사각 라이트스루(사용자 결정 2026-07-25) ──
+  // 다리가 얹히는 지점이 위로 올라가면 다리 뒤끝이 들리고, 강체인 다리를 통해
+  // 프런트가 코받침 접점을 축으로 회전한다 → 렌즈 하단이 얼굴 쪽으로 = 경사각↑.
+  // 귀가 낮으면 정반대(경사각↓). 계수는 다리 경사각과 같은 지렛대 기하:
+  // 귀 1mm ≈ 다리 기울기 atan(1/120) = 0.48° → 0.5°/mm.
+  // ⚠️ **OH(전면부 높이)는 건드리지 않는다**(사용자 지적 2026-07-25): 프런트가
+  // 코를 타고 오르내리는 건 코받침이 재배치될 때(코받침 슬라이더·경사각 슬라이더)
+  // 얘기고, 귀 높이는 코받침 접점이 그대로라 **높이는 코받침이 붙잡고 회전만**
+  // 일어난다. 같은 경사각이라도 경로에 따라 OH가 다른 게 아니라, 물리적 원인이
+  // 달라서(코받침 재배치 vs 귀 안착점 이동) 결과가 다른 것.
   // 좌우 비대칭이면 평균만 반영 — 좌우 '차이'는 프레임 기욺이 담당(B-5, applyFit).
-  const EAR_PANTO = 0.5, EAR_OH = 0.5;
+  const EAR_PANTO = 0.5;
   function earYWrite(key, newVal) {
     const prev = state.v3head[key] ?? (HEAD_SLIDERS.find((s) => s.key === 'earY').std);
     const dv = newVal - prev;
@@ -543,10 +546,8 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const factor = state.v3head.earYAsym ? 0.5 : 1;
     const cur = { ...STANDARD_FIT, ...state.v3fit };
     const panto = ledger('panto', cur.panto + dv * EAR_PANTO * factor);
-    const oh = ledger('oh', cur.oh + dv * EAR_OH * factor);
-    const o = disp('oh', oh);
-    cap(`귀 높이 = 다리가 얹히는 지점: 안경이 들리며 경사각 → ${disp('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영`);
-    update({ v3head: { [key]: newVal }, v3fit: { panto, oh } });
+    cap(`귀 높이 = 다리 안착점: 코받침이 전면부 높이를 붙잡아 경사각만 변경 → ${disp('panto', panto)}°`);
+    update({ v3head: { [key]: newVal }, v3fit: { panto } });
   }
 
   // ── 옆면 간격 → 정점간거리 라이트스루(사용자 결정 2026-07-23) ──
