@@ -73,7 +73,7 @@ const SLIDERS = [
   { key: 'vd',    label: '정점간거리', min: 5,   max: 20, step: 0.5, unit: 'mm', std: STANDARD_FIT.vd,
     edu: '정점간거리: 멀수록 착용 여유↑ · 시야각↓ · 왜곡 노출↑ (본 앱은 시야 기하만 — 실제 강도수(±4D↑)에선 유효도수까지 변해 재보정 필요)' },
   { key: 'panto', label: '경사각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.panto,
-    edu: '경사각: 프레임 상하 이동(steep=위로 OH↑·VD↓ / flat=아래로 OH↓·VD↑) + 사선 비점수차(부족→근용·과다→원용 손실)' },
+    edu: '경사각: 이 프레임의 기울기를 직접 지정(위치는 안 변함) — 사선 비점수차(부족→근용·과다→원용 손실). 실제로 기울이는 수단은 다리 경사각' },
   { key: 'wrap',  label: '안면각',     min: -15, max: 15, step: 1,   unit: '°',  std: STANDARD_FIT.wrap,
     edu: '안면각: 표준(5°)에서 벗어날수록 주변부 수차·시야 왜곡↑' },
   // PD는 원래 단안 측정(R 32 / L 30이 정상) — 누진은 좌우 각각의 단안 PD로
@@ -117,7 +117,8 @@ const HEAD_SLIDERS = [
   { key: 'earY', label: '귀 상하', min: -10, max: 25, step: 0.5, unit: 'mm', std: 7, asym: true },
   { key: 'earZ', label: '귀 앞뒤', min: -10, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
   { key: 'faceWidth', label: '옆통수 폭', min: -6, max: 10, step: 0.5, unit: 'mm', std: 0, asym: true },
-  { key: 'noseBridge', label: '콧대', min: -8, max: 8, step: 0.5, unit: 'mm', std: 0 },
+  { key: 'noseBridge', label: '콧대', min: -8, max: 8, step: 0.5, unit: 'mm', std: 0,
+    edu: '콧대: 코받침이 얹히는 면 — 높으면 앞에서 받쳐 정점간거리↑·안경이 높이 올라앉음(OH↑), 낮으면(저비강) 눈에 붙고 내려앉음' },
 ];
 const HEAD_ASYM_KEYS = new Set(['earY', 'earZ', 'faceWidth']);   // change 핸들러 네임스페이스 판별
 
@@ -465,44 +466,24 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     update(patch);
   }
 
-  // ── 경사각 → OH·정점간거리 라이트스루(사용자 결정 2026-07-23) ──
-  // 경사각을 스팁하게 하면 안경 전면부가 코 위쪽(좁은 콧대)으로 올라앉아 OH↑·
-  // VD↓(가까움), 플랫하게 하면 코 아래쪽(넓은 콧볼)으로 내려앉아 OH↓·VD↑(멀어짐).
-  // 코받침(프레임의 일부)은 group.position(OH/VD)에 실려 자동으로 함께 이동한다.
-  // 코받침 라이트스루와 동일 델타 방식 — 표준(panto 8)에서 무변, 왕복 잔차
-  // 방지 위해 0.01 단위. (경사각의 사선 비점수차 효과 nearFit·distFit·tiltAstig는
-  // 별개로 유지; 원용 침범은 이제 실제 OH 상승이 담당해 ohEquiv 제거.)
-  // ⚠️ VD 계수: 경사각은 코받침/브릿지 접점을 축으로 한 **회전**이라, 광학중심
-  // (정면 시선점)에서 잰 정점간거리는 틸트를 줘도 거의 변하지 않는다 — 기존
-  // −0.2mm/°는 무시할 수준을 유의미한 커플로 과장했다(2026-07-25 감사 A-4).
-  // 프레임이 코의 좁은 쪽으로 올라앉으며 생기는 잔여분만 남긴다.
-  const PANTO_OH = 0.5, PANTO_VD = -0.05;
-  function pantoWrite(newVal) {
-    const prev = state.v3fit?.panto ?? STANDARD_FIT.panto;
-    const dv = newVal - prev;
-    const patch = { v3fit: { panto: newVal } };
-    if (dv) {
-      const cur = { ...STANDARD_FIT, ...state.v3fit };
-      const oh = ledger('oh', cur.oh + dv * PANTO_OH);
-      const vd = ledger('vd', cur.vd + dv * PANTO_VD);
-      patch.v3fit.oh = oh; patch.v3fit.vd = vd;
-      const o = disp('oh', oh);
-      // ⚠️ 이 앱의 경사각 커플은 '프레임이 코 위에서 재위치하는 물리'다 —
-      // 조제의 보상 법칙("경사각 1°당 광학중심 0.5mm 하강")과 크기가 우연히
-      // 같지만 서로 다른 개념이므로 캡션에서 구분해 둔다.
-      cap(`경사각 = 프레임 상하 이동: OH → ${o >= 0 ? '+' : ''}${o}mm · 정점간거리 → ${disp('vd', vd)}mm 함께 반영`
-        + ' (별개로 조제에선 경사각만큼 광학중심을 낮추는 보상이 필요)');
-    }
-    update(patch);
-  }
+  // ── 경사각(panto) 슬라이더 = 순수 광학 파라미터 (사용자 결정 2026-07-25) ──
+  // ⚠️ 예전에는 경사각을 조정하면 OH·VD가 함께 움직였다(프레임이 코를 타고
+  // 재위치하는 모델). 그런데 다리 경사각에 같은 로직이 생기면서 **두 슬라이더가
+  // 동일한 메커니즘을 중복 구동**하게 됐다 → 사용자 결정으로 경사각에서는 위치
+  // 커플을 떼고, "프레임을 실제로 기울이는 물리 수단"은 **다리 경사각이 단독으로**
+  // 담당한다. 이제 경사각 슬라이더는 "이 프레임의 경사각은 몇 도"를 직접 지정하는
+  // 광학 입력이고, 조정해도 안경 위치(OH·VD)는 변하지 않는다(프런트만 회전).
+  // 경사각의 광학 효과(사선 비점수차 nearFit·distFit·tiltAstig, 원용 침범)는 그대로.
 
   // ── 다리 경사각 → 경사각(panto) 라이트스루(사용자 결정 2026-07-25) ──
   // 실제 조제에서 경사각을 만드는 1차 수단이 바로 다리를 힌지에서 굽히는 것이다.
   // 다리 끝을 아래로 굽히면(+) 착용 시 귀 접점은 고정이므로 프런트가 회전해
-  // 경사각이 커진다 — 거의 1:1. panto가 다시 OH·VD를 구동하므로 "다리를 굽혔더니
-  // 경사각이 변하고 그 결과 프레임이 올라가 광학이 달라진다"는 실제 인과 사슬이
-  // 그대로 재현된다. ⚠️ 반대 방향(panto 슬라이더 → 다리 회전)은 여전히 분리 —
-  // 다리는 귀에 안착한 채 프런트만 기운다(6af424c 사용자 결정).
+  // 경사각이 커진다 — 거의 1:1. 여기서 OH·VD까지 함께 움직여 "다리를 굽혔더니
+  // 경사각이 변하고 그 결과 프레임이 올라가 광학이 달라진다"는 인과 사슬이
+  // 재현된다. **프레임을 실제로 움직이는 물리 수단은 이 슬라이더 단독**이다
+  // (경사각 슬라이더는 위치를 건드리지 않음 — 위 절 참조).
+  // ⚠️ 반대 방향(panto 슬라이더 → 다리 회전)은 여전히 분리 — 다리는 귀에
+  // 안착한 채 프런트만 기운다(6af424c 사용자 결정).
   // 다리는 **직선**이고 귀 접점이 고정이므로, 힌지에서 나가는 각도를 1° 바꾸면
   // 힌지(=프레임)가 bodyRun(힌지→귀 실측 120mm) × tan1° ≈ 2.1mm 오르내린다.
   // 그래서 다리 경사각은 실무에서 매우 강력한 조정이고, 몇 도만 굽혀도 안경
@@ -510,6 +491,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   // 다리 기울기도 그 지점에서 포화한다 — 물리적으로 정직한 한계.
   const TEMPLE_PANTO = 1.0;   // 다리 1°당 경사각 1°
   const TEMPLE_OH = 2.1;      // 다리 1°당 프레임 2.1mm (귀 지렛대)
+  const TEMPLE_VD = -0.05;    // 프레임이 코의 좁은 쪽으로 올라앉으며 생기는 잔여분
   function templeAngleWrite(key, newVal) {
     const prev = state.v3frame[key] ?? 0;
     const dv = newVal - prev;
@@ -520,7 +502,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const cur = { ...STANDARD_FIT, ...state.v3fit };
     const panto = ledger('panto', cur.panto + dv * TEMPLE_PANTO * factor);
     const oh = ledger('oh', cur.oh + dv * TEMPLE_OH * factor);
-    const vd = ledger('vd', cur.vd + dv * TEMPLE_PANTO * factor * PANTO_VD);
+    const vd = ledger('vd', cur.vd + dv * TEMPLE_PANTO * factor * TEMPLE_VD);
     const o = disp('oh', oh);
     const asymNote = state.v3frame.templeAngleAsym ? ' (비대칭: 더 굽힌 쪽이 올라가 프레임이 기욺)' : '';
     cap(`다리 경사각 = 경사각을 만드는 물리 수단: 경사각 → ${disp('panto', panto)}° · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영${asymNote}`);
@@ -550,6 +532,29 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     update({ v3head: { [key]: newVal }, v3fit: { panto } });
   }
 
+  // ── 콧대 → 정점간거리·OH 라이트스루(사용자 결정 2026-07-25) ──
+  // 코받침이 얹히는 면이 바로 콧대다. 콧대가 높아지면(앞으로 돌출) 코받침이 더
+  // 앞에서 받쳐 프레임 전체가 얼굴에서 멀어지고(VD↑), 동시에 좁아지는 콧대 위쪽에
+  // 얹혀 더 높이 올라앉는다(OH↑). 낮은 콧대(저비강)는 정반대 — 안경이 눈에 붙고
+  // 내려앉아 속눈썹이 렌즈에 닿거나 시선이 근용부로 빠지는 실제 문제.
+  // ⚠️ '콧대는 시각 전용' 결정을 사용자 요청으로 번복(2026-07-25).
+  // ⚠️ 계수 캘리브레이션: VD **표시값** 1mm는 3D에서 약 2mm 이동이다
+  // (effZ = vd + effClearance의 비선형 증폭 — glassesBuilder 참조). 콧대 1mm
+  // 돌출에 안경도 1mm만 나가야 코받침이 콧대에 붙어 있으므로 VD 계수는 0.5.
+  // 상승은 코 능선 경사를 타고 오르는 성분만 0.3mm/mm.
+  const NOSE_VD = 0.5, NOSE_OH = 0.3;
+  function noseBridgeWrite(newVal) {
+    const prev = state.v3head.noseBridge ?? 0;
+    const dv = newVal - prev;
+    if (!dv) { update({ v3head: { noseBridge: newVal } }); return; }
+    const cur = { ...STANDARD_FIT, ...state.v3fit };
+    const vd = ledger('vd', cur.vd + dv * NOSE_VD);
+    const oh = ledger('oh', cur.oh + dv * NOSE_OH);
+    const o = disp('oh', oh);
+    cap(`콧대 = 코받침이 얹히는 면: 정점간거리 → ${disp('vd', vd)}mm · OH → ${o >= 0 ? '+' : ''}${o}mm 함께 반영`);
+    update({ v3head: { noseBridge: newVal }, v3fit: { vd, oh } });
+  }
+
   // ── 옆면 간격 → 정점간거리 라이트스루(사용자 결정 2026-07-23) ──
   // 두상은 앞으로 갈수록 좁아진다 — 간격을 좁히면 다리가 두상 앞쪽에 걸려
   // 프레임 전체가 앞으로 밀려나고(얼굴에서 멀어짐 = VD↑), 넓히면 뒤로 들어와
@@ -575,12 +580,9 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   panel.addEventListener('input', (e) => {
     const key = e.target.dataset?.fit;
     if (key) {
-      if (key === 'panto') pantoWrite(Number(e.target.value));
-      else {
-        update({ v3fit: { [key]: Number(e.target.value) } });
-        const sl = SLIDERS.find((x) => x.key === key);
-        if (sl?.edu) cap(sl.edu);
-      }
+      update({ v3fit: { [key]: Number(e.target.value) } });
+      const sl = SLIDERS.find((x) => x.key === key.replace(/_R$/, ''));
+      if (sl?.edu) cap(sl.edu);
     }
     const fkey = e.target.dataset?.frame;
     if (fkey) {
@@ -597,6 +599,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const hkey = e.target.dataset?.head;
     if (hkey) {
       if (hkey === 'earY' || hkey === 'earY_R') earYWrite(hkey, Number(e.target.value));
+      else if (hkey === 'noseBridge') noseBridgeWrite(Number(e.target.value));
       else update({ v3head: { [hkey]: Number(e.target.value) } });
     }
   });
@@ -617,8 +620,7 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const key = e.target.dataset?.reset;
     if (key) {
       const std = SLIDERS.find((s) => s.key === key.replace(/_R$/, ''))?.std ?? 0;
-      if (key === 'panto') pantoWrite(std);   // 복귀도 OH·VD를 함께 되돌린다
-      else update({ v3fit: { [key]: std } });
+      update({ v3fit: { [key]: std } });
     }
     const fkey = e.target.dataset?.freset;
     if (fkey) {
@@ -632,8 +634,9 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     const hkey = e.target.dataset?.hreset;
     if (hkey) {
       const std = HEAD_SLIDERS.find((s) => s.key === hkey.replace(/_R$/, ''))?.std ?? 0;
-      // 귀 높이는 라이트스루 경로로 — 복귀도 OH·경사각을 함께 되돌린다
+      // 귀 높이·콧대는 라이트스루 경로로 — 복귀도 커플된 값을 함께 되돌린다
       if (hkey === 'earY' || hkey === 'earY_R') earYWrite(hkey, std);
+      else if (hkey === 'noseBridge') noseBridgeWrite(std);
       else update({ v3head: { [hkey]: std } });
     }
   });
