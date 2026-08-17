@@ -127,7 +127,7 @@ const SHAPES = [
   { id: 'boston', label: '보스턴' }, { id: 'aviator', label: '애비에이터' },
 ];
 
-const CAM_PRESETS = [
+export const CAM_PRESETS = [
   { id: 'quarter', label: '¾', pos: [0.62, 0.18, 0.72], tgt: [0.05, -0.02, 0.28] },
   { id: 'front', label: '정면', pos: [0.02, 0.02, 0.55], tgt: [0, 0, 0] },
   { id: 'side', label: '측면', pos: [0.52, 0.02, 0.03], tgt: [0, 0, 0.01] },
@@ -336,7 +336,8 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     let target = null;
     if (k === 'shape') target = panel.querySelector('[data-shape]')?.closest('.v3-mini');
     else {
-      const input = panel.querySelector(`[data-fit="${k}"]`) || panel.querySelector(`[data-frame="${k}"]`);
+      const input = panel.querySelector(`[data-fit="${k}"]`) || panel.querySelector(`[data-frame="${k}"]`)
+        || panel.querySelector(`[data-head="${k}"]`);
       target = input?.closest('.v3-row');
     }
     if (!target) return;
@@ -765,4 +766,45 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
   }
   refresh(state);
   subscribe(refresh);
+
+  // ── 외부 모듈(튜토리얼)용 컨트롤 적용 API ──
+  // 사용자 슬라이더 조작과 100% 동일한 경로(라이트스루 write 함수 포함)를 타므로
+  // "다리 3°인데 경사각 8°" 같은 모순 상태를 만들 수 없다. patch 직접 주입 금지.
+  function applyControl(kind, key, value) {
+    if (kind === 'reset') {
+      resetFitting();
+      update({
+        corridor: 12, add: 2.0,
+        v3view: { zones: { distance: false, intermediate: false, near: false }, targets: false },
+      });
+      return;
+    }
+    if (kind === 'corridor') { update({ corridor: value }); return; }
+    if (kind === 'add') { update({ add: value }); return; }
+    if (kind === 'grade') { update({ grade: value }); return; }
+    if (kind === 'asym') {   // change 핸들러와 동일 로직(켤 때 _R 시드)
+      const ns = HEAD_ASYM_KEYS.has(key) ? 'v3head'
+               : (SLIDERS.some((s) => s.key === key) ? 'v3fit' : 'v3frame');
+      const cur = ns === 'v3fit' ? { ...STANDARD_FIT, ...state.v3fit } : state[ns];
+      const patch = { [`${key}Asym`]: value ? 1 : 0 };
+      if (value) patch[`${key}_R`] = cur[key];
+      update({ [ns]: patch });
+      return;
+    }
+    if (kind === 'fit') { update({ v3fit: { [key]: value } }); return; }
+    if (kind === 'frame') {
+      if (PAD_COUPLE[key]) padWrite(key, value);
+      else if (key === 'templeGap' || key === 'templeGap_R') gapWrite(key, value);
+      else if (key === 'templeAngle' || key === 'templeAngle_R') templeAngleWrite(key, value);
+      else update({ v3frame: { [key]: value } });
+      return;
+    }
+    if (kind === 'head') {
+      if (key === 'earY' || key === 'earY_R') earYWrite(key, value);
+      else if (key === 'noseBridge') noseBridgeWrite(value);
+      else update({ v3head: { [key]: value } });
+    }
+  }
+
+  return { applyControl };
 }

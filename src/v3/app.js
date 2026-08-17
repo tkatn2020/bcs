@@ -15,6 +15,8 @@ import { computeZones, STANDARD_FIT, fitLimit } from './fittingModel.js';
 import { attachDragHandles } from './dragHandles.js';
 import { mountControls } from './controls.js';
 import { createSlipSim } from './slipSim.js';
+import { createTutorialDirector } from './tutorialDirector.js';
+import { mountTutorial } from './tutorialPanel.js';
 import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.02, 0.02, 0.55], tgt: [0, 0, 0] };   // 정면 시점(첫 화면·더블탭 리셋 기본)
@@ -488,12 +490,25 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   // 흘러내림 시뮬 — 고개 숙임 × 귀 고정력 × 코받침 지지 (slipSim.js 헤더 참조)
   const slipSim = createSlipSim({ cap: hud.caption });
 
-  mountControls(document.body, { stage, getDemo: () => demo, getMulti: () => multi, setCaption: hud.caption });
+  const ctrl = mountControls(document.body, { stage, getDemo: () => demo, getMulti: () => multi, setCaption: hud.caption });
   mountCredit(document.body);
+
+  // ── 초년차 튜토리얼 — 잘못된 피팅 교정 + 고객 증상 감별 훈련 ──
+  const tutorial = createTutorialDirector({
+    ctrl, stage, cap: hud.caption,
+    getDemo: () => demo, getMulti: () => multi, getGlasses: () => glasses,
+  });
+  const tutorialUi = mountTutorial(document.body, tutorial);
+  // 멀티뷰와 상호 배타: 팝업이 열리면 튜토리얼을 닫고 진입 버튼도 숨긴다
+  // (둘 다 좌상단 같은 자리를 씀; 반대 방향 배타는 director.start가 처리)
+  multi.setOnToggle((isOpen) => {
+    if (isOpen && tutorialUi.isOpen) tutorialUi.close();
+    tutorialUi.hideEntry(isOpen);
+  });
 
   Object.assign(window.__v3, {
     mannequin: { group, anchors, morphMesh, eyes, headMesh },
-    glasses, zones, targets, demo, deformer, multi, slipSim,
+    glasses, zones, targets, demo, deformer, multi, slipSim, tutorial,
   });
 }).catch((err) => {
   console.error('Mannequin load failed:', err);
