@@ -25,8 +25,50 @@ export function mannequinMaterial() {
   });
 }
 
+// 두상 전용 재질 — 정점별 AO(버텍스 컬러)를 곱해 쓴다. 눈알·이빨은 컬러
+// 속성이 없으므로 같은 재질을 공유하면 안 된다(WebGL이 없는 attribute를
+// (0,0,0)으로 줘서 새까매진다). 흰 마네킹 컨셉은 유지하되 clearcoat를 낮추고
+// sheen을 얹어 도자기보다 피부에 가까운 반사로.
+//
+// ⚠️ color가 0xf2f2f4였을 때 얼굴 픽셀의 **절반이 224~255 구간**에 몰려 있었다
+// (렌더 버퍼 실측). 톤매핑이 하이라이트를 압축하는 영역이라, AO를 아무리 세게
+// 걸어도 출력 밝기가 0.3%밖에 안 움직여 음영이 통째로 묻혔다 — '석고처럼
+// 밋밋하다'의 진짜 원인은 질감이 아니라 **날아간 계조**였다. 베이스를 낮춰
+// 포화를 48.7% → 약 16%로 줄이면 기존 조명만으로도 광대·콧망울·턱선이 살아난다.
+// 조명과 노출은 건드리지 않았다(안경테·배경의 룩을 지키기 위해).
+export function skinMaterial() {
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xc8c8cc,
+    metalness: 0.0,
+    roughness: 0.42,
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.38,
+    sheen: 0.35,
+    sheenRoughness: 0.85,
+    sheenColor: new THREE.Color(0xffe8dc),
+    vertexColors: true,
+  });
+}
+
 const TARGET_PD_M = 0.062;      // real-world IPD the head is normalized to
 const FALLBACK_HEAD_HEIGHT_M = 0.24;
+
+// 두상 패치 — 원본 GLB를 손대지 않고 런타임에 얹는 보강 데이터.
+//   sealFaces: 아래로 열린 두 껍질(앞 얼굴·뒤통수) rim을 잇는 삼각형 120개.
+//              정점을 하나도 추가하지 않으므로(인덱스만 추가) 앱의 실측
+//              캘리브레이션(귀 위치·측두부 프로파일·코 돌출)이 전부 불변이다.
+//   ao:        정점별 가려짐 0~255. Blender에서 BVH 반구 레이캐스트로 구운 뒤
+//              국소 오목(주름)과 섞은 값. 텍스처가 아니라 정점 속성이라 UV가
+//              필요 없고, headDeform이 정점을 움직여도 그대로 따라간다.
+// 정점 수가 어긋나면(폴백 자산·자산 교체) 조용히 건너뛴다.
+const HEAD_PATCH_URL = 'assets/mannequin/head-open-patch.json';
+const AO_STRENGTH = 0.60;       // 1.0 = 완전히 가려진 곳이 검정
+
+function loadHeadPatch(url) {
+  return fetch(url)
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
 
 // facecap 스캔은 얼굴-두피 경계에 미세한 접힘(crease)이 있어 computeVertexNormals
 // 후 그 선이 음영으로 드러난다. 지오메트리·인덱스는 그대로 두고(정점 변형이
@@ -131,7 +173,7 @@ export function blendSeamNormals(geo, radius = 0.006, iters = 3) {
 // positions, Int16 relative morph deltas); the whole node chain is uniform-scale
 // + translation with NO rotation, so a single scalar rescales the morph deltas.
 // Requires group.updateMatrixWorld(true) to have run. Returns the mesh.
-function bakeHeadMesh(mesh, group) {
+function bakeHeadMesh(mesh, group, patch) {
   const geo = mesh.geometry;
   mesh.updateWorldMatrix(true, false);
   const M = mesh.matrixWorld.clone();               // root + node chain (no rotation)
@@ -174,6 +216,30 @@ function bakeHeadMesh(mesh, group) {
   mesh.quaternion.identity();
   mesh.scale.set(1, 1, 1);
 
+  // 패치 적용 — 반드시 노멀 재계산 **전에**. 메우는 면이 인덱스에 들어가야
+  // computeVertexNormals가 그 면까지 셈해 rim 정점의 노멀이 안쪽으로 꺾이지
+  // 않는다. 정점 수가 어긋나면 건너뛴다(폴백 자산 방어).
+  if (patch && patch.vertexCount === n) {
+    const seal = patch.sealFaces;
+    if (seal && seal.length && geo.index) {
+      const old = geo.index.array;
+      const Arr = old.constructor;            // Uint16 유지(2694 정점이라 충분)
+      const merged = new Arr(old.length + seal.length);
+      merged.set(old, 0);
+      merged.set(seal, old.length);
+      geo.setIndex(new THREE.BufferAttribute(merged, 1));
+    }
+    const ao = patch.ao;
+    if (ao && ao.length === n) {
+      const col = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        const shade = 1 - AO_STRENGTH * (ao[i] / 255);
+        col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = shade;
+      }
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    }
+  }
+
   // Recompute normals fresh. The asset's normal attribute is quantized Int8
   // (normalized); reusing it would truncate the tiny metre-scale face-normal
   // accumulation to 0 (→ black shading). Delete it so computeVertexNormals
@@ -188,6 +254,7 @@ function bakeHeadMesh(mesh, group) {
 }
 
 export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
+  const patchP = loadHeadPatch(HEAD_PATCH_URL);   // GLB와 병렬 로드
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);   // facecap uses EXT_meshopt_compression
@@ -282,20 +349,28 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
       // Bake the face mesh into a deformable Float32 group-space geometry
       // (headDeform.js reads restPositions as the deform baseline). Facecap only;
       // the fallback bust has no morphs → headMesh/restPositions stay null.
-      let headMesh = null, restPositions = null;
-      if (morphMesh) {
-        headMesh = bakeHeadMesh(morphMesh, group);
-        restPositions = headMesh.geometry.attributes.position.array.slice();
-      }
+      // 패치는 베이크 시점에 필요하다(인덱스가 노멀 재계산보다 앞서야 함).
+      // 로드 실패·지연은 치명적이지 않으므로 null로 이어 간다 — 메우는 면과
+      // AO만 빠지고 나머지는 기존과 동일하게 동작한다.
+      const finish = (patch) => {
+        let headMesh = null, restPositions = null;
+        if (morphMesh) {
+          headMesh = bakeHeadMesh(morphMesh, group, patch);
+          // AO가 실린 두상만 버텍스 컬러 재질로 바꾼다(눈알·이빨은 공용 재질 유지).
+          if (headMesh.geometry.hasAttribute('color')) headMesh.material = skinMaterial();
+          restPositions = headMesh.geometry.attributes.position.array.slice();
+        }
 
-      resolve({
-        group,
-        anchors: { left: anchorL, right: anchorR },
-        morphMesh,
-        eyes: eyePivots,   // pivot Groups (제자리 회전) — 없으면 null
-        headMesh,          // baked Float32 face mesh (deformable) — 없으면 null
-        restPositions,     // Float32Array 변형 기준선 — 없으면 null
-      });
+        resolve({
+          group,
+          anchors: { left: anchorL, right: anchorR },
+          morphMesh,
+          eyes: eyePivots,   // pivot Groups (제자리 회전) — 없으면 null
+          headMesh,          // baked Float32 face mesh (deformable) — 없으면 null
+          restPositions,     // Float32Array 변형 기준선 — 없으면 null
+        });
+      };
+      patchP.then(finish, () => finish(null));
     }, undefined, reject);
   });
 }
