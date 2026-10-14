@@ -61,6 +61,42 @@ export const FRAME_DEFAULTS = {
   padSpacing: 0,     // 좌우 간격 오프셋 (m, + = 넓게)
   padVertical: 0,    // 상하 위치 오프셋 (m, + = 위)
   padArm: 0,         // 암 길이 오프셋 (m, + = 코 아래로 길게)
+
+  // ── 마감 — 색·재질만 바꾼다(지오메트리·광학 무관, 리빌드 불필요) ──
+  finish: 'silver',
+};
+
+// 마감 프리셋. frame은 림·브릿지·다리, metal은 힌지와 코받침 암에 쓴다 —
+// 실제 아세테이트 테도 힌지와 코받침은 금속이라 한 덩어리로 칠하면 장난감이
+// 된다. 메탈 프레임은 두 값을 같게 둬 한 소재로 보이게 한다.
+export const FRAME_FINISHES = {
+  silver: {
+    label: '실버',
+    frame: { color: 0xd6d8dc, metalness: 0.05, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.12 },
+    metal: { color: 0xd6d8dc, metalness: 0.05, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.12 },
+  },
+  gold: {
+    label: '골드',
+    frame: { color: 0xc9a227, metalness: 0.92, roughness: 0.26, clearcoat: 0.35, clearcoatRoughness: 0.20 },
+    metal: { color: 0xc9a227, metalness: 0.92, roughness: 0.26, clearcoat: 0.35, clearcoatRoughness: 0.20 },
+  },
+  black: {
+    label: '블랙',
+    frame: { color: 0x14151a, metalness: 0.0, roughness: 0.24, clearcoat: 1.0, clearcoatRoughness: 0.07 },
+    metal: { color: 0xc2c6cd, metalness: 0.90, roughness: 0.24, clearcoat: 0.3, clearcoatRoughness: 0.20 },
+  },
+  // 토터스(거북등껍질)는 본래 얼룩무늬지만 여기서는 **갈색 단색 근사**다 —
+  // 림 UV가 ExtrudeGeometry 기본이라 무늬를 깔면 면마다 어긋난다.
+  tortoise: {
+    label: '토터스',
+    frame: { color: 0x6b4420, metalness: 0.0, roughness: 0.30, clearcoat: 0.95, clearcoatRoughness: 0.12 },
+    metal: { color: 0xc2c6cd, metalness: 0.90, roughness: 0.24, clearcoat: 0.3, clearcoatRoughness: 0.20 },
+  },
+  matte: {
+    label: '무광',
+    frame: { color: 0x26272d, metalness: 0.0, roughness: 0.82, clearcoat: 0.06, clearcoatRoughness: 0.70 },
+    metal: { color: 0x9aa0a8, metalness: 0.85, roughness: 0.45, clearcoat: 0.1, clearcoatRoughness: 0.50 },
+  },
 };
 
 const GEO_KEYS = [
@@ -111,6 +147,101 @@ function superellipsePts(w, h, nTop, nBottom, dropBottom = 1, count = 64) {
     pts.push(new THREE.Vector2(x, y));
   }
   return pts;
+}
+
+// ── 다리 단면 ──────────────────────────────────────────────────────
+// 둥근 사각 단면의 점들을 [u(두께축), v(높이축)]로 돌려준다.
+function roundRectProfile(halfU, halfV, r, seg = 2) {
+  const pts = [];
+  const rr = Math.min(r, halfU * 0.95, halfV * 0.95);
+  const corners = [
+    [halfU - rr, halfV - rr, 0],
+    [-(halfU - rr), halfV - rr, Math.PI / 2],
+    [-(halfU - rr), -(halfV - rr), Math.PI],
+    [halfU - rr, -(halfV - rr), -Math.PI / 2],
+  ];
+  for (const [cu, cv, a0] of corners) {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (i / seg) * (Math.PI / 2);
+      pts.push([cu + Math.cos(a) * rr, cv + Math.sin(a) * rr]);
+    }
+  }
+  return pts;
+}
+
+// 커브를 따라 단면을 쓸어 만든 지오메트리. three.js TubeGeometry는 원형
+// 단면만 만드는데, 실제 안경 다리는 납작한 사각이다(아세테이트 약 4.4 ×
+// 2.2mm) — 원기둥이면 어느 각도에서 봐도 굵기가 같아 금속 와이어로 보인다.
+//
+// 프레임은 Frenet(비틀림이 생긴다) 대신 **월드 위 벡터 고정**으로 잡는다:
+// 단면이 늘 수직으로 서서 실제 다리처럼 보이고, 커브가 꺾여도 돌아가지
+// 않는다. 드롭이 완전 수직(귀팁각 90°)이면 cross가 0이 되므로 fallbackU로
+// 비킨다.
+function sweepProfile(curve, segments, profileAt, fallbackU) {
+  const UP = new THREE.Vector3(0, 1, 0);
+  const ring = profileAt(0).length;
+  const pos = new Float32Array((segments + 1) * ring * 3);
+  const P = new THREE.Vector3(), T = new THREE.Vector3();
+  const U = new THREE.Vector3(), V = new THREE.Vector3();
+  let o = 0;
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    curve.getPointAt(t, P);
+    T.copy(curve.getTangentAt(t));
+    U.crossVectors(UP, T);
+    if (U.lengthSq() < 1e-8) U.copy(fallbackU);
+    U.normalize();
+    V.crossVectors(T, U).normalize();
+    const prof = profileAt(t);
+    for (let k = 0; k < ring; k++) {
+      const u = prof[k][0], v = prof[k][1];
+      pos[o++] = P.x + U.x * u + V.x * v;
+      pos[o++] = P.y + U.y * u + V.y * v;
+      pos[o++] = P.z + U.z * u + V.z * v;
+    }
+  }
+  const idx = [];
+  for (let i = 0; i < segments; i++) {
+    for (let k = 0; k < ring; k++) {
+      const a = i * ring + k, b = i * ring + ((k + 1) % ring);
+      const c = (i + 1) * ring + k, d = (i + 1) * ring + ((k + 1) % ring);
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  // 양 끝 뚜껑 — 단면이 볼록해서 첫 점 기준 팬으로 충분하다. 힌지 쪽은 림에
+  // 묻히지만 귀 뒤 끝은 그대로 보이므로 막아야 속이 뚫려 보이지 않는다.
+  const last = segments * ring;
+  for (let k = 1; k < ring - 1; k++) {
+    idx.push(0, k, k + 1);
+    idx.push(last, last + k + 1, last + k);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// 렌즈 베이스커브 — 평면 ShapeGeometry를 구면으로 밀어 접시 모양으로 굽힌다.
+// 베이스 4 ≈ 반경 132mm. ShapeGeometry는 earcut 삼각분할이라 내부 정점이
+// 없어 가장자리만 뒤로 물러나는데, 실제 렌즈(메니스커스)도 그런 모습이다.
+// 렌즈 투명도가 0.16이라 효과는 은은하다 — 윤곽선의 두께감 정도다.
+// ⚠️ 노멀은 computeVertexNormals로 뽑으면 안 된다 — earcut은 윤곽선 정점만
+// 써서 길쭉한 삼각형을 만들고, 그걸 구면으로 밀면 면마다 노멀이 튀어 렌즈에
+// 조각 음영이 생긴다. 구면 노멀은 해석적으로 구할 수 있다: 구 중심이
+// (0,0,−R)이므로 노멀 = (x, y, √(R²−r²)) / R.
+const LENS_BASE_R = 0.132;
+function curveLens(geo, R = LENS_BASE_R) {
+  const pos = geo.attributes.position;
+  const nrm = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    const k = Math.sqrt(Math.max(0, R * R - x * x - y * y));
+    pos.setZ(i, pos.getZ(i) - (R - k));
+    nrm[i * 3] = x / R; nrm[i * 3 + 1] = y / R; nrm[i * 3 + 2] = k / R;
+  }
+  pos.needsUpdate = true;
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
 }
 
 // 외곽선에서 높이 y가 지나는 최대 x(edge) — 형상 무관 실측. 브릿지·엔드
@@ -227,8 +358,23 @@ export function createGlasses(anchors, opts = {}) {
   const group = new THREE.Group();
   group.name = 'glasses';
 
-  const frameMat = new THREE.MeshPhysicalMaterial({
-    color: 0xd6d8dc, metalness: 0.05, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.12,
+  // frameMat = 림·브릿지·다리, metalMat = 힌지·코받침 암(아세테이트 테에서도
+  // 금속). 마감 교체는 재질 값만 갈아끼우므로 리빌드가 필요 없다.
+  const frameMat = new THREE.MeshPhysicalMaterial();
+  const metalMat = new THREE.MeshPhysicalMaterial();
+  function applyFinish(id) {
+    const f = FRAME_FINISHES[id] || FRAME_FINISHES.silver;
+    frameMat.setValues(f.frame);
+    metalMat.setValues(f.metal);
+    frameMat.needsUpdate = true;
+    metalMat.needsUpdate = true;
+  }
+  applyFinish(p.finish);
+  // 코패드는 어떤 마감에서도 반투명 실리콘 — 금속으로 칠하면 장난감이 된다.
+  const padMat = new THREE.MeshPhysicalMaterial({
+    color: 0xdfe8ee, metalness: 0.0, roughness: 0.12,
+    clearcoat: 1.0, clearcoatRoughness: 0.05,
+    transparent: true, opacity: 0.72,
   });
   const lensMat = new THREE.MeshPhysicalMaterial({
     color: 0xcfe2ee, transparent: true, opacity: 0.16,
@@ -303,21 +449,35 @@ export function createGlasses(anchors, opts = {}) {
       const outerPts = outerOutline(p);
       const shape = new THREE.Shape(outerPts);
       shape.holes.push(new THREE.Path(innerPts.slice().reverse()));
-      const rimGeo = new THREE.ExtrudeGeometry(shape, { depth: p.depth, bevelEnabled: false });
-      rimGeo.translate(0, 0, -p.depth / 2);
+      // 림 단면 모서리 깎기 — bevelEnabled:false면 직각으로 잘린 판이라
+      // 플라스틱 조각처럼 보인다. 베벨은 바깥 윤곽과 렌즈 구멍 **양쪽**에
+      // 걸려, 구멍 쪽 경사가 실제 렌즈 홈(bevel groove)처럼 읽힌다.
+      // ExtrudeGeometry는 베벨을 depth 바깥으로 덧붙이므로(전체 = depth +
+      // 2·bevelThickness) 평평부를 그만큼 줄여 총 두께를 p.depth로 지킨다.
+      const bevelT = Math.min(0.00032, p.depth * 0.22);
+      const flat = Math.max(0.0002, p.depth - bevelT * 2);
+      const rimGeo = new THREE.ExtrudeGeometry(shape, {
+        depth: flat, bevelEnabled: true,
+        bevelThickness: bevelT, bevelSize: bevelT, bevelSegments: 2,
+      });
+      rimGeo.translate(0, 0, -flat / 2);
       const rim = new THREE.Mesh(rimGeo, frameMat);
       sideG.add(rim);
       built.push(rim);
 
-      const lens = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(innerPts)), lensMat);
+      const lensGeo = new THREE.ShapeGeometry(new THREE.Shape(innerPts));
+      curveLens(lensGeo);
+      const lens = new THREE.Mesh(lensGeo, lensMat);
       lens.renderOrder = 5;
       sideG.add(lens);
       built.push(lens);
 
-      const zonePlane = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(innerPts)), zoneMat);
-      zonePlane.position.z = 0.0006;
+      const zoneGeo = new THREE.ShapeGeometry(new THREE.Shape(innerPts));
+      remapUVs(zoneGeo);         // UV는 평면 x·y 기준 — 굽히기 전에 잡는다
+      curveLens(zoneGeo);
+      const zonePlane = new THREE.Mesh(zoneGeo, zoneMat);
+      zonePlane.position.z = 0.0006;   // 굽은 렌즈 면보다 늘 앞
       zonePlane.renderOrder = 6;
-      remapUVs(zonePlane.geometry);
       sideG.add(zonePlane);
       built.push(zonePlane);
 
@@ -364,14 +524,14 @@ export function createGlasses(anchors, opts = {}) {
         );
         const arm = new THREE.Mesh(
           new THREE.TubeGeometry(new THREE.CatmullRomCurve3([R, mid, A]), 24, 0.0007, 8),
-          frameMat,
+          metalMat,   // 아세테이트 테라도 코받침 암은 금속이다
         );
         sideG.add(arm);
         built.push(arm);
 
         const padGeo = new THREE.SphereGeometry(1, 20, 16);
         padGeo.scale(0.0022, 0.0045, 0.0011);   // 4.4 × 9 × 2.2 mm ellipsoid
-        const pad = new THREE.Mesh(padGeo, frameMat);
+        const pad = new THREE.Mesh(padGeo, padMat);
         pad.position.set(A.x - side * 0.0004, A.y, A.z);   // embed arm tip (no gap)
         pad.rotation.z = side * THREE.MathUtils.degToRad(12);
         pad.rotation.y = side * THREE.MathUtils.degToRad(20);   // face onto nose side
@@ -389,6 +549,20 @@ export function createGlasses(anchors, opts = {}) {
       // 박스 가정이면 곡선 형상에서 엔드피스·다리가 림에서 떨어진다(형상
       // 무관 실측, 사각은 기존과 ~0.06mm 차이). 0.5mm 묻어 용접.
       const hx = (edgeXAtY(outerPts, hingeY + p.endpiece) ?? (p.lensW / 2 + p.rimT)) - 0.0005;
+
+      // 힌지 배럴 — 엔드피스 바깥 끝에 세로축으로 선 금속 통 두 개. 실제
+      // 안경은 이 통이 다리 쪽 통과 맞물려 접힌다. 프런트 쪽에만 달아
+      // sideG 자식으로 두므로 경사각을 줘도 다리와 따로 움직인다(실제 힌지
+      // 유격과 부합). 마감이 아세테이트여도 힌지는 금속(metalMat).
+      for (const dy of [0.00115, -0.00115]) {
+        const barrel = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.00075, 0.00075, 0.0017, 10),
+          metalMat,
+        );
+        barrel.position.set(side * (hx + 0.0005), hingeY + p.endpiece + dy, 0);
+        sideG.add(barrel);
+        built.push(barrel);
+      }
       const groupOffsetY = anchorMid.y + p.oh;
       const groupOffsetZ = anchorMid.z + effZ();
       const headX = p.headSideX || (() => 0.072);   // 측두부 옆면 x(z, side)
@@ -512,10 +686,17 @@ export function createGlasses(anchors, opts = {}) {
         pg.sub(frontGp).applyQuaternion(qUnPanto).sub(sideGp).applyQuaternion(qUnWrap);
 
       const curve = new THREE.CatmullRomCurve3([...bodyPts, dropMid, dropEnd].map(toSideLocal));
-      const temple = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 40, 0.0014, 8),
-        frameMat,
-      );
+      // 다리 단면 — 아세테이트 기준 두께 2.2mm × 높이 4.4mm의 둥근 사각.
+      // 귀를 넘어 드롭으로 갈수록 가늘어진다(실제 다리도 팁이 얇다).
+      // ⚠️ 피부 침투 클램프(gapOff ≥ 1.8mm)는 그대로 둔다 — 새 단면의 반두께
+      // 1.1mm가 기존 원기둥 반지름 1.4mm보다 작아 오히려 여유가 늘고,
+      // 상수를 건드리면 사용자가 캘리브레이션해 둔 간격 체감이 달라진다.
+      const TEMPLE_HALF_T = 0.0011, TEMPLE_HALF_H = 0.0022;
+      const templeGeo = sweepProfile(curve, 48, (t) => {
+        const taper = t < 0.72 ? 1 : 1 - 0.34 * ((t - 0.72) / 0.28);
+        return roundRectProfile(TEMPLE_HALF_T * taper, TEMPLE_HALF_H * taper, 0.0008, 2);
+      }, new THREE.Vector3(side, 0, 0));
+      const temple = new THREE.Mesh(templeGeo, frameMat);
       // 다리는 경사각(frontG panto)과 회전 분리(사용자 결정 2026-07-23): 경사각을
       // 조정하면 프런트(렌즈)만 기울고 다리는 귀에 안착한 채 그대로 — 실제 안경의
       // pantoscopic tilt(다리는 수평, 프런트가 기욺)에 부합. frontG(실제 panto)
@@ -635,6 +816,8 @@ export function createGlasses(anchors, opts = {}) {
         p[k] = val;
         anyChanged = true;
         if (GEO_KEYS.includes(k)) geoChanged = true;
+        // 마감은 재질 값만 갈아끼운다 — 지오메트리가 그대로라 리빌드 불필요.
+        if (k === 'finish') applyFinish(val);
       }
     }
     if (!anyChanged) return;

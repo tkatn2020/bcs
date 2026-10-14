@@ -6,6 +6,7 @@ import { state, update, subscribe, resetFitting } from '../wavefront/state.js';
 import { GRADES } from '../optics/grades.js';
 import { STANDARD_FIT, fitLimit } from './fittingModel.js';
 import { pushUpGlasses } from './slipSim.js';
+import { FRAME_FINISHES } from './glassesBuilder.js';
 
 const CSS = `
   .v3-top, .v3-bottom, .v3-panel {
@@ -285,6 +286,11 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     <div class="v3-sec">프레임 형상</div>
     <div class="v3-mini">
       ${SHAPES.map((s) => `<button class="v3-btn" data-shape="${s.id}">${s.label}</button>`).join('')}
+    </div>
+    <div class="v3-sec">프레임 마감</div>
+    <div class="v3-mini">
+      ${Object.entries(FRAME_FINISHES)
+        .map(([id, f]) => `<button class="v3-btn" data-finish="${id}">${f.label}</button>`).join('')}
     </div>
     <div class="v3-sec">카메라</div>
     <div class="v3-mini">
@@ -647,11 +653,24 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     boston: '보스턴: 하부가 완만히 잘림 — 근용·왜곡 모두 중간 수준',
     aviator: '애비에이터: 위는 넓고 아래가 좁아 근용 여유↓ · 왜곡 날개 일부 잘림',
   };
+  // 마감은 광학에 영향을 주지 않는다 — 대신 소재마다 조정 방법이 다르다.
+  const FINISH_EDU = {
+    silver: '메탈 실버: 림이 얇아 시야 가림이 적고, 코받침 암을 집게로 직접 구부려 미세 조정한다.',
+    gold: '메탈 골드: 조정 성질은 실버와 같다. 도금은 땀·화장품에 벗겨지므로 세척 안내를 함께 한다.',
+    black: '아세테이트 블랙: 열가소성이라 온풍기로 데워야 휜다. 차가운 상태로 힘을 주면 부러진다.',
+    tortoise: '아세테이트 토터스: 조정은 블랙과 같다. 이 앱에서는 무늬 없이 갈색 단색으로 표현한다.',
+    matte: '무광 블랙: 지문은 덜 보이지만 피지가 스며 얼룩이 남는다. 알코올 세정은 표면을 상하게 한다.',
+  };
   panel.addEventListener('click', (e) => {
     const shape = e.target.closest('[data-shape]');
     if (shape) {
       update({ v3fit: { shape: shape.dataset.shape } });
       cap(SHAPE_EDU[shape.dataset.shape] || '');
+    }
+    const finish = e.target.closest('[data-finish]');
+    if (finish) {
+      update({ v3fit: { finish: finish.dataset.finish } });
+      cap(FINISH_EDU[finish.dataset.finish] || '');
     }
     const zone = e.target.closest('[data-zone]');
     if (zone) {
@@ -751,6 +770,8 @@ export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {
     }
     panel.querySelectorAll('[data-shape]').forEach((b) =>
       b.classList.toggle('on', b.dataset.shape === f.shape));
+    panel.querySelectorAll('[data-finish]').forEach((b) =>
+      b.classList.toggle('on', b.dataset.finish === f.finish));
     panel.querySelectorAll('[data-zone]').forEach((b) =>
       b.classList.toggle('on', !!s.v3view?.zones?.[b.dataset.zone]));
     // 멀티뷰 버튼 — 팝업 X로 닫으면 존 복원(=state 변경)이 refresh를 부르므로

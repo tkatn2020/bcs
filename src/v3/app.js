@@ -374,6 +374,7 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
       cornerR: 0.008 * frameScale,
       // 테 두께·깊이는 프레임 크기와 무관하게 고정(사용자 요청 — 렌즈 박스만 스케일)
       shape: f.shape,
+      finish: f.finish,   // 마감(색·재질) — 지오메트리·광학 무관
       // 프레임 피팅 커스텀 (광학 무관 — mm/deg → m/deg)
       templeAngle: fr.templeAngle,
       templeLen: fr.templeLen / 1000,
