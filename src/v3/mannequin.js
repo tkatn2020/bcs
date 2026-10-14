@@ -25,31 +25,6 @@ export function mannequinMaterial() {
   });
 }
 
-// 두상 전용 재질 — 정점별 AO(버텍스 컬러)를 곱해 쓴다. 눈알·이빨은 컬러
-// 속성이 없으므로 같은 재질을 공유하면 안 된다(WebGL이 없는 attribute를
-// (0,0,0)으로 줘서 새까매진다). 흰 마네킹 컨셉은 유지하되 clearcoat를 낮추고
-// sheen을 얹어 도자기보다 피부에 가까운 반사로.
-//
-// ⚠️ color가 0xf2f2f4였을 때 얼굴 픽셀의 **절반이 224~255 구간**에 몰려 있었다
-// (렌더 버퍼 실측). 톤매핑이 하이라이트를 압축하는 영역이라, AO를 아무리 세게
-// 걸어도 출력 밝기가 0.3%밖에 안 움직여 음영이 통째로 묻혔다 — '석고처럼
-// 밋밋하다'의 진짜 원인은 질감이 아니라 **날아간 계조**였다. 베이스를 낮춰
-// 포화를 48.7% → 약 16%로 줄이면 기존 조명만으로도 광대·콧망울·턱선이 살아난다.
-// 조명과 노출은 건드리지 않았다(안경테·배경의 룩을 지키기 위해).
-export function skinMaterial() {
-  return new THREE.MeshPhysicalMaterial({
-    color: 0xc8c8cc,
-    metalness: 0.0,
-    roughness: 0.42,
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.38,
-    sheen: 0.35,
-    sheenRoughness: 0.85,
-    sheenColor: new THREE.Color(0xffe8dc),
-    vertexColors: true,
-  });
-}
-
 const TARGET_PD_M = 0.062;      // real-world IPD the head is normalized to
 const FALLBACK_HEAD_HEIGHT_M = 0.24;
 
@@ -57,12 +32,13 @@ const FALLBACK_HEAD_HEIGHT_M = 0.24;
 //   sealFaces: 아래로 열린 두 껍질(앞 얼굴·뒤통수) rim을 잇는 삼각형 120개.
 //              정점을 하나도 추가하지 않으므로(인덱스만 추가) 앱의 실측
 //              캘리브레이션(귀 위치·측두부 프로파일·코 돌출)이 전부 불변이다.
-//   ao:        정점별 가려짐 0~255. Blender에서 BVH 반구 레이캐스트로 구운 뒤
-//              국소 오목(주름)과 섞은 값. 텍스처가 아니라 정점 속성이라 UV가
-//              필요 없고, headDeform이 정점을 움직여도 그대로 따라간다.
 // 정점 수가 어긋나면(폴백 자산·자산 교체) 조용히 건너뛴다.
+//
+// ⚠️ 정점별 AO도 같이 실어 봤다가 **되돌렸다**(2026-10-14). 앞 얼굴 껍질과
+// 뒤통수 껍질이 이마·옆통수에서 겹쳐 있어, 반구 레이가 상대 껍질에 막혀
+// 가려짐이 가짜로 높게 잡히고 그 띠가 피부에 경계선으로 드러났다. band 공간
+// 평균으로 펴 봐도 사용자 눈에는 남았다. 메우는 면만 얻고 음영은 원래대로 둔다.
 const HEAD_PATCH_URL = 'assets/mannequin/head-open-patch.json';
-const AO_STRENGTH = 0.60;       // 1.0 = 완전히 가려진 곳이 검정
 
 function loadHeadPatch(url) {
   return fetch(url)
@@ -114,7 +90,10 @@ export function smoothVertexNormals(geo, iters = 2, lambda = 0.5) {
 // 쉘 음영을 잇는다. 눈·입·콧구멍 구멍은 근처에 상대 쉘이 없어 자동 제외 → 이목
 // 구비 보존. 접합부 밴드·이웃 리스트는 geo.userData에 1회 캐시(인덱스 기반이라
 // 변형으로 위치가 이동해도 유효). 지오·인덱스 불변(변형 안전).
-export function blendSeamNormals(geo, radius = 0.006, iters = 3) {
+// topoCount: 연결요소 판정에 쓸 인덱스 개수. 아래를 메우는 패치 면은 두 껍질을
+// 이어 버려 '서로 다른 연결요소' 기준을 무력화하므로(band가 899 → 795로 줄었다)
+// 원본 면 개수만 넘겨 판정에서 뺀다. 생략하면 전체를 본다.
+export function blendSeamNormals(geo, radius = 0.006, iters = 3, topoCount = null) {
   const nrm = geo.attributes.normal;
   const idx = geo.index && geo.index.array;
   if (!nrm || !idx) return;
@@ -123,7 +102,8 @@ export function blendSeamNormals(geo, radius = 0.006, iters = 3) {
     const pos = geo.attributes.position.array;
     const cnt = geo.attributes.position.count;
     const adj = Array.from({ length: cnt }, () => []);
-    for (let t = 0; t < idx.length; t += 3) {
+    const topoLim = Math.min(topoCount ?? idx.length, idx.length);
+    for (let t = 0; t < topoLim; t += 3) {
       const a = idx[t], b = idx[t + 1], c = idx[t + 2];
       adj[a].push(b, c); adj[b].push(a, c); adj[c].push(a, b);
     }
@@ -219,6 +199,7 @@ function bakeHeadMesh(mesh, group, patch) {
   // 패치 적용 — 반드시 노멀 재계산 **전에**. 메우는 면이 인덱스에 들어가야
   // computeVertexNormals가 그 면까지 셈해 rim 정점의 노멀이 안쪽으로 꺾이지
   // 않는다. 정점 수가 어긋나면 건너뛴다(폴백 자산 방어).
+  const topoCount = geo.index ? geo.index.count : null;   // 메우기 전 면 개수
   if (patch && patch.vertexCount === n) {
     const seal = patch.sealFaces;
     if (seal && seal.length && geo.index) {
@@ -228,15 +209,6 @@ function bakeHeadMesh(mesh, group, patch) {
       merged.set(old, 0);
       merged.set(seal, old.length);
       geo.setIndex(new THREE.BufferAttribute(merged, 1));
-    }
-    const ao = patch.ao;
-    if (ao && ao.length === n) {
-      const col = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) {
-        const shade = 1 - AO_STRENGTH * (ao[i] / 255);
-        col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = shade;
-      }
-      geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     }
   }
 
@@ -248,7 +220,9 @@ function bakeHeadMesh(mesh, group, patch) {
   geo.deleteAttribute('normal');
   geo.computeVertexNormals();
   smoothVertexNormals(geo);   // 경계 crease 완화(연결된 이웃)
-  blendSeamNormals(geo);      // 얼굴 마스크↔뒤통수 쉘 접합부 seam 잇기
+  // 메우는 면은 토폴로지 판정에서 빼야 두 껍질이 여전히 '다른 덩어리'로 보여
+  // seam 블렌드가 닫기 이전과 똑같이 걸린다.
+  blendSeamNormals(geo, 0.006, 3, topoCount);
   geo.computeBoundingSphere();
   return mesh;
 }
@@ -356,8 +330,6 @@ export function loadMannequin(url = 'assets/mannequin/head-open.glb') {
         let headMesh = null, restPositions = null;
         if (morphMesh) {
           headMesh = bakeHeadMesh(morphMesh, group, patch);
-          // AO가 실린 두상만 버텍스 컬러 재질로 바꾼다(눈알·이빨은 공용 재질 유지).
-          if (headMesh.geometry.hasAttribute('color')) headMesh.material = skinMaterial();
           restPositions = headMesh.geometry.attributes.position.array.slice();
         }
 
