@@ -139,6 +139,16 @@ const CAM_PRESETS = [
 // 페이지 새로고침 시 초기화. 각 슬롯 = { v3fit, v3frame, v3head } 스냅샷.
 const fitPresets = [null, null, null];
 
+// 프리셋 칸을 밖에서 채운다(embed.js — 답글 피팅 제안 때 1번 칸 = 케이스의 원래 피팅).
+// 칸 강조는 다음 상태 갱신 때 refresh 가 맞춘다(채운 직후 setState 가 상태를 바꾼다).
+export function setPresetSlot(i, snap) {
+  fitPresets[i] = snap ? {
+    v3fit: JSON.parse(JSON.stringify(snap.v3fit)),
+    v3frame: JSON.parse(JSON.stringify(snap.v3frame)),
+    v3head: JSON.parse(JSON.stringify(snap.v3head)),
+  } : null;
+}
+
 
 export function mountControls(root, { stage, getDemo, getMulti, setCaption } = {}) {
   const cap = (t) => { if (setCaption) setCaption(t); };

@@ -103,7 +103,12 @@ export function createSlipSim({ cap } = {}) {
   }
   requestAnimationFrame(frame);
 
-  return { dispose() { alive = false; } };
+  return {
+    dispose() { alive = false; },
+    // 흘러내리는 중이 아님(멈췄거나 시작 전) — 캡처 전에 장부가 더 움직이지 않는지 확인용(embed.js).
+    // 0.1mm 양자로 움직여 「몇 프레임 그대로」로는 멈춤을 알 수 없어 상태를 그대로 드러낸다.
+    get settled() { return phase !== 'slipping'; },
+  };
 }
 
 // 안경 밀어 올리기 — 흘러내린 만큼을 정확 역산해 원위치(잔차 0).

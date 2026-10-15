@@ -15,6 +15,7 @@ import { computeZones, STANDARD_FIT, fitLimit } from './fittingModel.js';
 import { attachDragHandles } from './dragHandles.js';
 import { mountControls } from './controls.js';
 import { createSlipSim } from './slipSim.js';
+import { HUD_METRICS } from './snapshot.js';
 import { state, update, subscribe } from '../wavefront/state.js';
 
 const HOME_VIEW = { pos: [0.02, 0.02, 0.55], tgt: [0, 0, 0] };   // 정면 시점(첫 화면·더블탭 리셋 기본)
@@ -132,22 +133,9 @@ function mountCredit(root) {
 // · 분해 항목 클릭 = 해당 슬라이더 위치 플래시(v3:flash-control 이벤트)
 function mountEduHud(root) {
   const GOOD = '#7dd490', BAD = '#f0a35e', NEUT = '#9aa3b5';
-  // 게이지 정규화 범위 = 모델 관측 범위(교육 케이스 전수 기준) — 표시 전용.
-  // better: true=클수록 좋음 / false=작을수록 좋음 / null=양면적(중립 회색).
-  const METRICS = [
-    // 단안 PD로 좌우가 갈리면 평균 대신 '좌/우'를 그대로 보여준다 — 어느 눈이
-    // 얼마나 어긋났는지가 단안 처방의 핵심 정보라 평균으로 뭉개면 안 된다.
-    { key: 'dec', label: '광학중심 편심', unit: 'mm', min: 0, max: 20, better: false, zone: null,
-      val: (s) => s.decMm ?? 0, bar: (s) => Math.abs(s.decMm ?? 0),
-      fmt: (s) => (s.decL !== undefined && Math.abs(s.decL - s.decR) > 0.01)
-        ? `좌 ${s.decL.toFixed(1)} / 우 ${s.decR.toFixed(1)}mm` : null,
-      delta: (s, b) => Math.abs(s.decMm ?? 0) - Math.abs(b.decMm ?? 0) },
-    { key: 'distance', label: '원용 시야', unit: '°', min: 30, max: 100, better: true, zone: 'distance', val: (s) => s.distance.h * 2 },
-    { key: 'intermediate', label: '중간 시야', unit: '°', min: 5, max: 35, better: true, zone: 'intermediate', val: (s) => s.intermediate.h * 2 },
-    { key: 'near', label: '근용 시야', unit: '°', min: 3, max: 45, better: true, zone: 'near', val: (s) => s.near.h * 2 },
-    { key: 'nearPitch', label: '근용 시선 하강', unit: '°', min: 20, max: 45, better: null, zone: 'near', val: (s) => Math.abs(s.near.pitch) },
-    { key: 'exposure', label: '왜곡 노출', unit: '%', min: 30, max: 250, better: false, zone: null, val: (s) => (s.distortion.exposure ?? 1) * 100 },
-  ];
+  // 지표 정의(이름·단위·계산·좋은 방향)는 snapshot.js 에 둔다 — 컨퍼런스 앱이 같은 파일을
+  // 복사해 저장된 지표를 같은 이름·같은 Δ 규칙으로 보여 준다.
+  const METRICS = HUD_METRICS;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -292,6 +280,12 @@ stage.controls.maxDistance = 2.6;
 stage.controls.update();
 
 window.__v3 = { stage };
+
+// 컨퍼런스 앱의 전체 화면 창(iframe, ?embed=1)에서 열렸을 때만 연결부를 싣는다 — 단독 화면은 그대로.
+// 머리 모델보다 먼저 와도 되도록 일찍 싣고, 준비는 아래 v3:ready·v3:error 사건으로 알린다.
+if (new URLSearchParams(location.search).has('embed')) {
+  import('./embed.js').catch((err) => console.error('embed load failed:', err));
+}
 
 const hud = mountEduHud(document.body);
 // 표준 피팅 기준값 — 모든 Δ의 비교 대상 (등급 3·ADD 2.00·누진대 12·표준 피팅)
@@ -495,9 +489,13 @@ loadMannequin().then(({ group, anchors, morphMesh, eyes, headMesh, restPositions
   Object.assign(window.__v3, {
     mannequin: { group, anchors, morphMesh, eyes, headMesh },
     glasses, zones, targets, demo, deformer, multi, slipSim,
+    ready: true,
   });
+  window.dispatchEvent(new CustomEvent('v3:ready'));
 }).catch((err) => {
   console.error('Mannequin load failed:', err);
+  window.__v3.loadError = String(err?.message || err);
+  window.dispatchEvent(new CustomEvent('v3:error', { detail: { message: window.__v3.loadError } }));
   // 로드 실패 시 빈 화면 대신 오류 안내 + 재시도(키오스크에서 직원이 복구 가능).
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;'
